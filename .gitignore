@@ -13,6 +13,8 @@ scratch/
 *.mp3
 public/audio_cache/
 public/*.mp3
+.browser_profile/
+.chrome_tri_profile/
 
 # Dependencies
 node_modules/

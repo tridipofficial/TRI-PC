@@ -284,7 +284,8 @@ document.addEventListener('DOMContentLoaded', () => {
         appendAssistantMessage(data);
 
         // Perform any action triggered by assistant (e.g. task added, url opened)
-        if (data.action?.url) {
+        // If type is YOUTUBE_*, Chrome is already launched directly on desktop by backend Puppeteer!
+        if (data.action?.url && !data.action?.type?.startsWith('YOUTUBE_') && data.action?.type !== 'OPEN_YOUTUBE') {
           try {
             window.open(data.action.url, '_blank');
           } catch (e) {
@@ -359,9 +360,45 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/\n/g, '<br>');
 
-    // Action link button if URL was returned
+    // Specialized UI for YouTube Automation (Open, Search Results Grid, Live Playing)
+    let ytAutomationHtml = '';
+    if (data.action?.type === 'YOUTUBE_OPEN') {
+      ytAutomationHtml = `
+        <div style="margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(0, 242, 255, 0.1); border: 1px solid rgba(0, 242, 255, 0.35); font-size: 11px; color: #00f2ff;">
+          <span style="color: #00f2ff; animation: pulse-glow 1s infinite alternate;">●</span>
+          <strong>Chrome ব্রাউজারে YouTube ওপেন হয়েছে</strong>
+        </div>
+      `;
+    } else if (data.action?.type === 'YOUTUBE_SEARCH' && Array.isArray(data.action?.results) && data.action.results.length > 0) {
+      ytAutomationHtml = `
+        <div class="yt-results-grid" style="margin-top: 12px; display: flex; flex-direction: column; gap: 7px;">
+          <div style="font-size: 11px; color: #00f2ff; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">▶ রেজাল্ট থেকে প্লে করতে বলুন বা ক্লিক করুন:</div>
+          ${data.action.results.map((item, idx) => `
+            <button class="yt-item-btn" data-video-title="${escapeHtml(item.title)}" style="text-align: left; background: rgba(0, 242, 255, 0.06); border: 1px solid rgba(0, 242, 255, 0.25); color: #e2e8f0; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; width: 100%;">
+              <span style="color: #ff0055; font-size: 13px; flex-shrink: 0;">▶</span>
+              <span style="color: #00f2ff; font-weight: 700; font-size: 12px; flex-shrink: 0;">${idx + 1}.</span>
+              <span style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${escapeHtml(item.title)}</span>
+            </button>
+          `).join('')}
+        </div>
+      `;
+    } else if ((data.action?.type === 'YOUTUBE_CLICK' || data.action?.type === 'YOUTUBE_PLAY') && data.action.title) {
+      ytAutomationHtml = `
+        <div class="yt-playing-card" style="margin-top: 12px; background: rgba(255, 0, 85, 0.12); border: 1px solid rgba(255, 0, 85, 0.45); border-radius: 8px; padding: 10px 14px; display: flex; align-items: center; gap: 12px; box-shadow: 0 0 15px rgba(255,0,85,0.2);">
+          <div style="width: 30px; height: 30px; border-radius: 50%; background: #ff0055; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px rgba(255,0,85,0.7); flex-shrink: 0;">
+            <span style="color: #fff; font-size: 12px; animation: pulse-glow 1s infinite alternate;">▶</span>
+          </div>
+          <div style="flex: 1; overflow: hidden;">
+            <div style="font-size: 10px; color: #ff77a9; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700;">CHROME LIVE PLAYBACK</div>
+            <div style="font-size: 12px; font-weight: 600; color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(data.action.title)}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    // Action link button if URL was returned (and not pure desktop automation)
     let actionBtnHtml = '';
-    if (data.action && data.action.url) {
+    if (data.action && data.action.url && !data.action.type?.startsWith('YOUTUBE_')) {
       actionBtnHtml = `
         <div class="msg-action-box" style="margin-top: 8px;">
           <a href="${escapeHtml(data.action.url)}" target="_blank" class="live-screen-link-btn" title="ক্লিক করে সরাসরি ব্রাউজার ট্যাবে দেখুন">
@@ -380,9 +417,20 @@ document.addEventListener('DOMContentLoaded', () => {
       ${reasoningHtml}
       <div class="msg-bubble">
         ${formattedReply}
+        ${ytAutomationHtml}
         ${actionBtnHtml}
       </div>
     `;
+
+    // Attach click listeners to YouTube interactive result chips
+    msg.querySelectorAll('.yt-item-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const title = btn.getAttribute('data-video-title');
+        if (title) {
+          sendMessage(title + ' ক্লিক করো');
+        }
+      });
+    });
 
     const listenBtn = msg.querySelector('.btn-listen');
     if (listenBtn) {

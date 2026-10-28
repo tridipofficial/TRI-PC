@@ -14,5 +14,8 @@
     "windows"
   ],
   "author": "Reverse Engine",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "puppeteer-core": "^25.16.0"
+  }
 }
