@@ -316,56 +316,68 @@ document.addEventListener('DOMContentLoaded', () => {
         thinkingNode.remove();
         appendAssistantMessage(data);
 
-        // Synchronize Visible YouTube App Window on TRIDIP Sir's Screen
+        // Synchronize Visible YouTube App Window on TRIDIP Sir's Screen (Native Electron & Web Fallback)
         if (data.action) {
           const actType = data.action.type;
           const actUrl = data.action.url;
 
-          if (actType === 'YOUTUBE_OPEN') {
-            try {
-              if (!triYouTubeWindow || triYouTubeWindow.closed) {
-                const w = 1200;
-                const h = 750;
-                const left = Math.max(0, (window.screen.width - w) / 2);
-                const top = Math.max(0, (window.screen.height - h) / 2);
-                triYouTubeWindow = window.open(actUrl || 'https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-              }
-              if (triYouTubeWindow) triYouTubeWindow.focus();
-            } catch (e) {}
-          } else if (actType === 'YOUTUBE_SEARCH' && actUrl) {
-            try {
-              if (!triYouTubeWindow || triYouTubeWindow.closed) {
-                const w = 1200;
-                const h = 750;
-                const left = Math.max(0, (window.screen.width - w) / 2);
-                const top = Math.max(0, (window.screen.height - h) / 2);
-                triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-              } else {
-                triYouTubeWindow.location.href = actUrl;
-                triYouTubeWindow.focus();
-              }
-            } catch (e) {}
-          } else if (actType === 'YOUTUBE_CLICK' && actUrl) {
-            try {
-              if (!triYouTubeWindow || triYouTubeWindow.closed) {
-                const w = 1200;
-                const h = 750;
-                const left = Math.max(0, (window.screen.width - w) / 2);
-                const top = Math.max(0, (window.screen.height - h) / 2);
-                triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-              } else {
-                triYouTubeWindow.location.href = actUrl;
-                triYouTubeWindow.focus();
-              }
-            } catch (e) {}
-          } else if (actType === 'YOUTUBE_CLOSE') {
-            try {
-              if (triYouTubeWindow && !triYouTubeWindow.closed) {
-                triYouTubeWindow.close();
-                triYouTubeWindow = null;
-              }
-              window.focus();
-            } catch (e) {}
+          if (window.electronAPI?.isElectron) {
+            if (actType === 'YOUTUBE_OPEN') {
+              window.electronAPI.openYouTube(actUrl || 'https://www.youtube.com');
+            } else if (actType === 'YOUTUBE_SEARCH' && actUrl) {
+              window.electronAPI.openYouTube(actUrl);
+            } else if (actType === 'YOUTUBE_CLICK' && actUrl) {
+              window.electronAPI.openYouTube(actUrl);
+            } else if (actType === 'YOUTUBE_CLOSE') {
+              window.electronAPI.closeYouTube();
+            }
+          } else {
+            if (actType === 'YOUTUBE_OPEN') {
+              try {
+                if (!triYouTubeWindow || triYouTubeWindow.closed) {
+                  const w = 1200;
+                  const h = 750;
+                  const left = Math.max(0, (window.screen.width - w) / 2);
+                  const top = Math.max(0, (window.screen.height - h) / 2);
+                  triYouTubeWindow = window.open(actUrl || 'https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+                }
+                if (triYouTubeWindow) triYouTubeWindow.focus();
+              } catch (e) {}
+            } else if (actType === 'YOUTUBE_SEARCH' && actUrl) {
+              try {
+                if (!triYouTubeWindow || triYouTubeWindow.closed) {
+                  const w = 1200;
+                  const h = 750;
+                  const left = Math.max(0, (window.screen.width - w) / 2);
+                  const top = Math.max(0, (window.screen.height - h) / 2);
+                  triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+                } else {
+                  triYouTubeWindow.location.href = actUrl;
+                  triYouTubeWindow.focus();
+                }
+              } catch (e) {}
+            } else if (actType === 'YOUTUBE_CLICK' && actUrl) {
+              try {
+                if (!triYouTubeWindow || triYouTubeWindow.closed) {
+                  const w = 1200;
+                  const h = 750;
+                  const left = Math.max(0, (window.screen.width - w) / 2);
+                  const top = Math.max(0, (window.screen.height - h) / 2);
+                  triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+                } else {
+                  triYouTubeWindow.location.href = actUrl;
+                  triYouTubeWindow.focus();
+                }
+              } catch (e) {}
+            } else if (actType === 'YOUTUBE_CLOSE') {
+              try {
+                if (triYouTubeWindow && !triYouTubeWindow.closed) {
+                  triYouTubeWindow.close();
+                  triYouTubeWindow = null;
+                }
+                window.focus();
+              } catch (e) {}
+            }
           }
         }
 
@@ -520,18 +532,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const title = btn.getAttribute('data-video-title');
         const url = btn.getAttribute('data-video-url');
         if (url) {
-          try {
-            if (!triYouTubeWindow || triYouTubeWindow.closed) {
-              const w = 1200;
-              const h = 750;
-              const left = Math.max(0, (window.screen.width - w) / 2);
-              const top = Math.max(0, (window.screen.height - h) / 2);
-              triYouTubeWindow = window.open(url, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-            } else {
-              triYouTubeWindow.location.href = url;
-              triYouTubeWindow.focus();
-            }
-          } catch (e) {}
+          if (window.electronAPI?.isElectron) {
+            window.electronAPI.openYouTube(url);
+          } else {
+            try {
+              if (!triYouTubeWindow || triYouTubeWindow.closed) {
+                const w = 1200;
+                const h = 750;
+                const left = Math.max(0, (window.screen.width - w) / 2);
+                const top = Math.max(0, (window.screen.height - h) / 2);
+                triYouTubeWindow = window.open(url, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+              } else {
+                triYouTubeWindow.location.href = url;
+                triYouTubeWindow.focus();
+              }
+            } catch (e) {}
+          }
         }
         if (title) {
           sendMessage(title + ' ক্লিক করো');

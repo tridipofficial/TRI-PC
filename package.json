@@ -2,9 +2,10 @@
   "name": "tri-ai-assistant",
   "version": "1.0.0",
   "description": "An independent, free personal Windows AI assistant inspired by multimodal desktop HUDs.",
-  "main": "server.js",
+  "main": "main.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "app": "electron ."
   },
   "keywords": [
     "ai",
@@ -17,5 +18,8 @@
   "license": "MIT",
   "dependencies": {
     "puppeteer-core": "^25.16.0"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0"
   }
 }
