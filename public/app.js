@@ -613,86 +613,113 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isElectronApp = !!(window.electronAPI && window.electronAPI.isElectron);
 
-  // --- Neural Whisper Voice Engine (Electron Native & Desktop Zero-Error STT) ---
-  class NeuralWhisperEngine {
+  // --- Native MediaRecorder Voice Engine (Electron Native & Desktop Zero-Error STT) ---
+  class NativeMediaRecorderEngine {
     constructor() {
       this.isListening = false;
-      this.audioCtx = null;
+      this.isTranscribing = false;
+      this.mediaRecorder = null;
       this.mediaStream = null;
-      this.processor = null;
-      this.source = null;
+      this.audioChunks = [];
+      this.audioCtx = null;
       this.analyser = null;
-      this.chunks = [];
       this.silenceTimer = null;
       this.safetyTimer = null;
       this.speechDetected = false;
-      this.maxRecordedVolume = 0;
-      this.isTranscribing = false;
+      this.maxVolume = 0;
       this.onSpeechDone = null;
+      this.animFrameId = null;
     }
 
     async start(onSpeechDone) {
       if (this.isListening || this.isTranscribing || window.triAIIsSpeaking) return;
       try {
-        this.chunks = [];
+        this.audioChunks = [];
         this.speechDetected = false;
-        this.maxRecordedVolume = 0;
+        this.maxVolume = 0;
         this.onSpeechDone = onSpeechDone;
 
         const stream = await navigator.mediaDevices.getUserMedia({
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-            sampleRate: 16000
+            autoGainControl: true
           }
         });
         this.mediaStream = stream;
 
-        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        this.audioCtx = new AudioContextClass();
-        this.inSampleRate = this.audioCtx.sampleRate || 48000;
-        this.source = this.audioCtx.createMediaStreamSource(stream);
+        // Choose best container supported by Chromium
+        let mimeType = 'audio/webm;codecs=opus';
+        if (typeof MediaRecorder.isTypeSupported === 'function') {
+          if (!MediaRecorder.isTypeSupported(mimeType)) {
+            mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
+          }
+        }
 
+        const options = mimeType ? { mimeType } : {};
+        this.mediaRecorder = new MediaRecorder(stream, options);
+
+        this.mediaRecorder.ondataavailable = (e) => {
+          if (e.data && e.data.size > 0) {
+            this.audioChunks.push(e.data);
+          }
+        };
+
+        // Record chunks every 100ms
+        this.mediaRecorder.start(100);
+
+        // Parallel Analyser for precise dual-mode VAD (Time Domain RMS + Vocal Energy)
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        this.audioCtx = new AudioCtxClass();
+        const source = this.audioCtx.createMediaStreamSource(stream);
         this.analyser = this.audioCtx.createAnalyser();
-        this.analyser.fftSize = 256;
-        this.source.connect(this.analyser);
+        this.analyser.fftSize = 512;
+        source.connect(this.analyser);
 
-        this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
-        this.source.connect(this.processor);
-        this.processor.connect(this.audioCtx.destination);
+        const timeData = new Uint8Array(this.analyser.fftSize);
+        const freqData = new Uint8Array(this.analyser.frequencyBinCount);
 
-        this.processor.onaudioprocess = (e) => {
+        const checkVAD = () => {
           if (!this.isListening) return;
-          const inputData = e.inputBuffer.getChannelData(0);
-          this.chunks.push(new Float32Array(inputData));
+          this.analyser.getByteTimeDomainData(timeData);
+          this.analyser.getByteFrequencyData(freqData);
 
-          // Calculate RMS volume level
-          let sumSquares = 0;
-          for (let i = 0; i < inputData.length; i++) {
-            sumSquares += inputData[i] * inputData[i];
+          // 1. Time-Domain RMS (Volume amplitude)
+          let rmsSum = 0;
+          for (let i = 0; i < timeData.length; i++) {
+            const v = (timeData[i] - 128) / 128;
+            rmsSum += v * v;
           }
-          const rms = Math.sqrt(sumSquares / inputData.length);
+          const rms = Math.sqrt(rmsSum / timeData.length);
 
-          if (rms > this.maxRecordedVolume) {
-            this.maxRecordedVolume = rms;
+          // 2. Vocal range energy (100Hz - 3500Hz)
+          const vocalBins = Math.min(35, freqData.length);
+          let vocalSum = 0;
+          for (let i = 1; i < vocalBins; i++) {
+            vocalSum += freqData[i];
           }
+          const vocalEnergy = vocalSum / vocalBins;
 
-          // Voice Activity Detection (VAD)
-          if (rms > 0.02) {
+          const currentLevel = Math.max(rms * 100, vocalEnergy);
+          if (currentLevel > this.maxVolume) this.maxVolume = currentLevel;
+
+          // Sensitive human speech detection threshold
+          if (rms > 0.012 || vocalEnergy > 5) {
             this.speechDetected = true;
             if (this.silenceTimer) {
               clearTimeout(this.silenceTimer);
               this.silenceTimer = null;
             }
-          } else if (this.speechDetected && rms < 0.015) {
+          } else if (this.speechDetected && (rms < 0.007 && vocalEnergy < 3.5)) {
             if (!this.silenceTimer) {
+              // Natural 1100ms pause marks end of speech command
               this.silenceTimer = setTimeout(() => {
-                this.stopAndProcess(this.onSpeechDone);
-              }, 650); // Snappy 650ms VAD for instant reaction
+                this.stopAndProcess(this.onSpeechDone, true);
+              }, 1100);
             }
           }
+
+          this.animFrameId = requestAnimationFrame(checkVAD);
         };
 
         this.isListening = true;
@@ -700,15 +727,17 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHandsFreeUI('listening');
         btnMic.classList.add('listening');
 
-        // Maximum turn length (10s)
+        this.animFrameId = requestAnimationFrame(checkVAD);
+
+        // Turn timeout: 12 seconds
         this.safetyTimer = setTimeout(() => {
           if (this.isListening) {
-            this.stopAndProcess(this.onSpeechDone);
+            this.stopAndProcess(this.onSpeechDone, true);
           }
-        }, 10000);
+        }, 12000);
 
       } catch (err) {
-        console.error('Neural Whisper start error:', err);
+        console.error('Native voice recorder start error:', err);
         this.isListening = false;
         isListening = false;
         updateHandsFreeUI('idle');
@@ -716,139 +745,89 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    async stopAndProcess(onSpeechDone) {
+    async stopAndProcess(onSpeechDone, forceProcess = false) {
       if (!this.isListening) return;
       this.isListening = false;
       isListening = false;
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
       if (this.safetyTimer) clearTimeout(this.safetyTimer);
+      if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
 
       updateHandsFreeUI('processing');
       btnMic.classList.remove('listening');
 
-      // Cleanup media stream & audio context
-      if (this.processor) {
-        try { this.processor.disconnect(); } catch (e) {}
-        this.processor = null;
-      }
-      if (this.source) {
-        try { this.source.disconnect(); } catch (e) {}
-        this.source = null;
-      }
-      if (this.mediaStream) {
-        this.mediaStream.getTracks().forEach(t => t.stop());
-        this.mediaStream = null;
-      }
+      // Stop AudioContext analyser
       if (this.audioCtx && this.audioCtx.state !== 'closed') {
         try { await this.audioCtx.close(); } catch (e) {}
         this.audioCtx = null;
       }
 
-      // Check if actual speech was detected
-      if (!this.speechDetected || this.maxRecordedVolume < 0.018) {
+      // Check if actual speech occurred (or forced by manual click)
+      if (!forceProcess && !this.speechDetected && this.maxVolume < 3) {
         console.log('No speech detected in audio stream.');
-        updateHandsFreeUI('idle');
-        if (isHandsFreeMode && !window.triAIIsSpeaking) {
-          setTimeout(() => startListeningLoop(), 350);
-        }
-        return;
-      }
-
-      const totalLen = this.chunks.reduce((acc, c) => acc + c.length, 0);
-      if (totalLen < 3500) {
-        updateHandsFreeUI('idle');
-        if (isHandsFreeMode && !window.triAIIsSpeaking) {
-          setTimeout(() => startListeningLoop(), 350);
-        }
-        return;
-      }
-
-      const merged = new Float32Array(totalLen);
-      let offset = 0;
-      for (const chunk of this.chunks) {
-        merged.set(chunk, offset);
-        offset += chunk.length;
-      }
-
-      // Convert device native audio (44.1k/48k) to true 16kHz PCM (Prevents slow-motion pitch distortion)
-      const downsampled = this.downsampleBuffer(merged, this.inSampleRate || 48000, 16000);
-      const wavBlob = this.encodeWAV(downsampled, 16000);
-      const base64Audio = await this.blobToBase64(wavBlob);
-
-      this.isTranscribing = true;
-      try {
-        const res = await fetch('/api/transcribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ audio: base64Audio })
-        });
-        const data = await res.json();
-        if (data.success && data.text && data.text.trim()) {
-          console.log('[Neural Whisper]:', data.text);
-          if (onSpeechDone) onSpeechDone(data.text.trim());
-        } else {
-          updateHandsFreeUI('idle');
-          if (isHandsFreeMode && !window.triAIIsSpeaking) {
-            setTimeout(() => startListeningLoop(), 400);
-          }
-        }
-      } catch (e) {
-        console.error('Transcribe error:', e);
-        updateHandsFreeUI('idle');
+        this.stop();
         if (isHandsFreeMode && !window.triAIIsSpeaking) {
           setTimeout(() => startListeningLoop(), 400);
         }
-      } finally {
-        this.isTranscribing = false;
+        return;
       }
-    }
 
-    downsampleBuffer(buffer, inSampleRate, outSampleRate = 16000) {
-      if (!inSampleRate || inSampleRate === outSampleRate) return buffer;
-      const ratio = inSampleRate / outSampleRate;
-      const newLength = Math.round(buffer.length / ratio);
-      const result = new Float32Array(newLength);
-      let offsetResult = 0;
-      let offsetBuffer = 0;
-      while (offsetResult < result.length) {
-        const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
-        let accum = 0, count = 0;
-        for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
-          accum += buffer[i];
-          count++;
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        this.mediaRecorder.onstop = async () => {
+          if (this.mediaStream) {
+            this.mediaStream.getTracks().forEach(t => t.stop());
+            this.mediaStream = null;
+          }
+
+          const blobType = this.mediaRecorder.mimeType || 'audio/webm';
+          const audioBlob = new Blob(this.audioChunks, { type: blobType });
+
+          if (audioBlob.size < 800) {
+            updateHandsFreeUI('idle');
+            if (isHandsFreeMode && !window.triAIIsSpeaking) {
+              setTimeout(() => startListeningLoop(), 400);
+            }
+            return;
+          }
+
+          const base64Audio = await this.blobToBase64(audioBlob);
+
+          this.isTranscribing = true;
+          try {
+            const res = await fetch('/api/transcribe', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ audio: base64Audio, format: 'webm' })
+            });
+            const data = await res.json();
+            if (data.success && data.text && data.text.trim()) {
+              console.log('[Native Voice Transcript]:', data.text);
+              if (onSpeechDone) onSpeechDone(data.text.trim());
+            } else {
+              updateHandsFreeUI('idle');
+              if (isHandsFreeMode && !window.triAIIsSpeaking) {
+                setTimeout(() => startListeningLoop(), 400);
+              }
+            }
+          } catch (e) {
+            console.error('Transcribe error:', e);
+            updateHandsFreeUI('idle');
+            if (isHandsFreeMode && !window.triAIIsSpeaking) {
+              setTimeout(() => startListeningLoop(), 400);
+            }
+          } finally {
+            this.isTranscribing = false;
+          }
+        };
+
+        try {
+          this.mediaRecorder.stop();
+        } catch (e) {
+          this.stop();
         }
-        result[offsetResult] = count > 0 ? accum / count : 0;
-        offsetResult++;
-        offsetBuffer = nextOffsetBuffer;
+      } else {
+        this.stop();
       }
-      return result;
-    }
-
-    encodeWAV(samples, sampleRate) {
-      const buffer = new ArrayBuffer(44 + samples.length * 2);
-      const view = new DataView(buffer);
-      const writeStr = (v, o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
-
-      writeStr(view, 0, 'RIFF');
-      view.setUint32(4, 36 + samples.length * 2, true);
-      writeStr(view, 8, 'WAVE');
-      writeStr(view, 12, 'fmt ');
-      view.setUint32(16, 16, true);
-      view.setUint16(20, 1, true); // PCM
-      view.setUint16(22, 1, true); // mono
-      view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * 2, true);
-      view.setUint16(32, 2, true);
-      view.setUint16(34, 16, true);
-      writeStr(view, 36, 'data');
-      view.setUint32(40, samples.length * 2, true);
-
-      let idx = 44;
-      for (let i = 0; i < samples.length; i++, idx += 2) {
-        const s = Math.max(-1, Math.min(1, samples[i]));
-        view.setInt16(idx, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-      }
-      return new Blob([view], { type: 'audio/wav' });
     }
 
     blobToBase64(blob) {
@@ -869,9 +848,14 @@ document.addEventListener('DOMContentLoaded', () => {
       isListening = false;
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
       if (this.safetyTimer) clearTimeout(this.safetyTimer);
-      if (this.processor) { try { this.processor.disconnect(); } catch (e) {} this.processor = null; }
-      if (this.source) { try { this.source.disconnect(); } catch (e) {} this.source = null; }
-      if (this.mediaStream) { this.mediaStream.getTracks().forEach(t => t.stop()); this.mediaStream = null; }
+      if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
+      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+        try { this.mediaRecorder.stop(); } catch (e) {}
+      }
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach(t => t.stop());
+        this.mediaStream = null;
+      }
       if (this.audioCtx && this.audioCtx.state !== 'closed') {
         try { this.audioCtx.close(); } catch (e) {}
         this.audioCtx = null;
@@ -881,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
-  const neuralWhisper = new NeuralWhisperEngine();
+  const neuralWhisper = new NativeMediaRecorderEngine();
 
   function startListeningLoop() {
     if (!isHandsFreeMode || window.triAIIsSpeaking) return;
@@ -994,7 +978,7 @@ document.addEventListener('DOMContentLoaded', () => {
             updateHandsFreeUI('processing');
             sendMessage(transcript);
           }
-        });
+        }, true);
       } else {
         isHandsFreeMode = true;
         btnHandsFree?.classList.add('active');

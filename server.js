@@ -600,7 +600,11 @@ const server = http.createServer(async (req, res) => {
 // Helper to normalize Bengali & English text for bulletproof intent recognition
 function normalizeBn(str) {
   if (!str) return '';
-  return str.normalize('NFC').toLowerCase().replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
+  let s = str.normalize('NFC').toLowerCase();
+  // Normalize YouTube phonetic variants in Bengali & English
+  s = s.replace(/(ইউটিউব|ইউটুব|ইউটিব|ইউটুভ|ইউটিউপ|উটিউব|ইউটউব|উটিউপ|ইউটিউপ|ইউ\s*টুব|ইউ\s*টিউব|you\s*tube)/gi, 'youtube');
+  s = s.replace(/\byt\b/gi, 'youtube');
+  return s.replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
 // Global Session Context for Step-by-Step Interactive Workflow
@@ -622,19 +626,22 @@ function openUrlInWindows(url) {
 
 function extractYouTubeQuery(prompt) {
   let q = prompt;
-  q = q.replace(/পুনরায়\s*(ইউটিউব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
-  q = q.replace(/আবার\s*(ইউটিউব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
-  q = q.replace(/(ইউটিউব|youtube)\s*(এ|ে)?\s*(গিয়ে|যাও|ওপেন করে|খুলে|খোলো|ওপেন করো|ওপেন কর|চালু করো)?/gi, ' ');
-  q = q.replace(/(ওপেন করে|খুলে নিয়ে|চালু করে|ওপেন করো|ওপেন কর|খোলো|চালু করো)/gi, ' ');
+  q = q.replace(/পুনরায়\s*(ইউটিউব|ইউটুব|ইউটিব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
+  q = q.replace(/আবার\s*(ইউটিউব|ইউটুব|ইউটিব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
+  q = q.replace(/(ইউটিউব|ইউটুব|ইউটিব|youtube)\s*(এ|ে)?\s*(গিয়ে|যাও|ওপেন করে|খুলে|খোলো|ওপেন করো|ওপেন কর|চালু করো)?/gi, ' ');
+  q = q.replace(/(ওপেন করে|খুলে নিয়ে|চালু করে|ওপেন করো|ওপেন কর|খোলো|চালু করো|ওপেন|চালু)/gi, ' ');
   q = q.replace(/(সার্চ করে দাও|সার্চ করে দিন|সার্চ করে|সার্চ করো|সার্চ কর|সার্চ|search)/gi, ' ');
-  q = q.replace(/(খুঁজে বের করো|খুঁজে দাও|খোঁজো|বের করো)/gi, ' ');
-  q = q.replace(/(লিখে দাও|লিখে দিন|লিখে)/gi, ' ');
+  q = q.replace(/(খুঁজে বের করো|খুঁজে দাও|খোঁজো|খুঁজে|বের করো)/gi, ' ');
+  q = q.replace(/(লিখে দাও|লিখে দিন|লিখে|টাইপ করো)/gi, ' ');
   q = q.replace(/(আমাকে|আমাদের|দয়া করে|দয়া করে|প্লিজ|please)/gi, ' ');
   q = q.replace(/(দেখাও|দেখান|দেখতে চাই|দেখবো|শুনবো|শুনব)/gi, ' ');
   q = q.replace(/(চালিয়ে দাও|চালাও|বাজিয়ে দাও|বাজাও|প্লে করো|প্লে কর|প্লে|play)/gi, ' ');
+  q = q.replace(/(করতে বলছি|করতে বললাম|বলছি|বললাম|করতে চাই|করতে চাচ্ছি|করতে হবে|করতে)/gi, ' ');
+  q = q.replace(/(বাংলায়|বাংলা তে|বাংলাতে|ইংলিশে|ইংরেজিতে)/gi, ' ');
   q = q.replace(/(করে দাও|করে দিন|করে|দাও|দিন|করো|কর)/gi, ' ');
   q = q.replace(/(লিস্ট|তালিকা|লিস্টটা)/gi, ' ');
-  q = q.replace(/(পুনরায়|আবার|নতুন করে)/gi, ' ');
+  q = q.replace(/(পুনরায়|আবার|নতুন করে|একবার)/gi, ' ');
+  q = q.replace(/(আমি|তুমি|আপনি|ভাই)/gi, ' ');
   q = q.replace(/[।?!,.:;'"-]/g, ' ');
   q = q.replace(/\s+/g, ' ').trim();
   return q;
@@ -645,10 +652,13 @@ function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
   // 0. YouTube Close / Return to Home Screen (Strict Rule: Works Every Single Time)
-  const isCloseVerb = norm.includes('বন্ধ করো') || norm.includes('বন্ধ কর') || norm.includes('কেটে দাও') || norm.includes('কেটে দিন') || norm.includes('কেটে ফেলো') || norm.includes('ক্লোজ করো') || norm.includes('ক্লোজ কর') || norm.includes('ডেস্ট্রয়') || norm.includes('destroy') || norm.includes('close') || norm.includes('exit') || norm.includes('কেটে দিয়ে');
+  const isCloseVerb = norm.includes('বন্ধ করো') || norm.includes('বন্ধ কর') || norm.includes('বন্ধ') ||
+                      norm.includes('কেটে দাও') || norm.includes('কেটে দিন') || norm.includes('কেটে ফেলো') || norm.includes('কেটে') ||
+                      norm.includes('ক্লোজ করো') || norm.includes('ক্লোজ কর') || norm.includes('ক্লোজ') ||
+                      norm.includes('ডেস্ট্রয়') || norm.includes('destroy') || norm.includes('close') || norm.includes('exit');
   const isHomeScreen = norm.includes('হোম স্ক্রিন') || norm.includes('হোমস্ক্রিন') || norm.includes('হোমে আসো') || norm.includes('হোম এ আসো') || norm.includes('হোমে যাও') || norm.includes('হোম স্ক্রিনে');
 
-  if ((norm.includes('ইউটিউব') || norm.includes('youtube') || sessionContext.activeApp === 'YOUTUBE' || isHomeScreen) && (isCloseVerb || isHomeScreen)) {
+  if ((norm.includes('youtube') || sessionContext.activeApp === 'YOUTUBE' || isHomeScreen) && (isCloseVerb || isHomeScreen)) {
     return {
       type: 'YOUTUBE_CLOSE',
       reply: 'TRIDIP স্যার, ইউটিউব উইন্ডো সম্পূর্ণ বন্ধ করে দেওয়া হয়েছে এবং আমরা আবার হোম স্ক্রিনে ফিরে এসেছি!'
@@ -678,7 +688,7 @@ function detectIntentAction(prompt) {
       identifier = 5;
     } else {
       identifier = prompt
-        .replace(/ইউটিউব\s*(এ|ে)?/gi, '')
+        .replace(/(youtube|ইউটিউব|ইউটুব|ইউটিব)\s*(এ|ে)?/gi, '')
         .replace(/(ক্লিক করো|ক্লিক কর|ক্লিক|চালাও|বাজাও|প্লে করো|প্লে কর|প্লে|চালিয়ে দাও|অন করো|করে দাও|দাও|গানটা|গানটি|গান|ভিডিওটা|ভিডিওটি|ভিডিও|সেটা|ওটা|ওইটা|যেটা|song|video|play|click)/gi, '')
         .replace(/[।?!,.:;'"-]/g, ' ')
         .trim() || 1;
@@ -690,9 +700,17 @@ function detectIntentAction(prompt) {
   }
 
   // 2. YouTube Open vs YouTube Search (Unified Intent Engine)
-  const isYouTube = norm.includes('ইউটিউব') || norm.includes('youtube');
-  const isSearchVerb = norm.includes('সার্চ') || norm.includes('search') || norm.includes('খুঁজে বের') || norm.includes('খোঁজো');
+  const isYouTube = norm.includes('youtube');
+  const isOpenVerb = norm.includes('ওপেন') || norm.includes('খোলো') || norm.includes('খুল') || norm.includes('চালু') || norm.includes('শুরু') || norm.includes('open') || norm.includes('launch') || norm.includes('start');
+  const isSearchVerb = norm.includes('সার্চ') || norm.includes('search') || norm.includes('খুঁজে বের') || norm.includes('খুঁজে') || norm.includes('খোঁজো') || norm.includes('লিখে');
   const isMusic = norm.includes('গান') || norm.includes('সং') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('ভিডিও') || norm.includes('video') || norm.includes('হিন্দি') || norm.includes('hindi') || norm.includes('বাংলা') || norm.includes('bangla');
+
+  // Explicit YouTube Open Command takes 100% immediate priority if no search/music payload
+  if (isYouTube && isOpenVerb && !isSearchVerb && !isMusic) {
+    return {
+      type: 'YOUTUBE_OPEN'
+    };
+  }
 
   if (isYouTube || isMusic || (sessionContext.activeApp === 'YOUTUBE' && isSearchVerb)) {
     let cleanQ = extractYouTubeQuery(prompt);
@@ -701,7 +719,7 @@ function detectIntentAction(prompt) {
       cleanQ = 'popular trending hit songs';
     }
 
-    if (cleanQ.length >= 2) {
+    if (cleanQ.length >= 2 && (isSearchVerb || isMusic || !isYouTube)) {
       return {
         type: 'YOUTUBE_SEARCH',
         query: cleanQ
@@ -1112,10 +1130,16 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { message, isElectron } = JSON.parse(body || '{}');
+        const { message, prompt: bodyPrompt, isElectron } = JSON.parse(body || '{}');
+        const userMessage = (message || bodyPrompt || '').trim();
+
+        if (!userMessage) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Message cannot be empty' }));
+        }
 
         // Detect & Execute PC Actions (YouTube, Calculator, Notepad, Weather, Greeting, etc.)
-        const intent = detectIntentAction(message);
+        const intent = detectIntentAction(userMessage);
         let executedAction = null;
         let actionMsg = null;
         if (intent) {
@@ -1152,7 +1176,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           };
         } else {
           // 1. Try real Groq AI (Primary 100% Free Option) if key is present
-          const groqRes = await callGroqAPI(message);
+          const groqRes = await callGroqAPI(userMessage);
 
           if (groqRes && groqRes.success) {
             response = {
@@ -1160,7 +1184,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
               provider: 'Groq',
               model: groqRes.model,
               reasoning: [
-                { stage: 'প্রসঙ্গ ও ইনপুট বিশ্লেষণ', detail: `ইনপুট গ্রহণ: "${message}". ব্যবহারকারীর উদ্দেশ্য বিশ্লেষণ সম্পন্ন।` },
+                { stage: 'প্রসঙ্গ ও ইনপুট বিশ্লেষণ', detail: `ইনপুট গ্রহণ: "${userMessage}". ব্যবহারকারীর উদ্দেশ্য বিশ্লেষণ সম্পন্ন।` },
                 { stage: 'মডেল ও জ্ঞান আধার সংযোগ', detail: `Groq LPU (${groqRes.model}) ফ্রি-টিয়ার সচল রয়েছে।` },
                 { stage: 'চূড়ান্ত আউটপুট প্রস্তুতকরণ', detail: 'TRIDIP স্যারের জন্য সাবলীল ও দ্রুতগতির বাংলা উত্তর সংকলন সম্পন্ন।' }
               ],
@@ -1189,7 +1213,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
             };
           } else {
             // 2. Try real Gemini AI (Secondary Option) if key is present
-            const geminiRes = await callGeminiAPI(message);
+            const geminiRes = await callGeminiAPI(userMessage);
 
             if (geminiRes && geminiRes.success) {
               response = {
@@ -1197,7 +1221,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
                 provider: 'Gemini',
                 model: geminiRes.model,
                 reasoning: [
-                  { stage: 'প্রসঙ্গ ও ইনপুট বিশ্লেষণ', detail: `ইনপুট গ্রহণ: "${message}". ব্যবহারকারীর উদ্দেশ্য বিশ্লেষণ সম্পন্ন।` },
+                  { stage: 'প্রসঙ্গ ও ইনপুট বিশ্লেষণ', detail: `ইনপুট গ্রহণ: "${userMessage}". ব্যবহারকারীর উদ্দেশ্য বিশ্লেষণ সম্পন্ন।` },
                   { stage: 'মডেল ও জ্ঞান আধার সংযোগ', detail: `Google Gemini (${geminiRes.model}) ফ্রি-টিয়ার সচল রয়েছে।` },
                   { stage: 'চূড়ান্ত আউটপুট প্রস্তুতকরণ', detail: 'TRIDIP স্যারের জন্য মার্জিত ও সাবলীল বাংলা উত্তর সংকলন সম্পন্ন।' }
                 ],
@@ -1226,7 +1250,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
               };
             } else {
               // 3. Safe Local Offline Fallback
-              response = generateBuiltInResponse(message);
+              response = generateBuiltInResponse(userMessage);
               response.mode = 'OFFLINE_FALLBACK';
             }
           }
@@ -1255,7 +1279,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
     });
     req.on('end', async () => {
       try {
-        const { audio } = JSON.parse(body || '{}');
+        const { audio, format } = JSON.parse(body || '{}');
         if (!audio) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
           return res.end(JSON.stringify({ error: 'No audio provided' }));
@@ -1268,9 +1292,13 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         }
 
         const audioBuffer = Buffer.from(audio, 'base64');
+        const isWebm = (format === 'webm') || (audioBuffer[0] === 0x1A && audioBuffer[1] === 0x45 && audioBuffer[2] === 0xDF && audioBuffer[3] === 0xA3);
+        const mimeType = isWebm ? 'audio/webm' : 'audio/wav';
+        const fileName = isWebm ? 'audio.webm' : 'audio.wav';
+
         const formData = new FormData();
-        const blob = new Blob([audioBuffer], { type: 'audio/wav' });
-        formData.append('file', blob, 'audio.wav');
+        const blob = new Blob([audioBuffer], { type: mimeType });
+        formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
         formData.append('language', 'bn');
         formData.append('prompt', 'YouTube, ইউটিউব, ওপেন করো, খোলো, গান, হিন্দি গান, বাংলা গান, সার্চ করো, চালাও, বন্ধ করো, TRIDIP');
@@ -1341,7 +1369,10 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
     }
 
     const contentType = MIME_TYPES[ext] || 'application/octet-stream';
-    res.writeHead(200, { 'Content-Type': contentType });
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate'
+    });
     fs.createReadStream(filePath).pipe(res);
   });
 });

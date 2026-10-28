@@ -66,12 +66,15 @@ ipcMain.handle('youtube-open', async (event, url) => {
       title: 'YouTube',
       backgroundColor: '#0f0f0f',
       autoHideMenuBar: true,
+      show: true,
       webPreferences: {
         nodeIntegration: false,
         contextIsolation: true
       }
     });
     youtubeWindow.loadURL(targetUrl);
+    youtubeWindow.show();
+    youtubeWindow.focus();
   } else {
     youtubeWindow.loadURL(targetUrl);
     youtubeWindow.show();
@@ -86,6 +89,7 @@ ipcMain.handle('youtube-close', async () => {
     youtubeWindow = null;
   }
   if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.show();
     mainWindow.focus();
   }
   return { success: true };
