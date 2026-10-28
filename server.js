@@ -3,6 +3,8 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const crypto = require('crypto');
+const { spawn } = require('child_process');
 
 // Load environment variables from .env if present (Zero external dependencies)
 function loadEnv() {
@@ -31,6 +33,78 @@ const DATA_FILE = path.join(__dirname, 'data', 'store.json');
 // Ensure data directory exists
 if (!fs.existsSync(path.join(__dirname, 'data'))) {
   fs.mkdirSync(path.join(__dirname, 'data'), { recursive: true });
+}
+
+// Audio Cache directory for Studio-Quality Neural TTS
+const AUDIO_CACHE_DIR = path.join(__dirname, 'public', 'audio_cache');
+if (!fs.existsSync(AUDIO_CACHE_DIR)) {
+  fs.mkdirSync(AUDIO_CACHE_DIR, { recursive: true });
+}
+
+// Real Neural Voice Generator (Microsoft Azure bn-BD-NabanitaNeural via Python edge-tts)
+function generateNeuralAudio(text, emotion = 'warm') {
+  return new Promise((resolve) => {
+    // 1. Clean text: remove code blocks, markdown symbols, URLs, asterisks
+    const cleanText = text
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/[*#_~>]/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (!cleanText) {
+      resolve({ success: false, error: 'Empty text' });
+      return;
+    }
+
+    // Snappy chunk for voice output
+    const spokenText = cleanText.length > 280 ? cleanText.substring(0, 275) + '...' : cleanText;
+
+    // Pitch & Rate tuning for sweet, warm, romantic emotional cadence
+    let rate = '-6%';
+    let pitch = '+5Hz';
+    if (emotion === 'joyful' || emotion === 'happy') {
+      rate = '-2%';
+      pitch = '+6Hz';
+    } else if (emotion === 'sympathetic') {
+      rate = '-8%';
+      pitch = '+3Hz';
+    }
+
+    // Cache key using MD5
+    const hash = crypto.createHash('md5').update(spokenText + rate + pitch).digest('hex');
+    const audioFileName = `voice_${hash}.mp3`;
+    const audioFilePath = path.join(AUDIO_CACHE_DIR, audioFileName);
+
+    // If cached, return immediately (sub-10ms response!)
+    if (fs.existsSync(audioFilePath) && fs.statSync(audioFilePath).size > 1000) {
+      resolve({ success: true, audioUrl: `/audio_cache/${audioFileName}`, cached: true });
+      return;
+    }
+
+    // Run Python neural_tts.py
+    const pyScript = path.join(__dirname, 'neural_tts.py');
+    const child = spawn('python', [
+      pyScript,
+      '--text', spokenText,
+      '--output', audioFilePath,
+      '--rate', rate,
+      '--pitch', pitch
+    ], { timeout: 12000 });
+
+    child.on('close', (code) => {
+      if (code === 0 && fs.existsSync(audioFilePath) && fs.statSync(audioFilePath).size > 1000) {
+        resolve({ success: true, audioUrl: `/audio_cache/${audioFileName}`, cached: false });
+      } else {
+        resolve({ success: false, fallback: true });
+      }
+    });
+
+    child.on('error', () => {
+      resolve({ success: false, fallback: true });
+    });
+  });
 }
 
 // Initial state
@@ -82,7 +156,9 @@ const MIME_TYPES = {
   '.png': 'image/png',
   '.jpg': 'image/jpeg',
   '.svg': 'image/svg+xml',
-  '.ico': 'image/x-icon'
+  '.ico': 'image/x-icon',
+  '.mp3': 'audio/mpeg',
+  '.wav': 'audio/wav'
 };
 
 // Check if Ollama is running locally
@@ -149,10 +225,11 @@ function callGroqAPI(prompt) {
         messages: [
           {
             role: 'system',
-            content: "You are TRI AI, a smart, polite, and loyal personal desktop AI assistant for TRIDIP Sir. " +
-                     "You always reply respectfully, warmly, and naturally in clear Bengali (Bangla), using English technical terms where helpful. " +
+            content: "You are TRI AI, a smart, polite, affectionate, and loyal personal desktop AI assistant for TRIDIP Sir. " +
+                     "You speak in a warm, sweet, caring, human-like, and romantic female voice in clear, natural Bengali (Bangla). " +
                      "Always address the user respectfully as 'TRIDIP স্যার'. " +
-                     "Provide clear, concise, and helpful guidance."
+                     "You have a real, active Bengali neural voice that speaks every word you write aloud to TRIDIP Sir. Never say you cannot speak or do not have a voice. " +
+                     "Provide warm, emotionally expressive, concise, and helpful answers."
           },
           {
             role: 'user',
@@ -237,10 +314,11 @@ function callGeminiAPI(prompt) {
   const payload = JSON.stringify({
     systemInstruction: {
       parts: [{
-        text: "You are TRI AI, a smart, polite, and loyal personal desktop AI assistant for TRIDIP Sir. " +
-              "You always reply respectfully, warmly, and naturally in clear Bengali (Bangla), using English technical terms where helpful. " +
+        text: "You are TRI AI, a smart, polite, affectionate, and loyal personal desktop AI assistant for TRIDIP Sir. " +
+              "You speak in a warm, sweet, caring, human-like, and romantic female voice in clear, natural Bengali (Bangla). " +
               "Always address the user respectfully as 'TRIDIP স্যার'. " +
-              "Provide clear, concise, and helpful guidance."
+              "You have a real, active Bengali neural voice that speaks every word you write aloud to TRIDIP Sir. Never say you cannot speak or do not have a voice. " +
+              "Provide warm, emotionally expressive, concise, and helpful answers."
       }]
     },
     contents: [{
@@ -488,12 +566,76 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+// Safe Windows PC Action Controller (Desktop Superpowers)
+function detectIntentAction(prompt) {
+  const p = prompt.toLowerCase();
+  if (p.includes('ইউটিউব') || p.includes('youtube')) {
+    if (p.includes('খোলো') || p.includes('open') || p.includes('চালু') || p.includes('যাও')) return 'OPEN_YOUTUBE';
+  }
+  if (p.includes('গুগল') || p.includes('google')) {
+    if (p.includes('খোলো') || p.includes('open') || p.includes('সার্চ')) return 'OPEN_GOOGLE';
+  }
+  if (p.includes('ফেসবুক') || p.includes('facebook')) {
+    if (p.includes('খোলো') || p.includes('open')) return 'OPEN_FACEBOOK';
+  }
+  if (p.includes('নোটপ্যাড') || p.includes('notepad')) {
+    if (p.includes('খোলো') || p.includes('open') || p.includes('চালু') || p.includes('লিখব')) return 'OPEN_NOTEPAD';
+  }
+  if (p.includes('ক্যালকুলেটর') || p.includes('calculator') || p.includes('calc')) {
+    if (p.includes('খোলো') || p.includes('open') || p.includes('চালু') || p.includes('হিসাব')) return 'OPEN_CALC';
+  }
+  if (p.includes('ফাইল') || p.includes('explorer') || p.includes('মাই কম্পিউটার')) {
+    if (p.includes('খোলো') || p.includes('open')) return 'OPEN_EXPLORER';
+  }
+  return null;
+}
+
+function executeSafePCAction(actionType) {
+  try {
+    if (actionType === 'OPEN_YOUTUBE') {
+      spawn('cmd.exe', ['/c', 'start', 'https://www.youtube.com']);
+      return 'ইউটিউব ওপেন করা হয়েছে।';
+    }
+    if (actionType === 'OPEN_GOOGLE') {
+      spawn('cmd.exe', ['/c', 'start', 'https://www.google.com']);
+      return 'গুগল ব্রাউজার ওপেন করা হয়েছে।';
+    }
+    if (actionType === 'OPEN_FACEBOOK') {
+      spawn('cmd.exe', ['/c', 'start', 'https://www.facebook.com']);
+      return 'ফেসবুক ওপেন করা হয়েছে।';
+    }
+    if (actionType === 'OPEN_NOTEPAD') {
+      spawn('notepad.exe');
+      return 'উইন্ডোজ নোটপ্যাড চালু করা হয়েছে।';
+    }
+    if (actionType === 'OPEN_CALC') {
+      spawn('calc.exe');
+      return 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে।';
+    }
+    if (actionType === 'OPEN_EXPLORER') {
+      spawn('explorer.exe');
+      return 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে।';
+    }
+  } catch (e) {
+    console.error('Safe action error:', e.message);
+  }
+  return null;
+}
+
   if (pathname === '/api/chat' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
         const { message } = JSON.parse(body);
+
+        // Detect & Execute PC Actions (YouTube, Calculator, Notepad, etc.)
+        const actionType = detectIntentAction(message);
+        let executedAction = null;
+        if (actionType) {
+          const actionMsg = executeSafePCAction(actionType);
+          executedAction = { type: actionType, message: actionMsg };
+        }
 
         let response = null;
 
@@ -511,7 +653,7 @@ const server = http.createServer(async (req, res) => {
               { stage: 'চূড়ান্ত আউটপুট প্রস্তুতকরণ', detail: 'TRIDIP স্যারের জন্য সাবলীল ও দ্রুতগতির বাংলা উত্তর সংকলন সম্পন্ন।' }
             ],
             reply: groqRes.text,
-            action: null
+            action: executedAction
           };
         } else if (groqRes && groqRes.quotaExhausted) {
           response = {
@@ -582,6 +724,24 @@ const server = http.createServer(async (req, res) => {
       } catch (err) {
         res.writeHead(500, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // Neural TTS Route (Studio-Quality Bengali Emotional Voice)
+  if (pathname === '/api/tts' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+      try {
+        const { text, emotion } = JSON.parse(body);
+        const result = await generateNeuralAudio(text, emotion);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify(result));
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, fallback: true, error: err.message }));
       }
     });
     return;

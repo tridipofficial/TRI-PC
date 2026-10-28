@@ -1,185 +1,287 @@
-// 3D Neural Orb & Fiber Optic Circuit Animation
+// ============================================================
+// TRI AI - 3D CINEMATIC HOLOGRAPHIC NEURAL CORE (Three.js WebGL)
+// Audio-Reactive, Gyroscopic Particle Core with Fiber-Optic HUD
+// ============================================================
 (function() {
   const orbCanvas = document.getElementById('orbCanvas');
   const circuitCanvas = document.getElementById('circuitCanvas');
+  const orbViewport = document.querySelector('.orb-viewport');
   
-  if (!orbCanvas || !circuitCanvas) return;
-  
-  const ctxOrb = orbCanvas.getContext('2d');
-  const ctxCircuit = circuitCanvas.getContext('2d');
+  if (!orbCanvas) return;
+
+  // 1. Scene, Camera, Renderer
+  const scene = new THREE.Scene();
+  const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
+  camera.position.z = 180;
+
+  const renderer = new THREE.WebGLRenderer({
+    canvas: orbCanvas,
+    alpha: true,
+    antialias: true,
+    powerPreference: 'high-performance'
+  });
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 
   function resize() {
-    orbCanvas.width = orbCanvas.clientWidth * window.devicePixelRatio || 170;
-    orbCanvas.height = orbCanvas.clientHeight * window.devicePixelRatio || 170;
+    const width = orbCanvas.clientWidth || 180;
+    const height = orbCanvas.clientHeight || 180;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height, false);
 
-    circuitCanvas.width = circuitCanvas.clientWidth * window.devicePixelRatio || 400;
-    circuitCanvas.height = circuitCanvas.clientHeight * window.devicePixelRatio || 260;
+    if (circuitCanvas) {
+      circuitCanvas.width = circuitCanvas.clientWidth * (window.devicePixelRatio || 1);
+      circuitCanvas.height = circuitCanvas.clientHeight * (window.devicePixelRatio || 1);
+    }
   }
   window.addEventListener('resize', resize);
-  resize();
+  setTimeout(resize, 100);
 
-  // Generate 3D sphere particles
-  const numParticles = 260;
-  const particles = [];
-  const radius = 55;
+  // 2. Holographic Volumetric Core (Icosahedron Inner Core)
+  const coreGroup = new THREE.Group();
+  scene.add(coreGroup);
 
-  for (let i = 0; i < numParticles; i++) {
-    const theta = Math.random() * Math.PI * 2;
-    const phi = Math.acos((Math.random() * 2) - 1);
-    particles.push({
-      x: radius * Math.sin(phi) * Math.cos(theta),
-      y: radius * Math.sin(phi) * Math.sin(theta),
-      z: radius * Math.cos(phi),
-      color: Math.random() > 0.4 ? '#00f2ff' : '#f59e0b',
-      size: Math.random() * 1.5 + 0.8
-    });
-  }
+  // Inner Geometric Nucleus
+  const nucleusGeo = new THREE.IcosahedronGeometry(28, 2);
+  const nucleusMat = new THREE.MeshBasicMaterial({
+    color: 0x00f2ff,
+    wireframe: true,
+    transparent: true,
+    opacity: 0.45
+  });
+  const nucleus = new THREE.Mesh(nucleusGeo, nucleusMat);
+  coreGroup.add(nucleus);
 
-  // 3D Rings
-  const numRingParticles = 80;
-  const rings = [
-    { tiltX: 0.8, tiltY: 0.3, speed: 0.015, color: 'rgba(0, 242, 255, 0.4)' },
-    { tiltX: -0.6, tiltY: 0.6, speed: -0.012, color: 'rgba(245, 158, 11, 0.4)' }
+  // Inner Solid Glow Sphere
+  const solidGeo = new THREE.SphereGeometry(14, 16, 16);
+  const solidMat = new THREE.MeshBasicMaterial({
+    color: 0x00f2ff,
+    transparent: true,
+    opacity: 0.8
+  });
+  const solidCore = new THREE.Mesh(solidGeo, solidMat);
+  coreGroup.add(solidCore);
+
+  // 3. Floating 3D Holographic Gyroscope Cyber-Rings
+  const ringMaterials = [
+    new THREE.LineBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.75, linewidth: 2 }),
+    new THREE.LineBasicMaterial({ color: 0xa855f7, transparent: true, opacity: 0.65, linewidth: 2 }),
+    new THREE.LineBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.55, linewidth: 2 })
   ];
 
-  let angleX = 0;
-  let angleY = 0;
+  const rings = [];
+  const ringRadii = [42, 50, 58];
 
-  function renderOrb() {
-    const w = orbCanvas.width;
-    const h = orbCanvas.height;
-    const cx = w / 2;
-    const cy = h / 2;
+  ringRadii.forEach((r, idx) => {
+    const ringGeo = new THREE.BufferGeometry();
+    const points = [];
+    const segments = 64;
+    for (let i = 0; i <= segments; i++) {
+      const theta = (i / segments) * Math.PI * 2;
+      points.push(new THREE.Vector3(Math.cos(theta) * r, Math.sin(theta) * r, 0));
+    }
+    ringGeo.setFromPoints(points);
+    const ringMesh = new THREE.Line(ringGeo, ringMaterials[idx]);
+    ringMesh.rotation.x = (idx * Math.PI) / 3;
+    ringMesh.rotation.y = (idx * Math.PI) / 4;
+    coreGroup.add(ringMesh);
+    rings.push({
+      mesh: ringMesh,
+      rotSpeedX: 0.008 * (idx % 2 === 0 ? 1 : -1),
+      rotSpeedY: 0.012 * (idx % 2 === 0 ? -1 : 1),
+      rotSpeedZ: 0.006 * (idx + 1)
+    });
+  });
 
-    ctxOrb.clearRect(0, 0, w, h);
+  // 4. Swirling 3D Cyber Particle Cloud (Starfield Sphere)
+  const particleCount = 450;
+  const particleGeo = new THREE.BufferGeometry();
+  const particlePositions = new Float32Array(particleCount * 3);
+  const particleColors = new Float32Array(particleCount * 3);
+  const baseRadius = 52;
 
-    // Subtle background glow
-    const grad = ctxOrb.createRadialGradient(cx, cy, 10, cx, cy, radius * 1.3);
-    grad.addColorStop(0, 'rgba(0, 242, 255, 0.08)');
-    grad.addColorStop(1, 'transparent');
-    ctxOrb.fillStyle = grad;
-    ctxOrb.beginPath();
-    ctxOrb.arc(cx, cy, radius * 1.3, 0, Math.PI * 2);
-    ctxOrb.fill();
+  const cyan = new THREE.Color(0x00f2ff);
+  const purple = new THREE.Color(0xa855f7);
+  const gold = new THREE.Color(0xf59e0b);
 
-    angleX += 0.008;
-    angleY += 0.012;
+  for (let i = 0; i < particleCount; i++) {
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.acos(Math.random() * 2 - 1);
+    const dist = baseRadius + (Math.random() - 0.5) * 16;
 
-    const cosX = Math.cos(angleX);
-    const sinX = Math.sin(angleX);
-    const cosY = Math.cos(angleY);
-    const sinY = Math.sin(angleY);
+    const x = dist * Math.sin(phi) * Math.cos(theta);
+    const y = dist * Math.sin(phi) * Math.sin(theta);
+    const z = dist * Math.cos(phi);
 
-    // Sort particles by Z depth for realistic rendering
-    const projected = particles.map(p => {
-      // Rotate around Y
-      let x1 = p.x * cosY - p.z * sinY;
-      let z1 = p.z * cosY + p.x * sinY;
+    particlePositions[i * 3] = x;
+    particlePositions[i * 3 + 1] = y;
+    particlePositions[i * 3 + 2] = z;
 
-      // Rotate around X
-      let y2 = p.y * cosX - z1 * sinX;
-      let z2 = z1 * cosX + p.y * sinX;
+    const colorChoice = Math.random();
+    const c = colorChoice > 0.6 ? cyan : (colorChoice > 0.3 ? purple : gold);
+    particleColors[i * 3] = c.r;
+    particleColors[i * 3 + 1] = c.g;
+    particleColors[i * 3 + 2] = c.b;
+  }
 
-      const fov = 160;
-      const scale = fov / (fov + z2);
+  particleGeo.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+  particleGeo.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
 
-      return {
-        x2d: cx + x1 * scale,
-        y2d: cy + y2 * scale,
-        z: z2,
-        color: p.color,
-        size: p.size * scale,
-        alpha: Math.max(0.15, (z2 + radius) / (radius * 2))
-      };
+  const particleMat = new THREE.PointsMaterial({
+    size: 2.2,
+    vertexColors: true,
+    transparent: true,
+    opacity: 0.85,
+    blending: THREE.AdditiveBlending
+  });
+
+  const particleField = new THREE.Points(particleGeo, particleMat);
+  coreGroup.add(particleField);
+
+  // 5. Real-Time Audio-Reactive Pulse System
+  let audioPulseIntensity = 0;
+  let targetPulseIntensity = 0;
+  let shockwaveScale = 1.0;
+
+  // Global trigger callable from voice synthesizer or assistant
+  window.triggerCorePulse = function(intensity = 0.8) {
+    targetPulseIntensity = Math.max(targetPulseIntensity, intensity);
+  };
+
+  // Shockwave trigger on click
+  if (orbViewport) {
+    orbViewport.addEventListener('click', () => {
+      shockwaveScale = 1.35;
+      targetPulseIntensity = 1.0;
+    });
+  }
+
+  // Mouse Parallax Tilt
+  let mouseX = 0;
+  let mouseY = 0;
+  let targetRotX = 0;
+  let targetRotY = 0;
+
+  window.addEventListener('mousemove', (e) => {
+    const rect = orbCanvas.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    mouseX = (e.clientX - cx) / (window.innerWidth / 2);
+    mouseY = (e.clientY - cy) / (window.innerHeight / 2);
+    targetRotY = mouseX * 0.45;
+    targetRotX = -mouseY * 0.45;
+  });
+
+  // 6. Animation Loop
+  let clock = new THREE.Clock();
+
+  function animate() {
+    requestAnimationFrame(animate);
+
+    const delta = clock.getDelta();
+    const time = clock.getElapsedTime();
+
+    // Check if assistant is currently speaking via global voice controller
+    const isSpeaking = window.triAIIsSpeaking || false;
+    if (isSpeaking) {
+      // Natural voice speech waveform modulation
+      targetPulseIntensity = 0.45 + Math.sin(time * 12) * 0.35 + Math.cos(time * 19) * 0.2;
+    } else {
+      targetPulseIntensity *= 0.94; // Decay back to calm breathing
+    }
+
+    audioPulseIntensity += (targetPulseIntensity - audioPulseIntensity) * 0.15;
+    shockwaveScale += (1.0 - shockwaveScale) * 0.08;
+
+    // Smooth Parallax
+    coreGroup.rotation.y += (targetRotY - coreGroup.rotation.y) * 0.06;
+    coreGroup.rotation.x += (targetRotX - coreGroup.rotation.x) * 0.06;
+
+    // Constant Gyroscope Rotation
+    coreGroup.rotation.y += 0.008;
+
+    nucleus.rotation.y -= 0.012;
+    nucleus.rotation.x += 0.006;
+    particleField.rotation.y += 0.004;
+
+    // Pulse Scale based on Audio Waveform & Shockwave
+    const currentScale = (1.0 + audioPulseIntensity * 0.28) * shockwaveScale;
+    solidCore.scale.set(currentScale, currentScale, currentScale);
+    nucleus.scale.set(currentScale, currentScale, currentScale);
+
+    // Dynamic Ring Rotations
+    rings.forEach((r) => {
+      r.mesh.rotation.x += r.rotSpeedX;
+      r.mesh.rotation.y += r.rotSpeedY;
+      r.mesh.rotation.z += r.rotSpeedZ;
+      r.mesh.scale.set(currentScale, currentScale, currentScale);
     });
 
-    projected.sort((a, b) => a.z - b.z);
+    // Render Scene
+    renderer.render(scene, camera);
 
-    for (const p of projected) {
-      ctxOrb.fillStyle = p.color;
-      ctxOrb.globalAlpha = p.alpha;
-      ctxOrb.beginPath();
-      ctxOrb.arc(p.x2d, p.y2d, p.size, 0, Math.PI * 2);
-      ctxOrb.fill();
-    }
-    ctxOrb.globalAlpha = 1.0;
-
-    // Draw orbital ring ellipses
-    for (const r of rings) {
-      ctxOrb.strokeStyle = r.color;
-      ctxOrb.lineWidth = 1;
-      ctxOrb.beginPath();
-      ctxOrb.ellipse(cx, cy, radius * 1.15, radius * 0.45, r.tiltX + angleX * 0.5, 0, Math.PI * 2);
-      ctxOrb.stroke();
-    }
-
-    requestAnimationFrame(renderOrb);
+    // Render Fiber-Optic HUD Circuits
+    renderCircuits(time);
   }
 
-  // Draw fiber optic circuit connectors from left tree nodes to the orb
-  let circuitOffset = 0;
-  function renderCircuit() {
+  // 7. Fiber Optic Circuit Animation
+  function renderCircuits(time) {
+    if (!circuitCanvas) return;
+    const ctx = circuitCanvas.getContext('2d');
     const w = circuitCanvas.width;
     const h = circuitCanvas.height;
-    ctxCircuit.clearRect(0, 0, w, h);
 
-    circuitOffset += 0.03;
-
-    // Node starting positions
-    const startX = 150 * (w / circuitCanvas.clientWidth);
-    const junctionX = 220 * (w / circuitCanvas.clientWidth);
-    const junctionY = h / 2;
-    const orbEntryX = (circuitCanvas.clientWidth - 90) * (w / circuitCanvas.clientWidth);
+    ctx.clearRect(0, 0, w, h);
 
     const nodes = [
-      { y: h * 0.18, color: '#10b981' },
-      { y: h * 0.38, color: '#e2e8f0' },
-      { y: h * 0.62, color: '#00f2ff' },
-      { y: h * 0.82, color: '#ef4444' }
+      document.getElementById('nodeMemory'),
+      document.getElementById('nodeSoul'),
+      document.getElementById('nodeSkills'),
+      document.getElementById('nodeSettings')
     ];
 
-    // Draw bezier curves to central junction
-    for (const n of nodes) {
-      ctxCircuit.beginPath();
-      ctxCircuit.moveTo(startX, n.y);
-      ctxCircuit.bezierCurveTo(
-        startX + (junctionX - startX) * 0.5, n.y,
-        startX + (junctionX - startX) * 0.5, junctionY,
-        junctionX, junctionY
-      );
-      ctxCircuit.strokeStyle = n.color;
-      ctxCircuit.lineWidth = 1.5;
-      ctxCircuit.globalAlpha = 0.6;
-      ctxCircuit.stroke();
-    }
+    const canvasRect = circuitCanvas.getBoundingClientRect();
+    const orbRect = orbCanvas.getBoundingClientRect();
 
-    // Draw central trunk to Orb
-    ctxCircuit.beginPath();
-    ctxCircuit.moveTo(junctionX, junctionY);
-    ctxCircuit.lineTo(orbEntryX, junctionY);
-    ctxCircuit.strokeStyle = '#00f2ff';
-    ctxCircuit.lineWidth = 2;
-    ctxCircuit.globalAlpha = 0.8;
-    ctxCircuit.stroke();
+    const targetX = (orbRect.left + orbRect.width / 2 - canvasRect.left) * (circuitCanvas.width / canvasRect.width);
+    const targetY = (orbRect.top + orbRect.height / 2 - canvasRect.top) * (circuitCanvas.height / canvasRect.height);
 
-    // Pulse node dots at junction
-    ctxCircuit.fillStyle = '#00f2ff';
-    ctxCircuit.beginPath();
-    ctxCircuit.arc(junctionX, junctionY, 3, 0, Math.PI * 2);
-    ctxCircuit.fill();
+    ctx.lineWidth = 1.5;
 
-    // Animated photon pulses along the trunk
-    const pulsePos = (Math.sin(circuitOffset) + 1) / 2;
-    const px = junctionX + (orbEntryX - junctionX) * pulsePos;
-    ctxCircuit.fillStyle = '#fff';
-    ctxCircuit.beginPath();
-    ctxCircuit.arc(px, junctionY, 2.5, 0, Math.PI * 2);
-    ctxCircuit.fill();
+    nodes.forEach((node, idx) => {
+      if (!node) return;
+      const rect = node.getBoundingClientRect();
+      const startX = (rect.left + rect.width / 2 - canvasRect.left) * (circuitCanvas.width / canvasRect.width);
+      const startY = (rect.top + rect.height / 2 - canvasRect.top) * (circuitCanvas.height / canvasRect.height);
 
-    ctxCircuit.globalAlpha = 1.0;
-    requestAnimationFrame(renderCircuit);
+      // Gradient wire
+      const grad = ctx.createLinearGradient(startX, startY, targetX, targetY);
+      grad.addColorStop(0, 'rgba(0, 242, 255, 0.45)');
+      grad.addColorStop(1, 'rgba(168, 85, 247, 0.2)');
+
+      ctx.strokeStyle = grad;
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      // Cyber curve
+      const midX = (startX + targetX) / 2;
+      ctx.quadraticCurveTo(midX, startY, targetX, targetY);
+      ctx.stroke();
+
+      // Laser energy pulse travelling along the wire
+      const pulseT = ((time * 0.8 + idx * 0.25) % 1);
+      const px = (1 - pulseT) * (1 - pulseT) * startX + 2 * (1 - pulseT) * pulseT * midX + pulseT * pulseT * targetX;
+      const py = (1 - pulseT) * (1 - pulseT) * startY + 2 * (1 - pulseT) * pulseT * startY + pulseT * pulseT * targetY;
+
+      ctx.fillStyle = '#00f2ff';
+      ctx.shadowColor = '#00f2ff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(px, py, 2.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+    });
   }
 
-  renderOrb();
-  renderCircuit();
+  // Start Animation
+  animate();
 })();

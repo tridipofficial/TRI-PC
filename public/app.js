@@ -237,8 +237,8 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Voice output if enabled
-        if (isVoiceEnabled && window.speechSynthesis) {
-          speakText(data.reply.replace(/[*#_]/g, ''));
+        if (isVoiceEnabled) {
+          speakText(data.reply);
         }
       }
     } catch (err) {
@@ -398,28 +398,126 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // Single Global Audio Player (Guarantees strictly 1 voice at a time)
+  const globalAudio = new Audio();
+  let currentAudioSession = 0;
+  const btnStopVoice = document.getElementById('btnStopVoice');
+
+  function stopAllSpeech() {
+    currentAudioSession++; // Invalidate any ongoing callbacks
+    window.triAIIsSpeaking = false;
+    try {
+      globalAudio.pause();
+      globalAudio.currentTime = 0;
+      globalAudio.src = '';
+    } catch (e) {}
+
+    if (window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+
+    if (btnStopVoice) {
+      btnStopVoice.style.display = 'none';
+    }
+  }
+
+  if (btnStopVoice) {
+    btnStopVoice.addEventListener('click', stopAllSpeech);
+  }
+
+  function detectEmotion(text) {
+    const lower = text.toLowerCase();
+    if (lower.includes('দুঃখিত') || lower.includes('কষ্ট') || lower.includes('খারাপ') || lower.includes('ক্ষমা') || lower.includes('শান্ত')) {
+      return 'sympathetic';
+    }
+    if (lower.includes('অভিনন্দন') || lower.includes('চমৎকার') || lower.includes('দারুণ') || lower.includes('আনন্দ') || lower.includes('শুভ') || lower.includes('ধন্যবাদ') || lower.includes('খুশি')) {
+      return 'joyful';
+    }
+    return 'warm'; // Default warm, romantic, affectionate
+  }
+
   btnVoiceToggle.addEventListener('click', () => {
     isVoiceEnabled = !isVoiceEnabled;
     btnVoiceToggle.classList.toggle('active', isVoiceEnabled);
     if (isVoiceEnabled) {
       speakText('হ্যালো, TRIDIP স্যার! আমি আপনার TRI AI অ্যাসিস্ট্যান্ট। আপনাকে কীভাবে সাহায্য করতে পারি?');
+    } else {
+      stopAllSpeech();
     }
   });
 
-  function speakText(text) {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+  async function speakText(rawText) {
+    if (!rawText) return;
+
+    // Immediately stop any currently playing voice (No overlap, single assistant voice only)
+    stopAllSpeech();
+
+    const sessionId = ++currentAudioSession;
+    if (btnStopVoice) {
+      btnStopVoice.style.display = 'inline-flex';
+    }
+
+    const emotion = detectEmotion(rawText);
+
+    try {
+      // 1. Try High-Definition Studio Neural Voice (bn-BD-NabanitaNeural via server /api/tts)
+      const res = await fetch('/api/tts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: rawText, emotion })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        // Discard if user clicked stop or new message arrived
+        if (sessionId !== currentAudioSession) return;
+
+        if (data.success && data.audioUrl) {
+          globalAudio.src = data.audioUrl;
+          globalAudio.onended = () => {
+            window.triAIIsSpeaking = false;
+            if (sessionId === currentAudioSession && btnStopVoice) {
+              btnStopVoice.style.display = 'none';
+            }
+          };
+          globalAudio.onerror = () => {
+            window.triAIIsSpeaking = false;
+            if (sessionId === currentAudioSession) {
+              fallbackBrowserTTS(rawText, emotion, sessionId);
+            }
+          };
+          window.triAIIsSpeaking = true;
+          await globalAudio.play();
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Server Neural TTS request error, falling back to browser voice:', e);
+    }
+
+    // 2. Resilient Fallback to browser Web Speech API
+    if (sessionId === currentAudioSession) {
+      fallbackBrowserTTS(rawText, emotion, sessionId);
+    }
+  }
+
+  function fallbackBrowserTTS(text, emotion, sessionId) {
+    if (!window.speechSynthesis || sessionId !== currentAudioSession) {
+      if (btnStopVoice) btnStopVoice.style.display = 'none';
+      return;
+    }
     scanVoices();
 
-    // Clean text for natural Bengali voice synthesis (remove code, markdown, URLs, symbols)
     const cleanSpeech = text
-      .replace(/```[\s\S]*?```/g, 'কোড ব্লক বাদ দেওয়া হয়েছে।')
-      .replace(/`([^`]+)`/g, '$1')
-      .replace(/[*#_~>]/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/[*#_~`>]/g, '')
       .replace(/https?:\/\/\S+/g, '')
       .trim();
 
-    if (!cleanSpeech) return;
+    if (!cleanSpeech) {
+      if (btnStopVoice) btnStopVoice.style.display = 'none';
+      return;
+    }
 
     const utter = new SpeechSynthesisUtterance(cleanSpeech);
     if (activeBengaliVoice) {
@@ -428,8 +526,22 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
       utter.lang = 'bn-BD';
     }
-    utter.rate = 0.95; // Calm, polite speaking speed
-    utter.pitch = 1.05; // Gentle, warmer pitch
+
+    // Sweet, affectionate prosody tuning
+    utter.rate = emotion === 'joyful' ? 0.98 : 0.93;
+    utter.pitch = emotion === 'joyful' ? 1.08 : 1.05;
+
+    utter.onend = () => {
+      if (sessionId === currentAudioSession && btnStopVoice) {
+        btnStopVoice.style.display = 'none';
+      }
+    };
+    utter.onerror = () => {
+      if (sessionId === currentAudioSession && btnStopVoice) {
+        btnStopVoice.style.display = 'none';
+      }
+    };
+
     window.speechSynthesis.speak(utter);
   }
 
