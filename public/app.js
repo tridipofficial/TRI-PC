@@ -327,6 +327,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const msg = document.createElement('div');
     msg.className = 'msg msg-assistant';
 
+    let actionHtml = '';
+    if (data.action && data.action.message) {
+      actionHtml = `
+        <div style="background: rgba(0, 242, 255, 0.1); border: 1px solid var(--primary); padding: 5px 10px; border-radius: 4px; font-size: 11px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; color: #fff;">
+          <span style="color: var(--primary);">⚡</span> <strong>EXECUTED:</strong> ${escapeHtml(data.action.message)}
+        </div>
+      `;
+    }
+
     let reasoningHtml = '';
     if (data.reasoning && data.reasoning.length > 0) {
       reasoningHtml = `
@@ -347,9 +356,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     msg.innerHTML = `
       <div class="msg-author">
-        <span>TRI AI</span>
+        <span>TRI AI • JARVIS</span>
         <button class="btn-listen" title="কণ্ঠে শুনুন">🔊 শুনুন</button>
       </div>
+      ${actionHtml}
       ${reasoningHtml}
       <div class="msg-bubble">${formattedReply}</div>
     `;
@@ -374,6 +384,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Voice Assistant Integration (Web Speech API with Runtime Voice Detection)
   let activeBengaliVoice = null;
   let voiceDetectionAttempted = false;
+  let isHandsFreeMode = false;
 
   function scanVoices() {
     if (!window.speechSynthesis) return;
@@ -496,6 +507,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  const btnHandsFree = document.getElementById('btnHandsFree');
+  if (btnHandsFree) {
+    btnHandsFree.addEventListener('click', () => {
+      isHandsFreeMode = !isHandsFreeMode;
+      btnHandsFree.classList.toggle('active', isHandsFreeMode);
+      if (isHandsFreeMode) {
+        isVoiceEnabled = true;
+        btnVoiceToggle.classList.add('active');
+        speakText('TRIDIP স্যার, হ্যান্ডস-ফ্রি জার্ভিস মোড সক্রিয় হয়েছে। এখন আপনি সরাসরি মুখে যেকোনো আদেশ দিতে পারেন।');
+      } else {
+        stopAllSpeech();
+      }
+    });
+  }
+
   async function speakText(rawText) {
     if (!rawText) return;
 
@@ -528,6 +554,11 @@ document.addEventListener('DOMContentLoaded', () => {
             window.triAIIsSpeaking = false;
             if (sessionId === currentAudioSession && btnStopVoice) {
               btnStopVoice.style.display = 'none';
+            }
+            if (isHandsFreeMode && recognition && !isListening) {
+              setTimeout(() => {
+                try { recognition.start(); } catch (e) {}
+              }, 700);
             }
           };
           globalAudio.onerror = () => {
@@ -584,6 +615,11 @@ document.addEventListener('DOMContentLoaded', () => {
     utter.onend = () => {
       if (sessionId === currentAudioSession && btnStopVoice) {
         btnStopVoice.style.display = 'none';
+      }
+      if (isHandsFreeMode && recognition && !isListening) {
+        setTimeout(() => {
+          try { recognition.start(); } catch (e) {}
+        }, 700);
       }
     };
     utter.onerror = () => {

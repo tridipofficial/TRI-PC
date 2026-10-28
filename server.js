@@ -571,52 +571,148 @@ const server = http.createServer(async (req, res) => {
 // Safe Windows PC Action Controller (Desktop Superpowers)
 function detectIntentAction(prompt) {
   const p = prompt.toLowerCase();
+
+  // 1. YouTube with search query or video playback
   if (p.includes('ইউটিউব') || p.includes('youtube')) {
-    if (p.includes('খোলো') || p.includes('open') || p.includes('চালু') || p.includes('যাও')) return 'OPEN_YOUTUBE';
+    let q = prompt
+      .replace(/ইউটিউব(ে)?/gi, '')
+      .replace(/(একটি|একটা|ভিডিও|খোলো|ওপেন|চালু|করো|করে দাও|করে দিন|দাও|চালাও|বাজাও|দেখাও|প্লে|যাও|search|play|open)/gi, '')
+      .trim();
+    // If user asked to play songs in general
+    if (!q && (p.includes('গান') || p.includes('song'))) q = 'বাংলা গান';
+    return { type: 'OPEN_YOUTUBE', query: q };
   }
-  if (p.includes('গুগল') || p.includes('google')) {
-    if (p.includes('খোলো') || p.includes('open') || p.includes('সার্চ')) return 'OPEN_GOOGLE';
+
+  // 2. Google Search
+  if (p.includes('গুগল') || p.includes('google') || (p.includes('সার্চ') && !p.includes('ইউটিউব'))) {
+    let q = prompt
+      .replace(/গুগল(ে)?/gi, '')
+      .replace(/(সার্চ|search|দেখো|খুঁজে বের করো|খোলো|ওপেন|করো|করে দাও|করে দিন|দাও|দিন)/gi, '')
+      .trim();
+    return { type: 'OPEN_GOOGLE', query: q };
   }
-  if (p.includes('ফেসবুক') || p.includes('facebook')) {
-    if (p.includes('খোলো') || p.includes('open')) return 'OPEN_FACEBOOK';
+
+  // 3. Social & Web Services
+  if (p.includes('ফেসবুক') || p.includes('facebook')) return { type: 'OPEN_FACEBOOK' };
+  if (p.includes('জিমেইল') || p.includes('জি-মেইল') || p.includes('gmail') || p.includes('ইমেইল')) return { type: 'OPEN_GMAIL' };
+  if (p.includes('গিটহাব') || p.includes('github')) return { type: 'OPEN_GITHUB' };
+  if (p.includes('উইকিপিডিয়া') || p.includes('wikipedia')) {
+    let q = prompt.replace(/(উইকিপিডিয়া(য়)?|wikipedia|দেখো|সার্চ|খোলো)/gi, '').trim();
+    return { type: 'OPEN_WIKIPEDIA', query: q };
   }
-  if (p.includes('নোটপ্যাড') || p.includes('notepad')) {
-    if (p.includes('খোলো') || p.includes('open') || p.includes('চালু') || p.includes('লিখব')) return 'OPEN_NOTEPAD';
-  }
-  if (p.includes('ক্যালকুলেটর') || p.includes('calculator') || p.includes('calc')) {
-    if (p.includes('খোলো') || p.includes('open') || p.includes('চালু') || p.includes('হিসাব')) return 'OPEN_CALC';
-  }
-  if (p.includes('ফাইল') || p.includes('explorer') || p.includes('মাই কম্পিউটার')) {
-    if (p.includes('খোলো') || p.includes('open')) return 'OPEN_EXPLORER';
-  }
+  if (p.includes('চ্যাটজিপিটি') || p.includes('chatgpt')) return { type: 'OPEN_CHATGPT' };
+
+  // 4. Windows Core Apps
+  if (p.includes('নোটপ্যাড') || p.includes('notepad')) return { type: 'OPEN_NOTEPAD' };
+  if (p.includes('ক্যালকুলেটর') || p.includes('calculator') || p.includes('calc')) return { type: 'OPEN_CALC' };
+  if (p.includes('ফাইল') || p.includes('explorer') || p.includes('মাই কম্পিউটার') || p.includes('দিস পিসি')) return { type: 'OPEN_EXPLORER' };
+  if (p.includes('টাস্ক ম্যানেজার') || p.includes('task manager') || p.includes('taskmgr')) return { type: 'OPEN_TASKMGR' };
+  if (p.includes('পেইন্ট') || p.includes('paint') || p.includes('mspaint')) return { type: 'OPEN_PAINT' };
+  if (p.includes('কমান্ড প্রম্পট') || p.includes('cmd') || p.includes('টার্মিনাল')) return { type: 'OPEN_CMD' };
+  if (p.includes('সেটিংস') || p.includes('settings')) return { type: 'OPEN_SETTINGS' };
+
+  // 5. Volume & Media Controls
+  if (p.includes('ভলিউম বাড়াও') || p.includes('সাউন্ড বাড়াও') || p.includes('volume up')) return { type: 'VOLUME_UP' };
+  if (p.includes('ভলিউম কমাও') || p.includes('সাউন্ড কমাও') || p.includes('volume down')) return { type: 'VOLUME_DOWN' };
+  if (p.includes('মিউট') || p.includes('শব্দ বন্ধ') || p.includes('mute')) return { type: 'VOLUME_MUTE' };
+
   return null;
 }
 
-function executeSafePCAction(actionType) {
+function executeSafePCAction(intent, fallbackQuery = '') {
   try {
+    const actionType = typeof intent === 'object' ? intent.type : intent;
+    const query = (typeof intent === 'object' && intent.query) ? intent.query : fallbackQuery;
+
+    // YouTube
     if (actionType === 'OPEN_YOUTUBE') {
-      spawn('cmd.exe', ['/c', 'start', 'https://www.youtube.com']);
-      return 'ইউটিউব ওপেন করা হয়েছে।';
+      if (query && query.length > 0) {
+        const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+        spawn('cmd.exe', ['/c', 'start', url]);
+        return `ইউটিউবে "${query}" অনুসন্ধান করে ভিডিও ওপেন করা হয়েছে, TRIDIP স্যার!`;
+      } else {
+        spawn('cmd.exe', ['/c', 'start', 'https://www.youtube.com']);
+        return 'ইউটিউব ওপেন করা হয়েছে, TRIDIP স্যার।';
+      }
     }
+
+    // Google Search
     if (actionType === 'OPEN_GOOGLE') {
-      spawn('cmd.exe', ['/c', 'start', 'https://www.google.com']);
-      return 'গুগল ব্রাউজার ওপেন করা হয়েছে।';
+      if (query && query.length > 0) {
+        const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+        spawn('cmd.exe', ['/c', 'start', url]);
+        return `গুগলে "${query}" অনুসন্ধান করা হয়েছে, TRIDIP স্যার!`;
+      } else {
+        spawn('cmd.exe', ['/c', 'start', 'https://www.google.com']);
+        return 'গুগল ব্রাউজার ওপেন করা হয়েছে, TRIDIP স্যার।';
+      }
     }
+
+    // Web Services
     if (actionType === 'OPEN_FACEBOOK') {
       spawn('cmd.exe', ['/c', 'start', 'https://www.facebook.com']);
-      return 'ফেসবুক ওপেন করা হয়েছে।';
+      return 'ফেসবুক ওপেন করা হয়েছে, TRIDIP স্যার।';
     }
+    if (actionType === 'OPEN_GMAIL') {
+      spawn('cmd.exe', ['/c', 'start', 'https://mail.google.com']);
+      return 'জি-মেইল ইনবক্স ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'OPEN_GITHUB') {
+      spawn('cmd.exe', ['/c', 'start', 'https://github.com/tridipofficial/TRI-PC']);
+      return 'আপনার গিটহাব রিপোজিটরি ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'OPEN_WIKIPEDIA') {
+      const url = query ? `https://bn.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(query)}` : 'https://bn.wikipedia.org';
+      spawn('cmd.exe', ['/c', 'start', url]);
+      return 'উইকিপিডিয়া ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'OPEN_CHATGPT') {
+      spawn('cmd.exe', ['/c', 'start', 'https://chatgpt.com']);
+      return 'চ্যাটজিপিটি ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+
+    // Windows Native Apps
     if (actionType === 'OPEN_NOTEPAD') {
       spawn('notepad.exe');
-      return 'উইন্ডোজ নোটপ্যাড চালু করা হয়েছে।';
+      return 'উইন্ডোজ নোটপ্যাড চালু করা হয়েছে, TRIDIP স্যার।';
     }
     if (actionType === 'OPEN_CALC') {
       spawn('calc.exe');
-      return 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে।';
+      return 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে, TRIDIP স্যার।';
     }
     if (actionType === 'OPEN_EXPLORER') {
       spawn('explorer.exe');
-      return 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে।';
+      return 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'OPEN_TASKMGR') {
+      spawn('taskmgr.exe');
+      return 'উইন্ডোজ টাস্ক ম্যানেজার ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'OPEN_PAINT') {
+      spawn('mspaint.exe');
+      return 'উইন্ডোজ পেইন্ট ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'OPEN_CMD') {
+      spawn('cmd.exe', ['/c', 'start', 'cmd.exe']);
+      return 'উইন্ডোজ কমান্ড প্রম্পট ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'OPEN_SETTINGS') {
+      spawn('cmd.exe', ['/c', 'start', 'ms-settings:']);
+      return 'উইন্ডোজ সেটিংস প্যানেল ওপেন করা হয়েছে, TRIDIP স্যার।';
+    }
+
+    // Volume Controls
+    if (actionType === 'VOLUME_UP') {
+      spawn('powershell', ['-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]175); (New-Object -ComObject WScript.Shell).SendKeys([char]175)']);
+      return 'সিস্টেম ভলিউম বৃদ্ধি করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'VOLUME_DOWN') {
+      spawn('powershell', ['-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]174); (New-Object -ComObject WScript.Shell).SendKeys([char]174)']);
+      return 'সিস্টেম ভলিউম হ্রাস করা হয়েছে, TRIDIP স্যার।';
+    }
+    if (actionType === 'VOLUME_MUTE') {
+      spawn('powershell', ['-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]173)']);
+      return 'সিস্টেম সাউন্ড মিউট/আনমিউট করা হয়েছে, TRIDIP স্যার।';
     }
   } catch (e) {
     console.error('Safe action error:', e.message);
@@ -630,8 +726,8 @@ function executeSafePCAction(actionType) {
     req.on('data', chunk => body += chunk);
     req.on('end', () => {
       try {
-        const { action } = JSON.parse(body || '{}');
-        const actionMsg = executeSafePCAction(action);
+        const { action, query } = JSON.parse(body || '{}');
+        const actionMsg = executeSafePCAction(action, query);
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: !!actionMsg, message: actionMsg, action }));
       } catch (err) {
@@ -650,11 +746,11 @@ function executeSafePCAction(actionType) {
         const { message } = JSON.parse(body);
 
         // Detect & Execute PC Actions (YouTube, Calculator, Notepad, etc.)
-        const actionType = detectIntentAction(message);
+        const intent = detectIntentAction(message);
         let executedAction = null;
-        if (actionType) {
-          const actionMsg = executeSafePCAction(actionType);
-          executedAction = { type: actionType, message: actionMsg };
+        if (intent) {
+          const actionMsg = executeSafePCAction(intent);
+          executedAction = { type: intent.type, message: actionMsg, query: intent.query };
         }
 
         let response = null;

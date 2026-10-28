@@ -394,6 +394,7 @@
         <div class="chat-input-wrapper">
           <div class="input-toggles">
             <button class="toggle-pill" id="btnVoiceToggle">🎙️ VOICE ASSISTANT</button>
+            <button class="toggle-pill" id="btnHandsFree" title="স্বয়ংক্রিয় হ্যান্ডস-ফ্রি ভয়েস লুপ">🤖 HANDS-FREE</button>
             <button class="toggle-pill btn-stop-voice" id="btnStopVoice" style="display:none; color:#ef4444; border-color:rgba(239, 68, 68, 0.4);" title="ভয়েস বন্ধ করুন">⏹️ থামুন</button>
             <button class="toggle-pill active" id="btnExpertToggle">⚡ 120B EXPERT</button>
           </div>
@@ -417,7 +418,7 @@
 
       <!-- Bengali & English Chat Input Bar -->
       <div class="tactical-input-container">
-        <input type="text" id="chatInput" placeholder="TRIDIP স্যার, এখানে বাংলায় বলুন বা লিখুন (যেমন: 'ইউটিউব খোলো', 'ক্যালকুলেটর', 'আজকের আবহাওয়া')..." autocomplete="off">
+        <input type="text" id="chatInput" placeholder="TRIDIP স্যার, মুখে বলুন: 'ইউটিউবে গান চালাও', 'গুগলে সার্চ করো', 'ভলিউম বাড়াও'..." autocomplete="off">
         <button id="btnSendChat" class="tactical-send-btn" title="পাঠান">
           <span>পাঠান</span>
           <span class="send-arrow">⚡</span>
@@ -426,9 +427,11 @@
 
       <!-- Quick Command Prompt Chips -->
       <div class="quick-cmd-dock">
-        <button class="quick-cmd-chip" data-cmd="ইউটিউব খোলো">▶️ ইউটিউব</button>
+        <button class="quick-cmd-chip" data-cmd="ইউটিউবে বাংলা গান চালাও">▶️ গান বাজাও</button>
+        <button class="quick-cmd-chip" data-cmd="গুগলে সার্চ করো আজকের খবর">🔍 খবর সার্চ</button>
         <button class="quick-cmd-chip" data-cmd="ক্যালকুলেটর ওপেন করো">🧮 ক্যালকুলেটর</button>
         <button class="quick-cmd-chip" data-cmd="নোটপ্যাড খোলো">📝 নোটপ্যাড</button>
+        <button class="quick-cmd-chip" data-cmd="ভলিউম বাড়াও">🔊 ভলিউম</button>
         <button class="quick-cmd-chip" data-cmd="তুমি কেমন আছো?">💬 কেমন আছো?</button>
       </div>
     </div>
