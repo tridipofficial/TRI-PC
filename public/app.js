@@ -46,6 +46,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const viewCockpit = document.getElementById('viewCockpit');
   const viewAgentTown = document.getElementById('viewAgentTown');
 
+  const agentViewBadgeTitle = document.getElementById('agentViewBadgeTitle');
+  const agentViewBadgeSub = document.getElementById('agentViewBadgeSub');
+  const simHeaderTitle = document.getElementById('simHeaderTitle');
+
   if (tabCockpitBtn) {
     tabCockpitBtn.addEventListener('click', () => {
       tabCockpitBtn.classList.add('active');
@@ -53,7 +57,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tabVisualBtn) tabVisualBtn.classList.remove('active');
       if (viewCockpit) viewCockpit.style.display = 'flex';
       if (viewAgentTown) viewAgentTown.style.display = 'none';
-      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        window.dispatchEvent(new Event('tabswitched'));
+      }, 50);
     });
   }
 
@@ -66,7 +73,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (viewAgentTown) viewAgentTown.style.display = 'flex';
       if (townCanvas) townCanvas.classList.add('active');
       if (mindmapCanvas) mindmapCanvas.classList.remove('active');
-      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+
+      if (agentViewBadgeTitle) agentViewBadgeTitle.textContent = 'JARVIS AGENT MATRIX // TACTICAL CYBER DECK';
+      if (agentViewBadgeSub) agentViewBadgeSub.textContent = '4 AUTONOMOUS CYBER SENTINELS • 3D PBR NEURAL CORE';
+      if (simHeaderTitle) simHeaderTitle.innerHTML = '<span class="neon-dot">●</span> 3D MULTI-AGENT MATRIX';
+
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        window.dispatchEvent(new Event('tabswitched'));
+      }, 50);
     });
   }
 
@@ -79,7 +94,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (viewAgentTown) viewAgentTown.style.display = 'flex';
       if (mindmapCanvas) mindmapCanvas.classList.add('active');
       if (townCanvas) townCanvas.classList.remove('active');
-      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+
+      if (agentViewBadgeTitle) agentViewBadgeTitle.textContent = 'JARVIS 3D NEURAL MINDMAP // SYNAPTIC CORE';
+      if (agentViewBadgeSub) agentViewBadgeSub.textContent = '14 SYNAPTIC QUANTUM NODES • 3D FIBER-OPTIC DATAFLOW';
+      if (simHeaderTitle) simHeaderTitle.innerHTML = '<span class="neon-dot" style="color:#ec4899;">●</span> 3D HOLOGRAPHIC NEURAL MINDMAP';
+
+      setTimeout(() => {
+        window.dispatchEvent(new Event('resize'));
+        window.dispatchEvent(new Event('tabswitched'));
+      }, 50);
     });
   }
 
