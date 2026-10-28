@@ -258,7 +258,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 3. Conversational Assistant & Reasoning
+  // 3. Conversational Assistant & Reasoning (with Synchronized YouTube PWA Window)
+  let triYouTubeWindow = null;
+
   async function sendMessage(text) {
     const prompt = text || chatInput.value.trim();
     if (!prompt) return;
@@ -270,6 +272,37 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Show temporary thinking state
     const thinkingNode = appendThinkingCard();
+
+    // Immediate synchronous window handling on direct user gesture (Bypasses Chrome popup blocker 100%)
+    const normText = prompt.toLowerCase();
+    const hasYT = normText.includes('youtube') || normText.includes('ইউটিউব') || normText.includes('yt');
+    const hasOpen = normText.includes('open') || normText.includes('ওপেন') || normText.includes('খোলো') || normText.includes('চালু') || normText.includes('খোল');
+    const hasClose = normText.includes('close') || normText.includes('বন্ধ') || normText.includes('কেটে') || normText.includes('ক্লোজ') || normText.includes('exit') || normText.includes('destroy') || normText.includes('হোম');
+
+    if (hasYT && hasOpen && !hasClose) {
+      try {
+        if (!triYouTubeWindow || triYouTubeWindow.closed) {
+          const w = 1200;
+          const h = 750;
+          const left = Math.max(0, (window.screen.width - w) / 2);
+          const top = Math.max(0, (window.screen.height - h) / 2);
+          triYouTubeWindow = window.open('https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+        }
+        if (triYouTubeWindow) {
+          triYouTubeWindow.focus();
+        }
+      } catch (e) {
+        console.warn('Sync open YouTube error:', e);
+      }
+    } else if (hasClose && (hasYT || (triYouTubeWindow && !triYouTubeWindow.closed))) {
+      try {
+        if (triYouTubeWindow && !triYouTubeWindow.closed) {
+          triYouTubeWindow.close();
+          triYouTubeWindow = null;
+        }
+        window.focus();
+      } catch (e) {}
+    }
 
     try {
       const res = await fetch('/api/chat', {
@@ -283,8 +316,60 @@ document.addEventListener('DOMContentLoaded', () => {
         thinkingNode.remove();
         appendAssistantMessage(data);
 
-        // Perform any action triggered by assistant (e.g. task added, url opened)
-        // If type is YOUTUBE_*, Chrome is already launched directly on desktop by backend Puppeteer!
+        // Synchronize Visible YouTube App Window on TRIDIP Sir's Screen
+        if (data.action) {
+          const actType = data.action.type;
+          const actUrl = data.action.url;
+
+          if (actType === 'YOUTUBE_OPEN') {
+            try {
+              if (!triYouTubeWindow || triYouTubeWindow.closed) {
+                const w = 1200;
+                const h = 750;
+                const left = Math.max(0, (window.screen.width - w) / 2);
+                const top = Math.max(0, (window.screen.height - h) / 2);
+                triYouTubeWindow = window.open(actUrl || 'https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+              }
+              if (triYouTubeWindow) triYouTubeWindow.focus();
+            } catch (e) {}
+          } else if (actType === 'YOUTUBE_SEARCH' && actUrl) {
+            try {
+              if (!triYouTubeWindow || triYouTubeWindow.closed) {
+                const w = 1200;
+                const h = 750;
+                const left = Math.max(0, (window.screen.width - w) / 2);
+                const top = Math.max(0, (window.screen.height - h) / 2);
+                triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+              } else {
+                triYouTubeWindow.location.href = actUrl;
+                triYouTubeWindow.focus();
+              }
+            } catch (e) {}
+          } else if (actType === 'YOUTUBE_CLICK' && actUrl) {
+            try {
+              if (!triYouTubeWindow || triYouTubeWindow.closed) {
+                const w = 1200;
+                const h = 750;
+                const left = Math.max(0, (window.screen.width - w) / 2);
+                const top = Math.max(0, (window.screen.height - h) / 2);
+                triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+              } else {
+                triYouTubeWindow.location.href = actUrl;
+                triYouTubeWindow.focus();
+              }
+            } catch (e) {}
+          } else if (actType === 'YOUTUBE_CLOSE') {
+            try {
+              if (triYouTubeWindow && !triYouTubeWindow.closed) {
+                triYouTubeWindow.close();
+                triYouTubeWindow = null;
+              }
+              window.focus();
+            } catch (e) {}
+          }
+        }
+
+        // Standard links for generic queries (Google, etc.)
         if (data.action?.url && !data.action?.type?.startsWith('YOUTUBE_') && data.action?.type !== 'OPEN_YOUTUBE') {
           try {
             window.open(data.action.url, '_blank');
@@ -381,7 +466,7 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="yt-results-grid" style="margin-top: 12px; display: flex; flex-direction: column; gap: 7px;">
           <div style="font-size: 11px; color: #00f2ff; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">▶ রেজাল্ট থেকে প্লে করতে বলুন বা ক্লিক করুন:</div>
           ${data.action.results.map((item, idx) => `
-            <button class="yt-item-btn" data-video-title="${escapeHtml(item.title)}" style="text-align: left; background: rgba(0, 242, 255, 0.06); border: 1px solid rgba(0, 242, 255, 0.25); color: #e2e8f0; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; width: 100%;">
+            <button class="yt-item-btn" data-video-title="${escapeHtml(item.title)}" data-video-url="${escapeHtml(item.url)}" style="text-align: left; background: rgba(0, 242, 255, 0.06); border: 1px solid rgba(0, 242, 255, 0.25); color: #e2e8f0; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; width: 100%;">
               <span style="color: #ff0055; font-size: 13px; flex-shrink: 0;">▶</span>
               <span style="color: #00f2ff; font-weight: 700; font-size: 12px; flex-shrink: 0;">${idx + 1}.</span>
               <span style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${escapeHtml(item.title)}</span>
@@ -433,6 +518,21 @@ document.addEventListener('DOMContentLoaded', () => {
     msg.querySelectorAll('.yt-item-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const title = btn.getAttribute('data-video-title');
+        const url = btn.getAttribute('data-video-url');
+        if (url) {
+          try {
+            if (!triYouTubeWindow || triYouTubeWindow.closed) {
+              const w = 1200;
+              const h = 750;
+              const left = Math.max(0, (window.screen.width - w) / 2);
+              const top = Math.max(0, (window.screen.height - h) / 2);
+              triYouTubeWindow = window.open(url, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+            } else {
+              triYouTubeWindow.location.href = url;
+              triYouTubeWindow.focus();
+            }
+          } catch (e) {}
+        }
         if (title) {
           sendMessage(title + ' ক্লিক করো');
         }

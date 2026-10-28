@@ -25,13 +25,11 @@ class YouTubeController {
     try {
       const url = 'https://www.youtube.com';
       if (fs.existsSync(this.desktopShortcut)) {
-        spawn('cmd.exe', ['/c', 'start', '""', this.desktopShortcut], { detached: true, stdio: 'ignore' }).unref();
-      } else {
-        spawn(this.chromePath, [
-          `--profile-directory=${this.profileDir}`,
-          `--app=${url}`
-        ], { detached: true, stdio: 'ignore' }).unref();
+        spawn('powershell', ['-NoProfile', '-Command', `Start-Process '${this.desktopShortcut}' -ErrorAction SilentlyContinue`], { detached: true, stdio: 'ignore' }).unref();
       }
+      spawn(this.chromePath, [
+        `--app=${url}`
+      ], { detached: true, stdio: 'ignore' }).unref();
 
       setTimeout(() => this.bringToFront('YouTube'), 500);
       return { success: true, url };
@@ -87,7 +85,6 @@ class YouTubeController {
 
       // 1. Launch/Navigate YouTube App window on TRIDIP Sir's desktop directly
       spawn(this.chromePath, [
-        `--profile-directory=${this.profileDir}`,
         `--app=${searchUrl}`
       ], { detached: true, stdio: 'ignore' }).unref();
 
@@ -191,7 +188,6 @@ class YouTubeController {
 
       // 5. Open video directly in the YouTube App window
       spawn(this.chromePath, [
-        `--profile-directory=${this.profileDir}`,
         `--app=${target.url}`
       ], { detached: true, stdio: 'ignore' }).unref();
 
