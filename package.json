@@ -1,0 +1,18 @@
+{
+  "name": "tri-ai-assistant",
+  "version": "1.0.0",
+  "description": "An independent, free personal Windows AI assistant inspired by multimodal desktop HUDs.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "keywords": [
+    "ai",
+    "assistant",
+    "desktop",
+    "clean-room",
+    "windows"
+  ],
+  "author": "Reverse Engine",
+  "license": "MIT"
+}

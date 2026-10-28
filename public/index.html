@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TRI AI - Desktop Assistant</title>
+  <link rel="stylesheet" href="style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body class="theme-cyan">
+  <!-- Top Application Header -->
+  <header class="app-header">
+    <div class="header-left">
+      <div class="logo-orb"></div>
+      <span class="app-title">TRI AI</span>
+      <span class="version-tag">v1.0.0 (CLEAN-ROOM)</span>
+    </div>
+    <div class="header-center">
+      <div class="theme-switcher">
+        <button class="theme-btn active" data-theme="theme-cyan" title="Cyan Theme"></button>
+        <button class="theme-btn" data-theme="theme-violet" title="Neon Violet"></button>
+        <button class="theme-btn" data-theme="theme-crimson" title="Crimson Core"></button>
+      </div>
+    </div>
+    <div class="header-right">
+      <span class="pulse-indicator"></span>
+      <span class="system-status-text">LOCAL SYSTEM ACTIVE</span>
+      <div class="window-controls">
+        <span>—</span>
+        <span>□</span>
+        <span>✕</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main 3-Column Desktop Grid -->
+  <main class="desktop-grid">
+    
+    <!-- LEFT COLUMN: Tasks & World Stream -->
+    <section class="col-left">
+      <!-- Tasks Card -->
+      <div class="panel-card tasks-card">
+        <div class="panel-tabs">
+          <button class="tab-btn active" id="tabTasksBtn">TASKS</button>
+          <button class="tab-btn" id="tabNotesBtn">NOTES</button>
+        </div>
+
+        <div class="progress-bar-container">
+          <span class="progress-label">PROGRESS STATUS</span>
+          <span class="progress-pct" id="progressPctText">0/3 (0%)</span>
+          <div class="progress-track">
+            <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
+          </div>
+        </div>
+
+        <!-- Filter Pills -->
+        <div class="filter-pills">
+          <div class="pill-group">
+            <button class="pill active" data-filter="ALL">ALL</button>
+            <button class="pill" data-filter="PENDING">PENDING</button>
+            <button class="pill" data-filter="COMPLETED">COMPLETED</button>
+            <button class="pill" data-filter="HIGH">HIGH</button>
+          </div>
+          <div class="pill-group-sub">
+            <button class="sub-pill active" data-sub="ALL">ALL</button>
+            <button class="sub-pill" data-sub="WORK">WORK</button>
+            <button class="sub-pill" data-sub="PERSONAL">PERSONAL</button>
+          </div>
+        </div>
+
+        <!-- Add Objective Input -->
+        <div class="add-objective-box">
+          <input type="text" id="newObjectiveInput" placeholder="Add new objective...">
+          <select id="prioritySelect" class="badge-select">
+            <option value="MEDIUM">• MEDIUM</option>
+            <option value="HIGH">• HIGH</option>
+            <option value="LOW">• LOW</option>
+          </select>
+          <select id="categorySelect" class="badge-select">
+            <option value="WORK">WORK</option>
+            <option value="PERSONAL">PERSONAL</option>
+          </select>
+          <button id="addObjectiveBtn" class="add-btn" title="Add Objective">+</button>
+        </div>
+
+        <!-- Task List Scroll Area -->
+        <div class="task-list" id="taskListContainer">
+          <!-- Dynamically Rendered -->
+        </div>
+      </div>
+
+      <!-- World Satellite Stream -->
+      <div class="panel-card world-card">
+        <div class="card-header-compact">
+          <span class="card-title-dot">● SATELLITE STREAM</span>
+          <div class="dim-toggles">
+            <button class="toggle-btn active" id="btn2D">2D</button>
+            <button class="toggle-btn" id="btn3D">3D</button>
+          </div>
+        </div>
+        <div class="world-canvas-wrapper">
+          <canvas id="worldCanvas"></canvas>
+        </div>
+        <div class="world-nav-footer">
+          <button class="nav-icon-btn active" title="Today">Today</button>
+          <button class="nav-icon-btn" title="Map">Map</button>
+          <button class="nav-icon-btn" title="Search">Search</button>
+          <button class="nav-icon-btn" title="Alerts">Alerts</button>
+          <button class="nav-icon-btn" title="More">More</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- CENTER COLUMN: Neural Core & Agent Town -->
+    <section class="col-center">
+      <!-- Neural Core HUD -->
+      <div class="panel-card neural-core-card">
+        <div class="neural-tree">
+          <div class="tree-node node-memory" id="nodeMemory">
+            <span class="node-icon">🧠</span>
+            <span class="node-title">Memory</span>
+            <span class="node-dot dot-green"></span>
+          </div>
+          <div class="tree-node node-soul" id="nodeSoul">
+            <span class="node-icon">👻</span>
+            <span class="node-title">Soul</span>
+            <span class="node-dot dot-white"></span>
+          </div>
+          <div class="tree-node node-skills" id="nodeSkills">
+            <span class="node-icon">📖</span>
+            <span class="node-title">Skills</span>
+            <span class="node-dot dot-cyan"></span>
+          </div>
+          <div class="tree-node node-settings" id="nodeSettings">
+            <span class="node-icon">⚙️</span>
+            <span class="node-title">Settings</span>
+            <span class="node-dot dot-red"></span>
+          </div>
+        </div>
+
+        <!-- Connector Canvas -->
+        <canvas id="circuitCanvas" class="circuit-canvas"></canvas>
+
+        <!-- 3D Particle Orb Viewport -->
+        <div class="orb-viewport">
+          <div class="quick-tools">
+            <button id="btnCamera" class="tool-circle-btn" title="Camera Analysis">📷</button>
+            <button id="btnScreen" class="tool-circle-btn" title="Screen Capture">🖥️</button>
+          </div>
+          <canvas id="orbCanvas"></canvas>
+          <div class="orb-caption">
+            <span class="orb-status-text">• SYSTEM ACTIVE •</span>
+          </div>
+          <div class="orb-actions">
+            <button class="btn-terminate" id="btnTerminate">TERMINATE</button>
+            <button class="btn-mic" id="btnMic" title="Voice Input">🎙️</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Agent Town / Visual Hub Viewport -->
+      <div class="panel-card simulation-card">
+        <div class="sim-header">
+          <span class="sim-title">● AGENT TOWN</span>
+          <div class="sim-tabs">
+            <button class="sim-tab active" id="tabTownBtn">AGENT TOWN</button>
+            <button class="sim-tab" id="tabVisualBtn">VISUAL HUB</button>
+            <button class="sim-tab" id="tabGestureBtn">GESTURE</button>
+          </div>
+          <div class="sim-tools">
+            <button class="icon-tool" id="btnSoundToggle" title="Audio">🔊</button>
+            <button class="icon-tool" id="btnResetSim" title="Refresh">🔄</button>
+          </div>
+        </div>
+
+        <!-- Agent Rosters Top Bar -->
+        <div class="agent-roster" id="agentRosterBar">
+          <div class="agent-badge active" data-agent="alice">
+            <span class="agent-avatar">👩‍💼</span>
+            <span class="agent-name">Alice</span>
+            <span class="agent-status-light dot-green"></span>
+          </div>
+          <div class="agent-badge" data-agent="bob">
+            <span class="agent-avatar">👨‍💻</span>
+            <span class="agent-name">Bob</span>
+            <span class="agent-status-light dot-green"></span>
+          </div>
+          <div class="agent-badge" data-agent="carol">
+            <span class="agent-avatar">👩‍🎨</span>
+            <span class="agent-name">Carol</span>
+            <span class="agent-status-light dot-green"></span>
+          </div>
+          <div class="agent-badge" data-agent="dave">
+            <span class="agent-avatar">👨‍🔧</span>
+            <span class="agent-name">Dave</span>
+            <span class="agent-status-light dot-green"></span>
+          </div>
+        </div>
+
+        <!-- Dual Canvas Viewport (Town vs Visual Hub) -->
+        <div class="sim-canvas-container">
+          <canvas id="townCanvas" class="sim-canvas active"></canvas>
+          <canvas id="mindmapCanvas" class="sim-canvas"></canvas>
+        </div>
+
+        <!-- Simulation Bottom Metrics -->
+        <div class="sim-footer">
+          <div class="footer-metrics">
+            <span class="metric-pill">● Online</span>
+            <span class="metric-pill">✨ Local (Zero Cost)</span>
+            <span class="metric-pill">CTX <div class="mini-bar"><div class="mini-bar-fill" style="width: 25%;"></div></div> 25%</span>
+            <span class="metric-pill">👥 4/4 Seats</span>
+            <span class="metric-pill" id="busyMetricText">⚡ 0/4 Busy</span>
+          </div>
+          <button class="chat-pill-btn" id="openChatPill">💬 CHAT</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RIGHT COLUMN: Chats & Live Reasoning Stream -->
+    <section class="col-right">
+      <div class="panel-card chat-card">
+        <div class="chat-header">
+          <div class="chat-tabs">
+            <button class="chat-tab active" id="chatTabMsg">CHATS</button>
+            <button class="chat-tab" id="chatTabLogs">LOGS</button>
+          </div>
+          <div class="chat-header-actions">
+            <button class="icon-tool" id="btnClearChat" title="New Chat">+</button>
+            <button class="icon-tool" id="btnChatHistory" title="History">🕒</button>
+          </div>
+        </div>
+
+        <!-- Message Stream Area -->
+        <div class="chat-stream" id="chatStream">
+          <!-- Initial Assistant Welcome Message -->
+          <div class="msg msg-assistant">
+            <div class="msg-author">
+              <span>TRI AI</span>
+              <button class="btn-listen" id="btnSpeakWelcome" title="কণ্ঠে শুনুন">🔊 শুনুন</button>
+            </div>
+            <div class="thought-card">
+              <div class="thought-header">🧠 THOUGHT PROCESS</div>
+              <div class="thought-stage">**Initiating Contextual Analysis**</div>
+              <div class="thought-detail">System initialized in 100% free mode. Verified 4 autonomous agents, local task database, and WebGL Neural Core.</div>
+              <div class="thought-stage">**Defining the Goal**</div>
+              <div class="thought-detail">TRIDIP স্যারের ব্যক্তিগত ডেস্কটপ সহকারী হিসেবে প্রস্তুত।</div>
+            </div>
+            <div class="msg-bubble">
+              হ্যালো, TRIDIP স্যার! আমি আপনার TRI AI অ্যাসিস্ট্যান্ট। আপনাকে কীভাবে সাহায্য করতে পারি?
+            </div>
+          </div>
+        </div>
+
+        <!-- Chat Input Bar -->
+        <div class="chat-input-wrapper">
+          <div class="input-row">
+            <input type="text" id="chatInput" placeholder="TRIDIP স্যার, এখানে বাংলায় অথবা ইংরেজিতে লিখুন..." autocomplete="off">
+            <button id="btnSendChat" class="btn-send" title="Send">↑</button>
+          </div>
+          <div class="input-toggles">
+            <button class="toggle-pill" id="btnVoiceToggle">🎙️ VOICE ASSISTANT</button>
+            <button class="toggle-pill active" id="btnExpertToggle">⚡ EXPERT AGENT</button>
+            <span class="live-status-pill">● Live Connected</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Scripts -->
+  <script src="orb.js"></script>
+  <script src="agent-town.js"></script>
+  <script src="mindmap.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

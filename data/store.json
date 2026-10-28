@@ -1,0 +1,86 @@
+{
+  "tasks": [
+    {
+      "id": "1793112483751",
+      "title": "Add a new high priority task about automated testing",
+      "priority": "HIGH",
+      "category": "WORK",
+      "completed": false,
+      "time": "08:48 PM"
+    },
+    {
+      "id": "1793112483652",
+      "title": "Review clean-room architecture",
+      "priority": "HIGH",
+      "category": "WORK",
+      "completed": false,
+      "time": "08:48 PM"
+    },
+    {
+      "id": "1",
+      "title": "Explore TRI AI features and customize persona",
+      "priority": "HIGH",
+      "category": "WORK",
+      "completed": false,
+      "time": "09:00 AM"
+    },
+    {
+      "id": "2",
+      "title": "Verify local Ollama / offline AI reasoning engine",
+      "priority": "MEDIUM",
+      "category": "WORK",
+      "completed": true,
+      "time": "09:15 AM"
+    },
+    {
+      "id": "3",
+      "title": "Test Mindmap Visual Hub generation",
+      "priority": "MEDIUM",
+      "category": "PERSONAL",
+      "completed": false,
+      "time": "10:30 AM"
+    }
+  ],
+  "notes": [
+    {
+      "id": "1",
+      "title": "Welcome to TRI AI",
+      "content": "Clean-room independent desktop AI assistant built on Windows.",
+      "time": "08:00 AM"
+    }
+  ],
+  "agents": [
+    {
+      "id": "alice",
+      "name": "Alice",
+      "status": "Online",
+      "role": "Context & Research",
+      "busy": false,
+      "thought": "Monitoring system context and queries..."
+    },
+    {
+      "id": "bob",
+      "name": "Bob",
+      "status": "Online",
+      "role": "Task & Automation",
+      "busy": false,
+      "thought": "Task queue synchronized."
+    },
+    {
+      "id": "carol",
+      "name": "Carol",
+      "status": "Online",
+      "role": "Visual Hub & Mindmaps",
+      "busy": false,
+      "thought": "Ready to map concepts."
+    },
+    {
+      "id": "dave",
+      "name": "Dave",
+      "status": "Online",
+      "role": "System & Code Sentinel",
+      "busy": false,
+      "thought": "All security bounds normal."
+    }
+  ]
+}
