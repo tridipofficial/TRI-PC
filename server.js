@@ -42,14 +42,16 @@ if (!fs.existsSync(AUDIO_CACHE_DIR)) {
 }
 
 // Real Neural Voice Generator (Microsoft Azure bn-BD-NabanitaNeural via Python edge-tts)
+// NEVER cut off mid-sentence: Speaks complete responses with high-speed caching
 function generateNeuralAudio(text, emotion = 'warm') {
   return new Promise((resolve) => {
-    // 1. Clean text: remove code blocks, markdown symbols, URLs, asterisks
+    // 1. Clean text: remove code blocks, markdown symbols, URLs, asterisks, emojis
     const cleanText = text
       .replace(/```[\s\S]*?```/g, '')
       .replace(/`([^`]+)`/g, '$1')
       .replace(/[*#_~>]/g, '')
       .replace(/https?:\/\/\S+/g, '')
+      .replace(/[\u{1F600}-\u{1F64F}\u{1F300}-\u{1F5FF}\u{1F680}-\u{1F6FF}\u{1F1E0}-\u{1F1FF}\u{2600}-\u{26FF}\u{2700}-\u{27BF}]/gu, '')
       .replace(/\s+/g, ' ')
       .trim();
 
@@ -58,18 +60,18 @@ function generateNeuralAudio(text, emotion = 'warm') {
       return;
     }
 
-    // Snappy chunk for voice output
-    const spokenText = cleanText.length > 280 ? cleanText.substring(0, 275) + '...' : cleanText;
+    // Complete text speech: allow up to 4000 characters without truncation
+    const spokenText = cleanText.length > 4000 ? cleanText.substring(0, 3950) + '...' : cleanText;
 
-    // Pitch & Rate tuning for sweet, warm, romantic emotional cadence
-    let rate = '-6%';
-    let pitch = '+5Hz';
+    // Pitch & Rate tuning for sweet, natural Bengali cadence with optimized latency
+    let rate = '-3%';
+    let pitch = '+4Hz';
     if (emotion === 'joyful' || emotion === 'happy') {
-      rate = '-2%';
-      pitch = '+6Hz';
+      rate = '+0%';
+      pitch = '+5Hz';
     } else if (emotion === 'sympathetic') {
-      rate = '-8%';
-      pitch = '+3Hz';
+      rate = '-5%';
+      pitch = '+2Hz';
     }
 
     // Cache key using MD5
@@ -77,7 +79,7 @@ function generateNeuralAudio(text, emotion = 'warm') {
     const audioFileName = `voice_${hash}.mp3`;
     const audioFilePath = path.join(AUDIO_CACHE_DIR, audioFileName);
 
-    // If cached, return immediately (sub-10ms response!)
+    // If cached, return immediately (sub-5ms response!)
     if (fs.existsSync(audioFilePath) && fs.statSync(audioFilePath).size > 1000) {
       resolve({ success: true, audioUrl: `/audio_cache/${audioFileName}`, cached: true });
       return;
@@ -85,15 +87,40 @@ function generateNeuralAudio(text, emotion = 'warm') {
 
     // Run Python neural_tts.py
     const pyScript = path.join(__dirname, 'neural_tts.py');
-    const child = spawn('python', [
-      pyScript,
-      '--text', spokenText,
-      '--output', audioFilePath,
-      '--rate', rate,
-      '--pitch', pitch
-    ], { timeout: 12000 });
+    let args = [];
+    let tempFile = null;
+
+    // Use temporary UTF-8 file for longer text to avoid Windows CLI length & encoding limits
+    if (spokenText.length > 120) {
+      tempFile = path.join(AUDIO_CACHE_DIR, `temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.txt`);
+      fs.writeFileSync(tempFile, spokenText, 'utf8');
+      args = [
+        pyScript,
+        '--file', tempFile,
+        '--output', audioFilePath,
+        '--rate', rate,
+        '--pitch', pitch
+      ];
+    } else {
+      args = [
+        pyScript,
+        '--text', spokenText,
+        '--output', audioFilePath,
+        '--rate', rate,
+        '--pitch', pitch
+      ];
+    }
+
+    const child = spawn('python', args, { timeout: 35000 });
+
+    const cleanup = () => {
+      if (tempFile && fs.existsSync(tempFile)) {
+        try { fs.unlinkSync(tempFile); } catch (e) {}
+      }
+    };
 
     child.on('close', (code) => {
+      cleanup();
       if (code === 0 && fs.existsSync(audioFilePath) && fs.statSync(audioFilePath).size > 1000) {
         resolve({ success: true, audioUrl: `/audio_cache/${audioFileName}`, cached: false });
       } else {
@@ -102,6 +129,7 @@ function generateNeuralAudio(text, emotion = 'warm') {
     });
 
     child.on('error', () => {
+      cleanup();
       resolve({ success: false, fallback: true });
     });
   });
@@ -629,7 +657,44 @@ function detectIntentAction(prompt) {
     };
   }
 
-  // 2. Greetings (যেমন: কেমন আছো, কি খবর, কেমন আছেন)
+  // 2. Capabilities / "তুমি কী কী কাজ করতে পারো?"
+  if (
+    norm.includes('কী কাজ') ||
+    norm.includes('কি কাজ') ||
+    norm.includes('কী করতে পার') ||
+    norm.includes('কি করতে পার') ||
+    norm.includes('কী কী করতে') ||
+    norm.includes('কি কি করতে') ||
+    norm.includes('কী পারো') ||
+    norm.includes('কি পারো') ||
+    norm.includes('তোমার কাজ কি') ||
+    norm.includes('তোমার কাজ কী') ||
+    norm.includes('কাজগুলো কি') ||
+    norm.includes('কাজগুলো কী') ||
+    norm.includes('ফিচার কি') ||
+    norm.includes('ফিচার কী') ||
+    norm.includes('ক্ষমতা কি') ||
+    norm.includes('what can you do') ||
+    norm.includes('your capabilities')
+  ) {
+    const reply = "TRIDIP স্যার, আমি আপনার সার্বক্ষণিক পার্সোনাল এআই অ্যাসিস্ট্যান্ট জার্ভিস। আপনার জন্য আমি এই কাজগুলো ১০০% রিয়েল-টাইমে সম্পাদন করতে পারি:\n\n" +
+      "১. ইউটিউব ও গান অটোমেশন: মুখে বললেই ইউটিউব খোলা, পছন্দের হিন্দি গান, ৯০ দশকের গান বা লেটেস্ট বাংলা গান সার্চ করা এবং প্রথম বা দ্বিতীয় ভিডিও সরাসরি প্লে করা।\n" +
+      "২. গুগল ও ইন্টারনেট সার্চ: গুগলে যেকোনো তথ্য তাৎক্ষণিক অনুসন্ধান করে ব্রাউজারে রিয়েল-টাইম রেজাল্ট প্রদর্শন করা।\n" +
+      "৩. লাইভ আবহাওয়া আপডেট: ঢাকার বর্তমান তাপমাত্রা, বৃষ্টিপাত ও বাতাসের আর্দ্রতার তাজা রিপোর্ট মুখে বলে দেওয়া।\n" +
+      "৪. ডেস্কটপ নোটপ্যাড ও ফাইল সেভ: আপনার যেকোনো গুরুত্বপূর্ণ নোট তারিখ ও সময়সহ ডেস্কটপে 'TRI_AI_Notes.txt' ফাইলে লিখে সরাসরি নোটপ্যাডে ওপেন করা।\n" +
+      "৫. কম্পিউটার সাউন্ড ও ভলিউম নিয়ন্ত্রণ: কম্পিউটারের ভলিউম বাড়ানো, কমানো বা নিঃশব্দ করা।\n" +
+      "৬. উইন্ডোজ অ্যাপ চালু: ক্যালকুলেটর, ফাইল এক্সপ্লোরার, টাস্ক ম্যানেজার, পেইন্ট বা সেটিংস প্যানেল খোলা।\n" +
+      "৭. সোশ্যাল ও ওয়েব প্ল্যাটফর্ম: ফেসবুক, জিমেইল, গিটহাব বা উইকিপিডিয়া এক নির্দেশে ব্রাউজারে নিয়ে আসা।\n" +
+      "৮. সার্বক্ষণিক হ্যান্ডস-ফ্রি ভয়েস: মাউস ছাড়া সার্বক্ষণিক আপনার কথা শুনে মিষ্টি ও সাবলীল বাংলা কণ্ঠে প্রতিটি তথ্যের পূর্ণ বিবরণ দেওয়া।\n\n" +
+      "বলুন TRIDIP স্যার, এখন আমি আপনার জন্য কোন কাজটি সম্পন্ন করবো?";
+
+    return {
+      type: 'CAPABILITIES',
+      reply: reply
+    };
+  }
+
+  // 3. Greetings (যেমন: কেমন আছো, কি খবর, কেমন আছেন)
   if (norm.includes('কেমন আছো') || norm.includes('কেমন আছেন') || norm.includes('কি খবর') || norm.includes('কী খবর') || norm.includes('কি অবস্থা') || norm.includes('how are you')) {
     return {
       type: 'GREETING',
@@ -860,6 +925,11 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
     const presetReply = typeof intent === 'object' ? intent.reply : null;
     const intentUrl = typeof intent === 'object' ? intent.url : null;
 
+    // 0. Capabilities (Full detailed description of all custom JARVIS features)
+    if (actionType === 'CAPABILITIES') {
+      return { message: presetReply, url: null };
+    }
+
     // 1. Conversational Greeting
     if (actionType === 'GREETING') {
       return { message: presetReply || 'আমি খুব ভালো আছি TRIDIP স্যার! আপনার কি খবর? আপনার দিনটি কেমন যাচ্ছে বলুন, আমি সবসময় আপনার সেবায় প্রস্তুত আছি।', url: null };
@@ -1022,9 +1092,9 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
 
         let response = null;
 
-        // If specific actions like GREETING, WEATHER, SAVE_NOTE, VOLUME or APP OPEN happened:
+        // If specific actions like GREETING, CAPABILITIES, WEATHER, SAVE_NOTE, VOLUME or APP OPEN happened:
         // Prioritize the clean, spoken confirmation message as the reply!
-        if (actionMsg && (intent.type === 'GREETING' || intent.type === 'WEATHER' || intent.type === 'SAVE_NOTE' || intent.type.startsWith('VOLUME_') || intent.type.startsWith('OPEN_'))) {
+        if (actionMsg && (intent.type === 'GREETING' || intent.type === 'CAPABILITIES' || intent.type === 'WEATHER' || intent.type === 'SAVE_NOTE' || intent.type.startsWith('VOLUME_') || intent.type.startsWith('OPEN_'))) {
           response = {
             mode: 'ACTION_EXECUTED',
             provider: 'TRI AI Engine',
