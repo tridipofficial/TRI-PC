@@ -1272,6 +1272,8 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const blob = new Blob([audioBuffer], { type: 'audio/wav' });
         formData.append('file', blob, 'audio.wav');
         formData.append('model', 'whisper-large-v3-turbo');
+        formData.append('language', 'bn');
+        formData.append('prompt', 'YouTube, ইউটিউব, ওপেন করো, খোলো, গান, হিন্দি গান, বাংলা গান, সার্চ করো, চালাও, বন্ধ করো, TRIDIP');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();

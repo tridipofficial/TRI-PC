@@ -651,7 +651,8 @@ document.addEventListener('DOMContentLoaded', () => {
         this.mediaStream = stream;
 
         const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-        this.audioCtx = new AudioContextClass({ sampleRate: 16000 });
+        this.audioCtx = new AudioContextClass();
+        this.inSampleRate = this.audioCtx.sampleRate || 48000;
         this.source = this.audioCtx.createMediaStreamSource(stream);
 
         this.analyser = this.audioCtx.createAnalyser();
@@ -769,7 +770,9 @@ document.addEventListener('DOMContentLoaded', () => {
         offset += chunk.length;
       }
 
-      const wavBlob = this.encodeWAV(merged, 16000);
+      // Convert device native audio (44.1k/48k) to true 16kHz PCM (Prevents slow-motion pitch distortion)
+      const downsampled = this.downsampleBuffer(merged, this.inSampleRate || 48000, 16000);
+      const wavBlob = this.encodeWAV(downsampled, 16000);
       const base64Audio = await this.blobToBase64(wavBlob);
 
       this.isTranscribing = true;
@@ -798,6 +801,27 @@ document.addEventListener('DOMContentLoaded', () => {
       } finally {
         this.isTranscribing = false;
       }
+    }
+
+    downsampleBuffer(buffer, inSampleRate, outSampleRate = 16000) {
+      if (!inSampleRate || inSampleRate === outSampleRate) return buffer;
+      const ratio = inSampleRate / outSampleRate;
+      const newLength = Math.round(buffer.length / ratio);
+      const result = new Float32Array(newLength);
+      let offsetResult = 0;
+      let offsetBuffer = 0;
+      while (offsetResult < result.length) {
+        const nextOffsetBuffer = Math.round((offsetResult + 1) * ratio);
+        let accum = 0, count = 0;
+        for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+          accum += buffer[i];
+          count++;
+        }
+        result[offsetResult] = count > 0 ? accum / count : 0;
+        offsetResult++;
+        offsetBuffer = nextOffsetBuffer;
+      }
+      return result;
     }
 
     encodeWAV(samples, sampleRate) {
