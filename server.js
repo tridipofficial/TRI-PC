@@ -628,7 +628,8 @@ function extractYouTubeQuery(prompt) {
   let q = prompt;
   q = q.replace(/পুনরায়\s*(ইউটিউব|ইউটুব|ইউটিব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
   q = q.replace(/আবার\s*(ইউটিউব|ইউটুব|ইউটিব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
-  q = q.replace(/(ইউটিউব|ইউটুব|ইউটিব|youtube)\s*(এ|ে)?\s*(গিয়ে|যাও|ওপেন করে|খুলে|খোলো|ওপেন করো|ওপেন কর|চালু করো)?/gi, ' ');
+  q = q.replace(/(ইউটিউব|ইউটুব|ইউটিব|youtube)\s*[-–—]?\s*(এ|ে|টা|টি)?\s*(গিয়ে|যাও|ওপেন করে|খুলে|খোলো|ওপেন করো|ওপেন কর|চালু করো)?/gi, ' ');
+  q = q.replace(/^\s*[-–—]?\s*(এ|ে)\s+/gi, ' ');
   q = q.replace(/(ওপেন করে|খুলে নিয়ে|চালু করে|ওপেন করো|ওপেন কর|খোলো|চালু করো|ওপেন|চালু)/gi, ' ');
   q = q.replace(/(সার্চ করে দাও|সার্চ করে দিন|সার্চ করে|সার্চ করো|সার্চ কর|সার্চ|search)/gi, ' ');
   q = q.replace(/(খুঁজে বের করো|খুঁজে দাও|খোঁজো|খুঁজে|বের করো)/gi, ' ');
@@ -1293,8 +1294,16 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
 
         const audioBuffer = Buffer.from(audio, 'base64');
         const isWebm = (format === 'webm') || (audioBuffer[0] === 0x1A && audioBuffer[1] === 0x45 && audioBuffer[2] === 0xDF && audioBuffer[3] === 0xA3);
-        const mimeType = isWebm ? 'audio/webm' : 'audio/wav';
-        const fileName = isWebm ? 'audio.webm' : 'audio.wav';
+        const isMp3 = (format === 'mp3') || (audioBuffer[0] === 0x49 && audioBuffer[1] === 0x44 && audioBuffer[2] === 0x33) || (audioBuffer[0] === 0xFF && (audioBuffer[1] & 0xE0) === 0xE0);
+        let mimeType = 'audio/wav';
+        let fileName = 'audio.wav';
+        if (isWebm) {
+          mimeType = 'audio/webm';
+          fileName = 'audio.webm';
+        } else if (isMp3) {
+          mimeType = 'audio/mp3';
+          fileName = 'audio.mp3';
+        }
 
         const formData = new FormData();
         const blob = new Blob([audioBuffer], { type: mimeType });

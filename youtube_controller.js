@@ -33,43 +33,52 @@ class YouTubeController {
   }
 
   async fetchSearchResults(query) {
-    try {
-      const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-      const res = await fetch(searchUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9,bn;q=0.8'
-        },
-        signal: AbortSignal.timeout(6000)
-      });
-      const html = await res.text();
-      const match = html.match(/var ytInitialData = ({[\s\S]+?});<\/script>/);
-      if (match) {
-        const data = JSON.parse(match[1]);
-        const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
-        const videos = [];
-        const seen = new Set();
-        for (const item of contents) {
-          if (item.videoRenderer) {
-            const v = item.videoRenderer;
-            const title = (v.title?.runs?.[0]?.text || '').replace(/\s+/g, ' ').trim();
-            const videoId = v.videoId;
-            if (title && videoId && !seen.has(videoId)) {
-              seen.add(videoId);
-              videos.push({
-                title,
-                url: `https://www.youtube.com/watch?v=${videoId}`
-              });
+    const tryFetch = async (q) => {
+      try {
+        const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+        const res = await fetch(searchUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9,bn;q=0.8'
+          },
+          signal: AbortSignal.timeout(8000)
+        });
+        const html = await res.text();
+        const match = html.match(/var ytInitialData = ({[\s\S]+?});<\/script>/);
+        if (match) {
+          const data = JSON.parse(match[1]);
+          const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
+          const videos = [];
+          const seen = new Set();
+          for (const item of contents) {
+            if (item.videoRenderer) {
+              const v = item.videoRenderer;
+              const title = (v.title?.runs?.[0]?.text || '').replace(/\s+/g, ' ').trim();
+              const videoId = v.videoId;
+              if (title && videoId && !seen.has(videoId)) {
+                seen.add(videoId);
+                videos.push({
+                  title,
+                  url: `https://www.youtube.com/watch?v=${videoId}`
+                });
+              }
+              if (videos.length >= 5) break;
             }
-            if (videos.length >= 5) break;
           }
+          if (videos.length > 0) return videos;
         }
-        if (videos.length > 0) return videos;
+      } catch (e) {
+        console.warn('Fetch search fallback error:', e.message);
       }
-    } catch (e) {
-      console.warn('Fetch search fallback error:', e.message);
+      return [];
+    };
+
+    let videos = await tryFetch(query);
+    if (videos.length === 0 && (query.includes('গান') || query.includes('হিন্দি') || query.includes('বাংলা') || query.includes('song'))) {
+      const fallbackQ = query.replace(/হিন্দি/g, 'hindi').replace(/বাংলা/g, 'bangla').replace(/গান/g, 'songs').replace(/নতুন/g, 'latest');
+      videos = await tryFetch(fallbackQ);
     }
-    return [];
+    return videos;
   }
 
   async search(query) {
