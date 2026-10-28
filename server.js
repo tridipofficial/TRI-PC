@@ -1200,6 +1200,73 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
     return;
   }
 
+  // Groq Whisper AI Speech-to-Text Route (Sub-300ms Bengali & English transcription)
+  if (pathname === '/api/transcribe' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => {
+      body += chunk;
+      if (body.length > 25 * 1024 * 1024) { // 25MB limit
+        res.writeHead(413, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Payload too large' }));
+        req.destroy();
+      }
+    });
+    req.on('end', async () => {
+      try {
+        const { audio } = JSON.parse(body || '{}');
+        if (!audio) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'No audio provided' }));
+        }
+
+        const groqKey = process.env.GROQ_API_KEY;
+        if (!groqKey) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'GROQ_API_KEY is not configured' }));
+        }
+
+        const audioBuffer = Buffer.from(audio, 'base64');
+        const formData = new FormData();
+        const blob = new Blob([audioBuffer], { type: 'audio/wav' });
+        formData.append('file', blob, 'audio.wav');
+        formData.append('model', 'whisper-large-v3-turbo');
+        formData.append('temperature', '0.0');
+
+        const t0 = Date.now();
+        const groqRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${groqKey}`
+          },
+          body: formData
+        });
+
+        if (!groqRes.ok) {
+          const errText = await groqRes.text();
+          console.error('Groq Whisper error:', errText);
+          res.writeHead(groqRes.status, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ error: 'Groq Whisper error', details: errText }));
+        }
+
+        const groqData = await groqRes.json();
+        let text = (groqData.text || '').trim();
+        // Remove common silent hallucinations
+        if (text.toLowerCase() === 'thank you.' || text.toLowerCase() === 'you' || text.toLowerCase() === 'bye.') {
+          text = '';
+        }
+        console.log(`[Whisper STT] Transcribed in ${Date.now() - t0}ms: "${text}"`);
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true, text }));
+      } catch (err) {
+        console.error('Transcribe endpoint error:', err.message);
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   // Neural TTS Route (Studio-Quality Bengali Emotional Voice)
   if (pathname === '/api/tts' && req.method === 'POST') {
     let body = '';

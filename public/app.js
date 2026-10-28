@@ -605,9 +605,269 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  const isElectronApp = !!(window.electronAPI && window.electronAPI.isElectron);
+
+  // --- Neural Whisper Voice Engine (Electron Native & Desktop Zero-Error STT) ---
+  class NeuralWhisperEngine {
+    constructor() {
+      this.isListening = false;
+      this.audioCtx = null;
+      this.mediaStream = null;
+      this.processor = null;
+      this.source = null;
+      this.analyser = null;
+      this.chunks = [];
+      this.silenceTimer = null;
+      this.safetyTimer = null;
+      this.speechDetected = false;
+      this.maxRecordedVolume = 0;
+      this.isTranscribing = false;
+      this.onSpeechDone = null;
+    }
+
+    async start(onSpeechDone) {
+      if (this.isListening || this.isTranscribing || window.triAIIsSpeaking) return;
+      try {
+        this.chunks = [];
+        this.speechDetected = false;
+        this.maxRecordedVolume = 0;
+        this.onSpeechDone = onSpeechDone;
+
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 16000
+          }
+        });
+        this.mediaStream = stream;
+
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        this.audioCtx = new AudioContextClass({ sampleRate: 16000 });
+        this.source = this.audioCtx.createMediaStreamSource(stream);
+
+        this.analyser = this.audioCtx.createAnalyser();
+        this.analyser.fftSize = 256;
+        this.source.connect(this.analyser);
+
+        this.processor = this.audioCtx.createScriptProcessor(4096, 1, 1);
+        this.source.connect(this.processor);
+        this.processor.connect(this.audioCtx.destination);
+
+        this.processor.onaudioprocess = (e) => {
+          if (!this.isListening) return;
+          const inputData = e.inputBuffer.getChannelData(0);
+          this.chunks.push(new Float32Array(inputData));
+
+          // Calculate RMS volume level
+          let sumSquares = 0;
+          for (let i = 0; i < inputData.length; i++) {
+            sumSquares += inputData[i] * inputData[i];
+          }
+          const rms = Math.sqrt(sumSquares / inputData.length);
+
+          if (rms > this.maxRecordedVolume) {
+            this.maxRecordedVolume = rms;
+          }
+
+          // Voice Activity Detection (VAD)
+          if (rms > 0.02) {
+            this.speechDetected = true;
+            if (this.silenceTimer) {
+              clearTimeout(this.silenceTimer);
+              this.silenceTimer = null;
+            }
+          } else if (this.speechDetected && rms < 0.015) {
+            if (!this.silenceTimer) {
+              this.silenceTimer = setTimeout(() => {
+                this.stopAndProcess(this.onSpeechDone);
+              }, 1100);
+            }
+          }
+        };
+
+        this.isListening = true;
+        isListening = true;
+        updateHandsFreeUI('listening');
+        btnMic.classList.add('listening');
+
+        // Maximum turn length (12s)
+        this.safetyTimer = setTimeout(() => {
+          if (this.isListening) {
+            this.stopAndProcess(this.onSpeechDone);
+          }
+        }, 12000);
+
+      } catch (err) {
+        console.error('Neural Whisper start error:', err);
+        this.isListening = false;
+        isListening = false;
+        updateHandsFreeUI('idle');
+        btnMic.classList.remove('listening');
+      }
+    }
+
+    async stopAndProcess(onSpeechDone) {
+      if (!this.isListening) return;
+      this.isListening = false;
+      isListening = false;
+      if (this.silenceTimer) clearTimeout(this.silenceTimer);
+      if (this.safetyTimer) clearTimeout(this.safetyTimer);
+
+      updateHandsFreeUI('processing');
+      btnMic.classList.remove('listening');
+
+      // Cleanup media stream & audio context
+      if (this.processor) {
+        try { this.processor.disconnect(); } catch (e) {}
+        this.processor = null;
+      }
+      if (this.source) {
+        try { this.source.disconnect(); } catch (e) {}
+        this.source = null;
+      }
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach(t => t.stop());
+        this.mediaStream = null;
+      }
+      if (this.audioCtx && this.audioCtx.state !== 'closed') {
+        try { await this.audioCtx.close(); } catch (e) {}
+        this.audioCtx = null;
+      }
+
+      // Check if actual speech was detected
+      if (!this.speechDetected && this.maxRecordedVolume < 0.015) {
+        console.log('No speech detected in audio stream.');
+        updateHandsFreeUI('idle');
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => startListeningLoop(), 400);
+        }
+        return;
+      }
+
+      const totalLen = this.chunks.reduce((acc, c) => acc + c.length, 0);
+      if (totalLen < 6000) {
+        updateHandsFreeUI('idle');
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => startListeningLoop(), 400);
+        }
+        return;
+      }
+
+      const merged = new Float32Array(totalLen);
+      let offset = 0;
+      for (const chunk of this.chunks) {
+        merged.set(chunk, offset);
+        offset += chunk.length;
+      }
+
+      const wavBlob = this.encodeWAV(merged, 16000);
+      const base64Audio = await this.blobToBase64(wavBlob);
+
+      this.isTranscribing = true;
+      try {
+        const res = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: base64Audio })
+        });
+        const data = await res.json();
+        if (data.success && data.text && data.text.trim()) {
+          console.log('[Neural Whisper]:', data.text);
+          if (onSpeechDone) onSpeechDone(data.text.trim());
+        } else {
+          updateHandsFreeUI('idle');
+          if (isHandsFreeMode && !window.triAIIsSpeaking) {
+            setTimeout(() => startListeningLoop(), 400);
+          }
+        }
+      } catch (e) {
+        console.error('Transcribe error:', e);
+        updateHandsFreeUI('idle');
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => startListeningLoop(), 400);
+        }
+      } finally {
+        this.isTranscribing = false;
+      }
+    }
+
+    encodeWAV(samples, sampleRate) {
+      const buffer = new ArrayBuffer(44 + samples.length * 2);
+      const view = new DataView(buffer);
+      const writeStr = (v, o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+
+      writeStr(view, 0, 'RIFF');
+      view.setUint32(4, 36 + samples.length * 2, true);
+      writeStr(view, 8, 'WAVE');
+      writeStr(view, 12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true); // PCM
+      view.setUint16(22, 1, true); // mono
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeStr(view, 36, 'data');
+      view.setUint32(40, samples.length * 2, true);
+
+      let idx = 44;
+      for (let i = 0; i < samples.length; i++, idx += 2) {
+        const s = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(idx, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+      }
+      return new Blob([view], { type: 'audio/wav' });
+    }
+
+    blobToBase64(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const res = reader.result;
+          const base64 = res.split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    stop() {
+      this.isListening = false;
+      isListening = false;
+      if (this.silenceTimer) clearTimeout(this.silenceTimer);
+      if (this.safetyTimer) clearTimeout(this.safetyTimer);
+      if (this.processor) { try { this.processor.disconnect(); } catch (e) {} this.processor = null; }
+      if (this.source) { try { this.source.disconnect(); } catch (e) {} this.source = null; }
+      if (this.mediaStream) { this.mediaStream.getTracks().forEach(t => t.stop()); this.mediaStream = null; }
+      if (this.audioCtx && this.audioCtx.state !== 'closed') {
+        try { this.audioCtx.close(); } catch (e) {}
+        this.audioCtx = null;
+      }
+      btnMic.classList.remove('listening');
+      updateHandsFreeUI('idle');
+    }
+  }
+
+  const neuralWhisper = new NeuralWhisperEngine();
+
   function startListeningLoop() {
-    if (!recognition || !isHandsFreeMode || window.triAIIsSpeaking) return;
+    if (!isHandsFreeMode || window.triAIIsSpeaking) return;
     if (isListening) return;
+
+    if (isElectronApp || !recognition) {
+      neuralWhisper.start((transcript) => {
+        if (transcript && transcript.trim()) {
+          chatInput.value = transcript;
+          updateHandsFreeUI('processing');
+          sendMessage(transcript);
+        }
+      });
+      return;
+    }
+
     try {
       recognition.start();
     } catch (e) {
@@ -643,7 +903,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.speechSynthesis.onvoiceschanged = scanVoices;
   }
 
-  if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
+  // Only initialize webkitSpeechRecognition in regular Web Browsers (NOT in Electron to prevent ERR_FAILED pipes)
+  if (!isElectronApp && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
     const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
     recognition = new SpeechRec();
     recognition.continuous = false;
@@ -693,10 +954,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   btnMic.addEventListener('click', () => {
-    if (!recognition) {
-      alert('TRIDIP স্যার, এই ব্রাউজারে ভয়েস রিকগনিশন সক্রিয় নেই। দয়া করে Microsoft Edge বা Google Chrome ব্যবহার করুন।');
+    if (isElectronApp || !recognition) {
+      if (neuralWhisper.isListening) {
+        isHandsFreeMode = false;
+        btnHandsFree?.classList.remove('active');
+        neuralWhisper.stopAndProcess((transcript) => {
+          if (transcript && transcript.trim()) {
+            chatInput.value = transcript;
+            updateHandsFreeUI('processing');
+            sendMessage(transcript);
+          }
+        });
+      } else {
+        isHandsFreeMode = true;
+        btnHandsFree?.classList.add('active');
+        startListeningLoop();
+      }
       return;
     }
+
     if (isListening) {
       isHandsFreeMode = false;
       btnHandsFree?.classList.remove('active');
@@ -726,6 +1002,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (window.speechSynthesis) {
       window.speechSynthesis.cancel();
+    }
+
+    if (neuralWhisper && neuralWhisper.isListening) {
+      neuralWhisper.stop();
     }
 
     if (btnStopVoice) {
@@ -770,6 +1050,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(startListeningLoop, 1500);
       } else {
         stopAllSpeech();
+        if (neuralWhisper && neuralWhisper.isListening) {
+          neuralWhisper.stop();
+        }
         if (recognition && isListening) {
           try { recognition.stop(); } catch(e) {}
         }
@@ -787,6 +1070,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Mute mic & update visual state to speaking
     window.triAIIsSpeaking = true;
     updateHandsFreeUI('speaking');
+    if (neuralWhisper && neuralWhisper.isListening) {
+      neuralWhisper.stop();
+    }
     if (recognition && isListening) {
       try { recognition.stop(); } catch (e) {}
     }

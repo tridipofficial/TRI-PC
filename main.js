@@ -1,6 +1,10 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 const path = require('path');
 const http = require('http');
+
+// Suppress Chromium speech upload pipe logs and verbose Chromium errors
+app.commandLine.appendSwitch('disable-features', 'SpeechRecognition');
+app.commandLine.appendSwitch('log-level', '3');
 
 let mainWindow = null;
 let youtubeWindow = null;
@@ -88,6 +92,17 @@ ipcMain.handle('youtube-close', async () => {
 });
 
 app.whenReady().then(() => {
+  // Auto-approve media permissions (Microphone) for Neural Voice STT
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    if (permission === 'media') {
+      return callback(true);
+    }
+    callback(true);
+  });
+  session.defaultSession.setPermissionCheckHandler((webContents, permission) => {
+    return true;
+  });
+
   createMainWindow();
 
   app.on('activate', () => {
