@@ -622,6 +622,24 @@ function executeSafePCAction(actionType) {
   return null;
 }
 
+  // Direct PC Action Execution Route
+  if (pathname === '/api/action' && req.method === 'POST') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const { action } = JSON.parse(body || '{}');
+        const actionMsg = executeSafePCAction(action);
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: !!actionMsg, message: actionMsg, action }));
+      } catch (err) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+    });
+    return;
+  }
+
   if (pathname === '/api/chat' && req.method === 'POST') {
     let body = '';
     req.on('data', chunk => body += chunk);

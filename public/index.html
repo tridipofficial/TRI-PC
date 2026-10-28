@@ -1,32 +1,60 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="bn">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TRI AI - Desktop Assistant</title>
+  <title>TRI AI - Iron Man / JARVIS Holographic Command Center</title>
   <link rel="stylesheet" href="style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@500;700;900&family=Hind+Siliguri:wght@400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 </head>
 <body class="theme-cyan">
-  <!-- Top Application Header -->
+  <!-- Scanline Cyber Overlay -->
+  <div class="cyber-scanlines"></div>
+
+  <!-- Top Tactical Header Bar -->
   <header class="app-header">
     <div class="header-left">
-      <div class="logo-orb"></div>
-      <span class="app-title">TRI AI</span>
-      <span class="version-tag">v1.0.0 (CLEAN-ROOM)</span>
+      <div class="hud-logo-ring">
+        <div class="hud-inner-core"></div>
+      </div>
+      <div class="header-titles">
+        <div class="app-title">TRI AI <span class="badge-hud">MARK II</span></div>
+        <div class="app-sub">IRON MAN // JARVIS TACTICAL COCKPIT</div>
+      </div>
+      <div class="hud-divider"></div>
+      <div class="hud-telemetry-badge">
+        <span class="status-pulse"></span>
+        <span class="status-text">SYSTEM OPTIMAL</span>
+      </div>
     </div>
+
     <div class="header-center">
-      <div class="theme-switcher">
-        <button class="theme-btn active" data-theme="theme-cyan" title="Cyan Theme"></button>
+      <div class="cockpit-bracket-box">
+        <span class="bracket-left">[</span>
+        <div class="time-display-box">
+          <span id="tacticalClock" class="clock-digits">00:00:00</span>
+          <span id="tacticalDate" class="date-digits">CONNECTING...</span>
+        </div>
+        <span class="bracket-right">]</span>
+      </div>
+    </div>
+
+    <div class="header-right">
+      <div class="theme-switcher" title="Hologram Color Matrix">
+        <button class="theme-btn active" data-theme="theme-cyan" title="Electric Cyan"></button>
         <button class="theme-btn" data-theme="theme-violet" title="Neon Violet"></button>
         <button class="theme-btn" data-theme="theme-crimson" title="Crimson Core"></button>
       </div>
-    </div>
-    <div class="header-right">
-      <span class="pulse-indicator"></span>
-      <span class="system-status-text">LOCAL SYSTEM ACTIVE</span>
+      <div class="vitals-chip">
+        <span class="chip-label">AI LPU:</span>
+        <span class="chip-val">GROQ 120B</span>
+      </div>
+      <div class="vitals-chip">
+        <span class="chip-label">VOICE:</span>
+        <span class="chip-val">24kHz NEURAL</span>
+      </div>
       <div class="window-controls">
         <span>—</span>
         <span>□</span>
@@ -35,21 +63,80 @@
     </div>
   </header>
 
-  <!-- Main 3-Column Desktop Grid -->
+  <!-- Main Tactical HUD Grid (3-Column Iron Man Layout) -->
   <main class="desktop-grid">
     
-    <!-- LEFT COLUMN: Tasks & World Stream -->
+    <!-- ========================================== -->
+    <!-- LEFT WING: Radar, Apps & Tasks Deck        -->
+    <!-- ========================================== -->
     <section class="col-left">
-      <!-- Tasks Card -->
-      <div class="panel-card tasks-card">
-        <div class="panel-tabs">
-          <button class="tab-btn active" id="tabTasksBtn">TASKS</button>
-          <button class="tab-btn" id="tabNotesBtn">NOTES</button>
+      <!-- 1. Tactical Radar & Telemetry -->
+      <div class="panel-card hud-card radar-deck">
+        <div class="card-hud-header">
+          <span class="hud-title"><span class="neon-dot">●</span> TACTICAL RADAR // RETICLE</span>
+          <span class="hud-tag">360° AZIMUTH</span>
+        </div>
+        <div class="radar-viewport">
+          <canvas id="radarCanvas"></canvas>
+          <div class="radar-telemetry-overlay">
+            <div class="telemetry-item"><span class="t-k">RANGE:</span> <span class="t-v">500 KM</span></div>
+            <div class="telemetry-item"><span class="t-k">SWEEP:</span> <span class="t-v">60 RPM</span></div>
+            <div class="telemetry-item"><span class="t-k">LOCK:</span> <span class="t-v text-cyan">ACTIVE</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Cybernetic Floating Quick App Launchers -->
+      <div class="panel-card hud-card apps-deck">
+        <div class="card-hud-header">
+          <span class="hud-title"><span class="neon-dot">⚡</span> CYBER LAUNCHER // PC APPS</span>
+          <span class="hud-tag">QUICK ACCESS</span>
+        </div>
+        <div class="cyber-spline-grid">
+          <button class="cyber-app-node" data-action="OPEN_YOUTUBE" title="ইউটিউব ওপেন করুন">
+            <span class="app-icon text-red">▶️</span>
+            <span class="app-name">YouTube</span>
+            <span class="node-glow"></span>
+          </button>
+          <button class="cyber-app-node" data-action="OPEN_GOOGLE" title="গুগল ব্রাউজার ওপেন করুন">
+            <span class="app-icon text-blue">🌐</span>
+            <span class="app-name">Browser</span>
+            <span class="node-glow"></span>
+          </button>
+          <button class="cyber-app-node" data-action="OPEN_NOTEPAD" title="উইন্ডোজ নোটপ্যাড খুলুন">
+            <span class="app-icon text-amber">📝</span>
+            <span class="app-name">Notepad</span>
+            <span class="node-glow"></span>
+          </button>
+          <button class="cyber-app-node" data-action="OPEN_CALC" title="ক্যালকুলেটর চালু করুন">
+            <span class="app-icon text-green">🧮</span>
+            <span class="app-name">Calc</span>
+            <span class="node-glow"></span>
+          </button>
+          <button class="cyber-app-node" data-action="OPEN_EXPLORER" title="ফাইল এক্সপ্লোরার খুলুন">
+            <span class="app-icon text-cyan">📁</span>
+            <span class="app-name">Files</span>
+            <span class="node-glow"></span>
+          </button>
+          <button class="cyber-app-node" data-action="OPEN_FACEBOOK" title="ফেসবুক ওপেন করুন">
+            <span class="app-icon text-indigo">⚡</span>
+            <span class="app-name">Social</span>
+            <span class="node-glow"></span>
+          </button>
+        </div>
+      </div>
+
+      <!-- 3. Holographic Task & Objectives Deck -->
+      <div class="panel-card hud-card tasks-deck">
+        <div class="card-hud-header">
+          <div class="panel-tabs">
+            <button class="tab-btn active" id="tabTasksBtn">TASKS</button>
+            <button class="tab-btn" id="tabNotesBtn">NOTES</button>
+          </div>
+          <span class="progress-pct" id="progressPctText">0/3 (0%)</span>
         </div>
 
         <div class="progress-bar-container">
-          <span class="progress-label">PROGRESS STATUS</span>
-          <span class="progress-pct" id="progressPctText">0/3 (0%)</span>
           <div class="progress-track">
             <div class="progress-fill" id="progressFill" style="width: 0%;"></div>
           </div>
@@ -60,27 +147,27 @@
           <div class="pill-group">
             <button class="pill active" data-filter="ALL">ALL</button>
             <button class="pill" data-filter="PENDING">PENDING</button>
-            <button class="pill" data-filter="COMPLETED">COMPLETED</button>
+            <button class="pill" data-filter="COMPLETED">DONE</button>
             <button class="pill" data-filter="HIGH">HIGH</button>
           </div>
           <div class="pill-group-sub">
             <button class="sub-pill active" data-sub="ALL">ALL</button>
             <button class="sub-pill" data-sub="WORK">WORK</button>
-            <button class="sub-pill" data-sub="PERSONAL">PERSONAL</button>
+            <button class="sub-pill" data-sub="PERSONAL">HOME</button>
           </div>
         </div>
 
         <!-- Add Objective Input -->
         <div class="add-objective-box">
-          <input type="text" id="newObjectiveInput" placeholder="Add new objective...">
+          <input type="text" id="newObjectiveInput" placeholder="Add new tactical objective...">
           <select id="prioritySelect" class="badge-select">
-            <option value="MEDIUM">• MEDIUM</option>
+            <option value="MEDIUM">• MED</option>
             <option value="HIGH">• HIGH</option>
             <option value="LOW">• LOW</option>
           </select>
           <select id="categorySelect" class="badge-select">
             <option value="WORK">WORK</option>
-            <option value="PERSONAL">PERSONAL</option>
+            <option value="PERSONAL">HOME</option>
           </select>
           <button id="addObjectiveBtn" class="add-btn" title="Add Objective">+</button>
         </div>
@@ -90,181 +177,189 @@
           <!-- Dynamically Rendered -->
         </div>
       </div>
-
-      <!-- World Satellite Stream -->
-      <div class="panel-card world-card">
-        <div class="card-header-compact">
-          <span class="card-title-dot">● SATELLITE STREAM</span>
-          <div class="dim-toggles">
-            <button class="toggle-btn active" id="btn2D">2D</button>
-            <button class="toggle-btn" id="btn3D">3D</button>
-          </div>
-        </div>
-        <div class="world-canvas-wrapper">
-          <canvas id="worldCanvas"></canvas>
-        </div>
-        <div class="world-nav-footer">
-          <button class="nav-icon-btn active" title="Today">Today</button>
-          <button class="nav-icon-btn" title="Map">Map</button>
-          <button class="nav-icon-btn" title="Search">Search</button>
-          <button class="nav-icon-btn" title="Alerts">Alerts</button>
-          <button class="nav-icon-btn" title="More">More</button>
-        </div>
-      </div>
     </section>
 
-    <!-- CENTER COLUMN: Neural Core & Agent Town -->
+    <!-- ========================================== -->
+    <!-- CENTER STAGE: ARC REACTOR & 3D MECH AVATAR -->
+    <!-- ========================================== -->
     <section class="col-center">
-      <!-- Neural Core HUD -->
-      <div class="panel-card neural-core-card">
-        <div class="neural-tree">
-          <div class="tree-node node-memory" id="nodeMemory">
-            <span class="node-icon">🧠</span>
-            <span class="node-title">Memory</span>
-            <span class="node-dot dot-green"></span>
+      <!-- Cockpit View Mode Switcher -->
+      <div class="center-stage-tabs">
+        <button class="stage-tab active" id="tabCockpitBtn">ARC REACTOR & 3D MECH</button>
+        <button class="stage-tab" id="tabTownBtn">AGENT MATRIX</button>
+        <button class="stage-tab" id="tabVisualBtn">VISUAL MINDMAP</button>
+      </div>
+
+      <!-- Main 3D Cockpit Viewport -->
+      <div class="panel-card hud-card cockpit-viewport-card" id="viewCockpit">
+        <!-- Circular HUD Framing Overlays -->
+        <div class="hud-corner-bracket top-left"></div>
+        <div class="hud-corner-bracket top-right"></div>
+        <div class="hud-corner-bracket btm-left"></div>
+        <div class="hud-corner-bracket btm-right"></div>
+
+        <div class="cockpit-hud-overlay-top">
+          <div class="hud-badge-title">JARVIS MARK II // NEURAL CORE</div>
+          <div class="hud-badge-sub">3D HOLOGRAPHIC MECH GUARDIAN</div>
+        </div>
+
+        <!-- 3D Three.js WebGL Canvas (Arc Reactor + Mech) -->
+        <div class="orb-viewport">
+          <canvas id="orbCanvas"></canvas>
+
+          <!-- Floating Tactical Quick Actions -->
+          <div class="quick-tools">
+            <button id="btnCamera" class="tool-circle-btn" title="ক্যামেরা স্ক্যানার">📷</button>
+            <button id="btnScreen" class="tool-circle-btn" title="ডেস্কটপ স্ক্রিন ক্যাপচার">🖥️</button>
+            <button id="btnTerminate" class="tool-circle-btn text-red" title="ইমারজেন্সি টার্মিনেট">🛑</button>
           </div>
-          <div class="tree-node node-soul" id="nodeSoul">
-            <span class="node-icon">👻</span>
-            <span class="node-title">Soul</span>
-            <span class="node-dot dot-white"></span>
-          </div>
-          <div class="tree-node node-skills" id="nodeSkills">
-            <span class="node-icon">📖</span>
-            <span class="node-title">Skills</span>
-            <span class="node-dot dot-cyan"></span>
-          </div>
-          <div class="tree-node node-settings" id="nodeSettings">
-            <span class="node-icon">⚙️</span>
-            <span class="node-title">Settings</span>
-            <span class="node-dot dot-red"></span>
+
+          <!-- Bottom Stage Audio-Reactive Caption -->
+          <div class="orb-caption">
+            <span class="orb-status-text">• SYSTEM ACTIVE • AUDIO-REACTIVE 3D •</span>
           </div>
         </div>
 
-        <!-- Connector Canvas -->
-        <canvas id="circuitCanvas" class="circuit-canvas"></canvas>
-
-        <!-- 3D Particle Orb Viewport -->
-        <div class="orb-viewport">
-          <div class="quick-tools">
-            <button id="btnCamera" class="tool-circle-btn" title="Camera Analysis">📷</button>
-            <button id="btnScreen" class="tool-circle-btn" title="Screen Capture">🖥️</button>
+        <!-- Autonomous Agent Squad Pods Below Avatar -->
+        <div class="agent-squad-dock">
+          <div class="agent-chip active" data-agent="alice">
+            <span class="chip-avatar">👩‍💼</span>
+            <span class="chip-name">Alice</span>
+            <span class="chip-role">Context</span>
           </div>
-          <canvas id="orbCanvas"></canvas>
-          <div class="orb-caption">
-            <span class="orb-status-text">• SYSTEM ACTIVE •</span>
+          <div class="agent-chip" data-agent="bob">
+            <span class="chip-avatar">👨‍💻</span>
+            <span class="chip-name">Bob</span>
+            <span class="chip-role">Tasks</span>
           </div>
-          <div class="orb-actions">
-            <button class="btn-terminate" id="btnTerminate">TERMINATE</button>
-            <button class="btn-mic" id="btnMic" title="Voice Input">🎙️</button>
+          <div class="agent-chip" data-agent="carol">
+            <span class="chip-avatar">👩‍🎨</span>
+            <span class="chip-name">Carol</span>
+            <span class="chip-role">Vision</span>
+          </div>
+          <div class="agent-chip" data-agent="dave">
+            <span class="chip-avatar">👨‍🔧</span>
+            <span class="chip-name">Dave</span>
+            <span class="chip-role">Security</span>
           </div>
         </div>
       </div>
 
-      <!-- Agent Town / Visual Hub Viewport -->
-      <div class="panel-card simulation-card">
+      <!-- Secondary Mode: Agent Town & Mindmap (Hidden by default) -->
+      <div class="panel-card hud-card secondary-view-card" id="viewAgentTown" style="display: none;">
         <div class="sim-header">
-          <span class="sim-title">● AGENT TOWN</span>
-          <div class="sim-tabs">
-            <button class="sim-tab active" id="tabTownBtn">AGENT TOWN</button>
-            <button class="sim-tab" id="tabVisualBtn">VISUAL HUB</button>
-            <button class="sim-tab" id="tabGestureBtn">GESTURE</button>
-          </div>
+          <span class="sim-title">● 3D MULTI-AGENT MATRIX</span>
           <div class="sim-tools">
             <button class="icon-tool" id="btnSoundToggle" title="Audio">🔊</button>
             <button class="icon-tool" id="btnResetSim" title="Refresh">🔄</button>
           </div>
         </div>
-
-        <!-- Agent Rosters Top Bar -->
-        <div class="agent-roster" id="agentRosterBar">
-          <div class="agent-badge active" data-agent="alice">
-            <span class="agent-avatar">👩‍💼</span>
-            <span class="agent-name">Alice</span>
-            <span class="agent-status-light dot-green"></span>
-          </div>
-          <div class="agent-badge" data-agent="bob">
-            <span class="agent-avatar">👨‍💻</span>
-            <span class="agent-name">Bob</span>
-            <span class="agent-status-light dot-green"></span>
-          </div>
-          <div class="agent-badge" data-agent="carol">
-            <span class="agent-avatar">👩‍🎨</span>
-            <span class="agent-name">Carol</span>
-            <span class="agent-status-light dot-green"></span>
-          </div>
-          <div class="agent-badge" data-agent="dave">
-            <span class="agent-avatar">👨‍🔧</span>
-            <span class="agent-name">Dave</span>
-            <span class="agent-status-light dot-green"></span>
-          </div>
-        </div>
-
-        <!-- Dual Canvas Viewport (Town vs Visual Hub) -->
         <div class="sim-canvas-container">
           <canvas id="townCanvas" class="sim-canvas active"></canvas>
           <canvas id="mindmapCanvas" class="sim-canvas"></canvas>
         </div>
-
-        <!-- Simulation Bottom Metrics -->
-        <div class="sim-footer">
-          <div class="footer-metrics">
-            <span class="metric-pill">● Online</span>
-            <span class="metric-pill">✨ Local (Zero Cost)</span>
-            <span class="metric-pill">CTX <div class="mini-bar"><div class="mini-bar-fill" style="width: 25%;"></div></div> 25%</span>
-            <span class="metric-pill">👥 4/4 Seats</span>
-            <span class="metric-pill" id="busyMetricText">⚡ 0/4 Busy</span>
-          </div>
-          <button class="chat-pill-btn" id="openChatPill">💬 CHAT</button>
-        </div>
       </div>
     </section>
 
-    <!-- RIGHT COLUMN: Chats & Live Reasoning Stream -->
+    <!-- ========================================== -->
+    <!-- RIGHT WING: Globe, DNA, Gauges & Chat Stream-->
+    <!-- ========================================== -->
     <section class="col-right">
-      <div class="panel-card chat-card">
+      <!-- 1. Holographic 3D Globe & DNA Helix Deck -->
+      <div class="panel-card hud-card holodeck-card">
+        <div class="holodeck-grid">
+          <!-- 3D Wireframe Globe -->
+          <div class="holodeck-cell">
+            <div class="cell-title">● SATELLITE GLOBE</div>
+            <div class="canvas-wrap-globe">
+              <canvas id="globeCanvas"></canvas>
+            </div>
+            <div class="cell-telemetry">GEO: 23.8°N, 90.4°E</div>
+          </div>
+          <!-- 3D DNA Helix Scanner -->
+          <div class="holodeck-cell">
+            <div class="cell-title">● DNA HELIX SCAN</div>
+            <div class="canvas-wrap-dna">
+              <canvas id="dnaCanvas"></canvas>
+            </div>
+            <div class="cell-telemetry">GENOME: STABLE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. CPU & RAM Speedometer Circular Arc Gauges + Weather -->
+      <div class="panel-card hud-card telemetry-dials-card">
+        <div class="dials-row">
+          <!-- CPU Dial -->
+          <div class="speedo-unit">
+            <canvas id="cpuGaugeCanvas" width="90" height="90"></canvas>
+            <div class="speedo-info">
+              <span class="speedo-label">CPU CORE</span>
+              <span id="cpuGaugeVal" class="speedo-val text-cyan">42%</span>
+            </div>
+          </div>
+          <!-- RAM Dial -->
+          <div class="speedo-unit">
+            <canvas id="ramGaugeCanvas" width="90" height="90"></canvas>
+            <div class="speedo-info">
+              <span class="speedo-label">RAM LOAD</span>
+              <span id="ramGaugeVal" class="speedo-val text-amber">68%</span>
+            </div>
+          </div>
+          <!-- Weather Telemetry -->
+          <div class="weather-unit">
+            <div class="weather-top">
+              <span class="weather-icon">🌤️</span>
+              <span class="weather-temp">28°C</span>
+            </div>
+            <div class="weather-loc">ঢাকা, বাংলাদেশ</div>
+            <div class="weather-sub">আংশিক মেঘলা • আর্দ্রতা ৬৫%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. Commander Profile & Live Chat Stream -->
+      <div class="panel-card hud-card chat-deck">
         <div class="chat-header">
-          <div class="chat-tabs">
-            <button class="chat-tab active" id="chatTabMsg">CHATS</button>
-            <button class="chat-tab" id="chatTabLogs">LOGS</button>
+          <div class="commander-badge">
+            <span class="cmd-icon">🛡️</span>
+            <div class="cmd-details">
+              <span class="cmd-title">COMMANDER: TRIDIP</span>
+              <span class="cmd-status text-cyan">CLEARANCE: ALPHA // GROQ 120B</span>
+            </div>
           </div>
           <div class="chat-header-actions">
-            <button class="icon-tool" id="btnClearChat" title="New Chat">+</button>
-            <button class="icon-tool" id="btnChatHistory" title="History">🕒</button>
+            <button class="icon-tool" id="btnClearChat" title="নতুন চ্যাট">+</button>
+            <button class="icon-tool" id="btnChatHistory" title="হিস্ট্রি">🕒</button>
           </div>
         </div>
 
-        <!-- Message Stream Area -->
+        <!-- Chat Stream Message Area -->
         <div class="chat-stream" id="chatStream">
-          <!-- Initial Assistant Welcome Message -->
           <div class="msg msg-assistant">
             <div class="msg-author">
-              <span>TRI AI</span>
+              <span>TRI AI • JARVIS</span>
               <button class="btn-listen" id="btnSpeakWelcome" title="কণ্ঠে শুনুন">🔊 শুনুন</button>
             </div>
             <div class="thought-card">
               <div class="thought-header">🧠 THOUGHT PROCESS</div>
-              <div class="thought-stage">**Initiating Contextual Analysis**</div>
-              <div class="thought-detail">System initialized in 100% free mode. Verified 4 autonomous agents, local task database, and WebGL Neural Core.</div>
-              <div class="thought-stage">**Defining the Goal**</div>
-              <div class="thought-detail">TRIDIP স্যারের ব্যক্তিগত ডেস্কটপ সহকারী হিসেবে প্রস্তুত।</div>
+              <div class="thought-stage">**Holographic Cockpit Initialized**</div>
+              <div class="thought-detail">Iron Man / JARVIS Mark II tactical HUD active. Groq 120B LPU ready. 24kHz sweet emotional voice tuned.</div>
+              <div class="thought-stage">**Commander Recognition**</div>
+              <div class="thought-detail">TRIDIP স্যারের সেবায় সার্বক্ষণিক প্রস্তুত।</div>
             </div>
             <div class="msg-bubble">
-              হ্যালো, TRIDIP স্যার! আমি আপনার TRI AI অ্যাসিস্ট্যান্ট। আপনাকে কীভাবে সাহায্য করতে পারি?
+              হ্যালো, TRIDIP স্যার! আমি আপনার TRI AI JARVIS অ্যাসিস্ট্যান্ট। পুরো ট্যাকটিক্যাল ৩ডি ককপিট সচল আছে। আপনাকে কীভাবে সাহায্য করতে পারি?
             </div>
           </div>
         </div>
 
-        <!-- Chat Input Bar -->
+        <!-- Input Bar with Toggles -->
         <div class="chat-input-wrapper">
-          <div class="input-row">
-            <input type="text" id="chatInput" placeholder="TRIDIP স্যার, এখানে বাংলায় অথবা ইংরেজিতে লিখুন..." autocomplete="off">
-            <button id="btnSendChat" class="btn-send" title="Send">↑</button>
-          </div>
           <div class="input-toggles">
             <button class="toggle-pill" id="btnVoiceToggle">🎙️ VOICE ASSISTANT</button>
             <button class="toggle-pill btn-stop-voice" id="btnStopVoice" style="display:none; color:#ef4444; border-color:rgba(239, 68, 68, 0.4);" title="ভয়েস বন্ধ করুন">⏹️ থামুন</button>
-            <button class="toggle-pill active" id="btnExpertToggle">⚡ EXPERT AGENT</button>
-            <span class="live-status-pill">● Live Connected</span>
+            <button class="toggle-pill active" id="btnExpertToggle">⚡ 120B EXPERT</button>
           </div>
         </div>
       </div>
@@ -272,8 +367,40 @@
 
   </main>
 
+  <!-- ========================================== -->
+  <!-- BOTTOM CONSOLE BAR: Mic, Input & Shortcuts -->
+  <!-- ========================================== -->
+  <footer class="tactical-footer">
+    <div class="footer-inner">
+      <!-- High-Tech Central Mic Button -->
+      <button class="central-mic-orb" id="btnMic" title="ভয়েসে কথা বলুন (বাংলা)">
+        <span class="mic-icon">🎙️</span>
+        <span class="mic-sonar-ring ring-1"></span>
+        <span class="mic-sonar-ring ring-2"></span>
+      </button>
+
+      <!-- Bengali & English Chat Input Bar -->
+      <div class="tactical-input-container">
+        <input type="text" id="chatInput" placeholder="TRIDIP স্যার, এখানে বাংলায় বলুন বা লিখুন (যেমন: 'ইউটিউব খোলো', 'ক্যালকুলেটর', 'আজকের আবহাওয়া')..." autocomplete="off">
+        <button id="btnSendChat" class="tactical-send-btn" title="পাঠান">
+          <span>পাঠান</span>
+          <span class="send-arrow">⚡</span>
+        </button>
+      </div>
+
+      <!-- Quick Command Prompt Chips -->
+      <div class="quick-cmd-dock">
+        <button class="quick-cmd-chip" data-cmd="ইউটিউব খোলো">▶️ ইউটিউব</button>
+        <button class="quick-cmd-chip" data-cmd="ক্যালকুলেটর ওপেন করো">🧮 ক্যালকুলেটর</button>
+        <button class="quick-cmd-chip" data-cmd="নোটপ্যাড খোলো">📝 নোটপ্যাড</button>
+        <button class="quick-cmd-chip" data-cmd="তুমি কেমন আছো?">💬 কেমন আছো?</button>
+      </div>
+    </div>
+  </footer>
+
   <!-- Scripts -->
   <script src="three.min.js"></script>
+  <script src="hud-tactical.js"></script>
   <script src="orb.js"></script>
   <script src="agent-town.js"></script>
   <script src="mindmap.js"></script>

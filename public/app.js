@@ -41,20 +41,44 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // Switch between Agent Town and Visual Hub
-  tabTownBtn.addEventListener('click', () => {
-    tabTownBtn.classList.add('active');
-    tabVisualBtn.classList.remove('active');
-    townCanvas.classList.add('active');
-    mindmapCanvas.classList.remove('active');
-  });
+  // Switch between 3D Cockpit, Agent Town and Visual Hub
+  const tabCockpitBtn = document.getElementById('tabCockpitBtn');
+  const viewCockpit = document.getElementById('viewCockpit');
+  const viewAgentTown = document.getElementById('viewAgentTown');
 
-  tabVisualBtn.addEventListener('click', () => {
-    tabVisualBtn.classList.add('active');
-    tabTownBtn.classList.remove('active');
-    mindmapCanvas.classList.add('active');
-    townCanvas.classList.remove('active');
-  });
+  if (tabCockpitBtn) {
+    tabCockpitBtn.addEventListener('click', () => {
+      tabCockpitBtn.classList.add('active');
+      if (tabTownBtn) tabTownBtn.classList.remove('active');
+      if (tabVisualBtn) tabVisualBtn.classList.remove('active');
+      if (viewCockpit) viewCockpit.style.display = 'flex';
+      if (viewAgentTown) viewAgentTown.style.display = 'none';
+    });
+  }
+
+  if (tabTownBtn) {
+    tabTownBtn.addEventListener('click', () => {
+      if (tabCockpitBtn) tabCockpitBtn.classList.remove('active');
+      tabTownBtn.classList.add('active');
+      if (tabVisualBtn) tabVisualBtn.classList.remove('active');
+      if (viewCockpit) viewCockpit.style.display = 'none';
+      if (viewAgentTown) viewAgentTown.style.display = 'flex';
+      if (townCanvas) townCanvas.classList.add('active');
+      if (mindmapCanvas) mindmapCanvas.classList.remove('active');
+    });
+  }
+
+  if (tabVisualBtn) {
+    tabVisualBtn.addEventListener('click', () => {
+      if (tabCockpitBtn) tabCockpitBtn.classList.remove('active');
+      if (tabTownBtn) tabTownBtn.classList.remove('active');
+      tabVisualBtn.classList.add('active');
+      if (viewCockpit) viewCockpit.style.display = 'none';
+      if (viewAgentTown) viewAgentTown.style.display = 'flex';
+      if (mindmapCanvas) mindmapCanvas.classList.add('active');
+      if (townCanvas) townCanvas.classList.remove('active');
+    });
+  }
 
   // 2. Task API & Management
   async function fetchTasks() {
@@ -595,7 +619,70 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // 6. 2D World Satellite Stream Canvas
+  // 6. Cyber App Launchers (Windows Desktop Control)
+  document.querySelectorAll('.cyber-app-node').forEach(node => {
+    node.addEventListener('click', async () => {
+      const action = node.dataset.action;
+      if (!action) return;
+      try {
+        const res = await fetch('/api/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action })
+        });
+        const data = await res.json();
+        if (data.message) {
+          const replyText = `${data.message} TRIDIP স্যার, অ্যাপ্লিকেশনটি চালু হয়েছে।`;
+          appendAssistantMessage({
+            reasoning: [{ stage: 'ডেস্কটপ কমান্ড নির্বাহ', detail: `উইন্ডোজ অ্যাপ চালু করা হচ্ছে: ${action}` }],
+            reply: replyText
+          });
+          if (isVoiceEnabled) {
+            speakText(replyText);
+          }
+        }
+      } catch (e) {
+        console.error('App launch error:', e);
+      }
+    });
+  });
+
+  // 7. Quick Command Prompt Chips
+  document.querySelectorAll('.quick-cmd-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const cmd = chip.dataset.cmd;
+      if (cmd) {
+        chatInput.value = cmd;
+        sendMessage(cmd);
+      }
+    });
+  });
+
+  // 8. Clear Chat Action
+  const btnClearChat = document.getElementById('btnClearChat');
+  if (btnClearChat) {
+    btnClearChat.addEventListener('click', () => {
+      chatStream.innerHTML = `
+        <div class="msg msg-assistant">
+          <div class="msg-author">
+            <span>TRI AI • JARVIS</span>
+            <button class="btn-listen" id="btnSpeakWelcome" title="কণ্ঠে শুনুন">🔊 শুনুন</button>
+          </div>
+          <div class="msg-bubble">
+            হ্যালো, TRIDIP স্যার! নতুন সেশন শুরু হয়েছে। আমি আপনার আদেশের জন্য অপেক্ষা করছি।
+          </div>
+        </div>
+      `;
+      const newWelcomeBtn = document.getElementById('btnSpeakWelcome');
+      if (newWelcomeBtn) {
+        newWelcomeBtn.addEventListener('click', () => {
+          speakText('হ্যালো, TRIDIP স্যার! নতুন সেশন শুরু হয়েছে। আমি আপনার আদেশের জন্য অপেক্ষা করছি।');
+        });
+      }
+    });
+  }
+
+  // 9. 2D World Satellite Stream Canvas (Fallback if present)
   const worldCanvas = document.getElementById('worldCanvas');
   if (worldCanvas) {
     const ctxW = worldCanvas.getContext('2d');
