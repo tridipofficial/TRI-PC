@@ -574,9 +574,25 @@ function normalizeBn(str) {
   return str.normalize('NFC').toLowerCase().replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
+// Global Session Context for Step-by-Step Interactive Workflow
+let sessionContext = {
+  activeApp: null, // 'YOUTUBE' | 'GOOGLE' | null
+  lastQuery: 'hindi hit songs',
+  lastUrl: 'https://www.youtube.com'
+};
+
 function openUrlInWindows(url) {
+  if (!url) return;
   try {
-    spawn('powershell', ['-NoProfile', '-Command', `Start-Process '${url.replace(/'/g, "''")}'`]);
+    const chromePath = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    const edgePath = 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
+    if (fs.existsSync(chromePath)) {
+      spawn(chromePath, ['--new-tab', url], { detached: true, stdio: 'ignore' }).unref();
+    } else if (fs.existsSync(edgePath)) {
+      spawn(edgePath, ['--new-tab', url], { detached: true, stdio: 'ignore' }).unref();
+    } else {
+      spawn('powershell', ['-NoProfile', '-Command', `Start-Process '${url.replace(/'/g, "''")}'`], { detached: true, stdio: 'ignore' }).unref();
+    }
   } catch (e) {
     console.error('Failed to open URL in Windows:', e.message);
   }
@@ -586,7 +602,34 @@ function openUrlInWindows(url) {
 function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
-  // 1. Greetings (যেমন: কেমন আছো, কি খবর, কেমন আছেন)
+  // 1. Step-by-Step Interactive Clicks ("প্রথমটা ক্লিক করো", "প্রথমটা চালাও", "১ নম্বরটা বাজাও")
+  if (norm.includes('প্রথম') || norm.includes('১') || norm.includes('এক নম্বর') || norm.includes('first')) {
+    const q = sessionContext.lastQuery || 'hindi hit songs';
+    const playUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+    openUrlInWindows(playUrl);
+    return {
+      type: 'OPEN_YOUTUBE',
+      mode: 'PLAY_FIRST',
+      query: q,
+      url: playUrl,
+      reply: 'TRIDIP স্যার, প্রথম ভিডিওটি আপনার ব্রাউজার স্ক্রিনে প্লে করা হয়েছে!'
+    };
+  }
+
+  if (norm.includes('দ্বিতীয়') || norm.includes('২') || norm.includes('দুই নম্বর') || norm.includes('second') || norm.includes('পরেরটা')) {
+    const q = sessionContext.lastQuery || 'hindi hit songs';
+    const playUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+    openUrlInWindows(playUrl);
+    return {
+      type: 'OPEN_YOUTUBE',
+      mode: 'PLAY_SECOND',
+      query: q,
+      url: playUrl,
+      reply: 'TRIDIP স্যার, দ্বিতীয় ভিডিওটি আপনার ব্রাউজার স্ক্রিনে প্লে করা হয়েছে!'
+    };
+  }
+
+  // 2. Greetings (যেমন: কেমন আছো, কি খবর, কেমন আছেন)
   if (norm.includes('কেমন আছো') || norm.includes('কেমন আছেন') || norm.includes('কি খবর') || norm.includes('কী খবর') || norm.includes('কি অবস্থা') || norm.includes('how are you')) {
     return {
       type: 'GREETING',
@@ -594,7 +637,7 @@ function detectIntentAction(prompt) {
     };
   }
 
-  // 2. Google Search (Prioritized if Google is explicitly mentioned)
+  // 3. Google Search (Prioritized if Google is explicitly mentioned)
   if (norm.includes('গুগল') || norm.includes('google')) {
     let q = norm
       .replace(/google(\s*এ)?/gi, '')
@@ -603,28 +646,34 @@ function detectIntentAction(prompt) {
       .trim();
     if (q.length > 1) {
       const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+      sessionContext.activeApp = 'GOOGLE';
+      sessionContext.lastQuery = q;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_GOOGLE',
         query: q,
         url: url,
-        reply: `TRIDIP স্যার, গুগলে "${q}" সার্চ করে রেজাল্ট ওপেন করা হয়েছে!`
+        reply: `TRIDIP স্যার, গুগলে "${q}" সার্চ করে রেজাল্ট স্ক্রিনে ওপেন করা হয়েছে!`
       };
     }
+    const url = 'https://www.google.com';
+    sessionContext.activeApp = 'GOOGLE';
+    sessionContext.lastUrl = url;
     return {
       type: 'OPEN_GOOGLE',
       query: '',
-      url: 'https://www.google.com',
-      reply: 'TRIDIP স্যার, গুগল ব্রাউজারে ওপেন করা হয়েছে। কি তথ্য অনুসন্ধান করবো?'
+      url: url,
+      reply: 'TRIDIP স্যার, গুগল ব্রাউজারে ওপেন করা হয়েছে। কি তথ্য অনুসন্ধান করবো বলুন?'
     };
   }
 
-  // 3. Weather Details (যেমন: আবহাওয়ার ডিটেইলস কি, আবহাওয়া কেমন)
+  // 4. Weather Details (যেমন: আবহাওয়ার ডিটেইলস কি, আবহাওয়া কেমন)
   const weatherNorm = normalizeBn('আবহাওয়া');
   if (norm.includes(weatherNorm) || norm.includes('আবহাও') || norm.includes('আবোয়ার') || norm.includes('weather') || norm.includes('তাপমাত্রা') || norm.includes('বৃষ্টি')) {
     return { type: 'WEATHER' };
   }
 
-  // 4. Save to Notepad on Desktop (যেমন: নোটপ্যাডে এটা সেভ করো, নোটপ্যাডে লিখো)
+  // 5. Save to Notepad on Desktop (যেমন: নোটপ্যাডে এটা সেভ করো, নোটপ্যাডে লিখো)
   if (norm.includes('নোটপ্যাড') || (norm.includes('নোট') && (norm.includes('সেভ') || norm.includes('লিখ') || norm.includes('রাখ')))) {
     let noteText = prompt
       .replace(/(নোটপ্যাডে|নোটপ্যাড|নোট|এটা|একটি|একটা|সেভ|করো|করে দাও|রেখে দাও|রাখো|লিখো|লেখো|তুলে রাখো|save|note)/gi, '')
@@ -637,55 +686,71 @@ function detectIntentAction(prompt) {
     };
   }
 
-  // 5. YouTube & Music (Comprehensive Bengali & English matching)
+  // 6. YouTube & Music (Comprehensive Step-by-Step and Direct Matching)
   const isYouTube = norm.includes('ইউটিউব') || norm.includes('youtube');
   const isMusic = norm.includes('গান') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('বাজাও') || norm.includes('চালাও') || norm.includes('প্লে');
 
   if (isYouTube || isMusic) {
-    // 5.1 90s Hindi Songs
+    // 6.1 90s Hindi Songs
     if (norm.includes('৯০') || norm.includes('90') || norm.includes('নব্বই') || (norm.includes('পুরানো') && norm.includes('হিন্দি'))) {
       const q = '90s hindi hit songs';
+      const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+      sessionContext.activeApp = 'YOUTUBE';
+      sessionContext.lastQuery = q;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_YOUTUBE',
         mode: '90s_HINDI',
         query: q,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        url: url,
         reply: 'TRIDIP স্যার, ইউটিউবে ৯০ দশকের সুপারহিট হিন্দি গানের লিস্ট ওপেন করা হয়েছে!'
       };
     }
 
-    // 5.2 Bangla Songs
+    // 6.2 Bangla Songs
     if (norm.includes('বাংলা') || norm.includes('bangla')) {
       const q = 'latest bangla songs';
+      const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+      sessionContext.activeApp = 'YOUTUBE';
+      sessionContext.lastQuery = q;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_YOUTUBE',
         mode: 'BANGLA_SONGS',
         query: q,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        url: url,
         reply: 'TRIDIP স্যার, ইউটিউবে লেটেস্ট বাংলা গানের লিস্ট ওপেন করা হয়েছে!'
       };
     }
 
-    // 5.3 Hindi Songs
+    // 6.3 Hindi Songs (e.g. "হিন্দি গান দেখতে চাই", "হিন্দি গান সার্চ করো", "হিন্দি গান বাজাও")
     if (norm.includes('হিন্দি') || norm.includes('hindi')) {
       const q = 'hindi hit songs';
+      const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+      sessionContext.activeApp = 'YOUTUBE';
+      sessionContext.lastQuery = q;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_YOUTUBE',
         mode: 'HINDI_SONGS',
         query: q,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
-        reply: 'TRIDIP স্যার, ইউটিউবে জনপ্রিয় হিন্দি গানের লিস্ট ওপেন করা হয়েছে!'
+        url: url,
+        reply: 'TRIDIP স্যার, ইউটিউবে জনপ্রিয় হিন্দি গানের লিস্ট আপনার স্ক্রিনে ওপেন করা হয়েছে! আপনি কি প্রথমটা ক্লিক করতে চান?'
       };
     }
 
-    // 5.4 English Songs
+    // 6.4 English Songs
     if (norm.includes('ইংরেজি') || norm.includes('english')) {
       const q = 'english hit songs';
+      const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+      sessionContext.activeApp = 'YOUTUBE';
+      sessionContext.lastQuery = q;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_YOUTUBE',
         mode: 'ENGLISH_SONGS',
         query: q,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        url: url,
         reply: 'TRIDIP স্যার, ইউটিউবে জনপ্রিয় ইংরেজি গানের লিস্ট ওপেন করা হয়েছে!'
       };
     }
@@ -694,50 +759,64 @@ function detectIntentAction(prompt) {
     let cleanQ = norm
       .replace(/ইউটিউব(ে)?/gi, '')
       .replace(/youtube/gi, '')
-      .replace(/(একটি|একটা|ভিডিও|গান|গানের|লিস্ট|খোলো|ওপেন|চালু|করো|করে|দাও|দিন|চালাও|বাজাও|দেখাও|প্লে|যাও|search|play|open|এবং|তা|টা|বলুন|দেখান|এর)/gi, '')
+      .replace(/(একটি|একটা|ভিডিও|গান|গানের|লিস্ট|খোলো|ওপেন|চালু|করো|করে|দাও|দিন|চালাও|বাজাও|দেখাও|প্লে|যাও|search|play|open|এবং|তা|টা|বলুন|দেখান|এর|দেখতে|চাই|আমাকে|স্ক্রিনে|সেটা)/gi, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    // 5.5 Specific artist or search query
+    // 6.5 Specific artist or search query
     if (cleanQ.length > 1) {
+      const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanQ)}`;
+      sessionContext.activeApp = 'YOUTUBE';
+      sessionContext.lastQuery = cleanQ;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_YOUTUBE',
         mode: 'SEARCH',
         query: cleanQ,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanQ)}`,
+        url: url,
         reply: `TRIDIP স্যার, ইউটিউবে "${cleanQ}" সার্চ করে ভিডিও ওপেন করা হয়েছে!`
       };
     }
 
-    // 5.6 General Song request (e.g. "গান বাজাও", "একটি গান চালাও")
+    // 6.6 General Song request (e.g. "গান বাজাও", "একটি গান চালাও")
     if (isMusic) {
       const q = 'popular trending songs';
+      const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`;
+      sessionContext.activeApp = 'YOUTUBE';
+      sessionContext.lastQuery = q;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_YOUTUBE',
         mode: 'TOP_SONGS',
         query: q,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        url: url,
         reply: 'TRIDIP স্যার, ইউটিউবে সেরা গানের প্লেলিস্ট ওপেন করা হয়েছে!'
       };
     }
 
-    // 5.7 Just "ইউটিউব খোলো" / "ইউটিউব ওপেন করো"
+    // 6.7 Just "ইউটিউব খোলো" / "ইউটিউব ওপেন করো"
+    const ytHome = 'https://www.youtube.com';
+    sessionContext.activeApp = 'YOUTUBE';
+    sessionContext.lastUrl = ytHome;
     return {
       type: 'OPEN_YOUTUBE',
       mode: 'HOMEPAGE',
       query: '',
-      url: 'https://www.youtube.com',
-      reply: 'TRIDIP স্যার, ইউটিউব ওপেন করা হয়েছে। বলুন আপনি কি দেখতে বা শুনতে চান?'
+      url: ytHome,
+      reply: 'TRIDIP স্যার, ইউটিউব আপনার স্ক্রিনে ওপেন করা হয়েছে। এখন কোন গান বা ভিডিও সার্চ করবো বলুন?'
     };
   }
 
-  // 6. Generic Search
+  // 7. Generic Search
   if (norm.includes('সার্চ')) {
     let q = norm
       .replace(/(সার্চ|search|দেখো|দেখাও|খুঁজে বের করো|খোলো|ওপেন|করো|করে দাও|করে দিন|দাও|দিন|করে|দেখান|এবং|তা)/gi, '')
       .trim();
     if (q.length > 1) {
       const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+      sessionContext.activeApp = 'GOOGLE';
+      sessionContext.lastQuery = q;
+      sessionContext.lastUrl = url;
       return {
         type: 'OPEN_GOOGLE',
         query: q,

@@ -1451,6 +1451,31 @@ body {
   box-shadow: 0 0 12px var(--primary);
 }
 
+/* Live Screen Action Button */
+.live-screen-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: linear-gradient(135deg, rgba(0, 242, 255, 0.22), rgba(2, 132, 199, 0.22));
+  border: 1px solid var(--primary);
+  border-radius: 6px;
+  padding: 6px 14px;
+  color: #fff;
+  text-decoration: none;
+  font-family: var(--font-bengali);
+  font-size: 12px;
+  box-shadow: 0 0 12px rgba(0, 242, 255, 0.35);
+  transition: all 0.2s ease;
+  margin-top: 4px;
+}
+
+.live-screen-link-btn:hover {
+  background: var(--primary);
+  color: #030712;
+  box-shadow: 0 0 20px var(--primary);
+  transform: translateY(-1px);
+}
+
 /* ============================================================
    KEYFRAME ANIMATIONS
    ============================================================ */

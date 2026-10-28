@@ -359,13 +359,29 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/\n/g, '<br>');
 
+    // Action link button if URL was returned
+    let actionBtnHtml = '';
+    if (data.action && data.action.url) {
+      actionBtnHtml = `
+        <div class="msg-action-box" style="margin-top: 8px;">
+          <a href="${escapeHtml(data.action.url)}" target="_blank" class="live-screen-link-btn" title="ক্লিক করে সরাসরি ব্রাউজার ট্যাবে দেখুন">
+            <span style="color:#00f2ff; animation: pulse-glow 1s infinite alternate;">●</span>
+            <strong>লাইভ ব্রাউজার স্ক্রিনে দেখুন ↗</strong>
+          </a>
+        </div>
+      `;
+    }
+
     msg.innerHTML = `
       <div class="msg-author">
         <span>TRI AI • JARVIS</span>
         <button class="btn-listen" title="কণ্ঠে শুনুন">🔊 শুনুন</button>
       </div>
       ${reasoningHtml}
-      <div class="msg-bubble">${formattedReply}</div>
+      <div class="msg-bubble">
+        ${formattedReply}
+        ${actionBtnHtml}
+      </div>
     `;
 
     const listenBtn = msg.querySelector('.btn-listen');
