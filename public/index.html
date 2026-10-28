@@ -245,18 +245,54 @@
         </div>
       </div>
 
-      <!-- Secondary Mode: Agent Town & Mindmap (Hidden by default) -->
+      <!-- Secondary Mode: Agent Matrix & Mindmap (High-Tech 3D Cyber Deck) -->
       <div class="panel-card hud-card secondary-view-card" id="viewAgentTown" style="display: none;">
+        <!-- Circular HUD Framing Overlays -->
+        <div class="hud-corner-bracket top-left"></div>
+        <div class="hud-corner-bracket top-right"></div>
+        <div class="hud-corner-bracket btm-left"></div>
+        <div class="hud-corner-bracket btm-right"></div>
+
+        <div class="cockpit-hud-overlay-top">
+          <div class="hud-badge-title">JARVIS AGENT MATRIX // TACTICAL CYBER DECK</div>
+          <div class="hud-badge-sub">4 AUTONOMOUS CYBER SENTINELS • 3D PBR NEURAL CORE</div>
+        </div>
+
         <div class="sim-header">
-          <span class="sim-title">● 3D MULTI-AGENT MATRIX</span>
+          <span class="hud-title"><span class="neon-dot">●</span> 3D MULTI-AGENT MATRIX</span>
           <div class="sim-tools">
             <button class="icon-tool" id="btnSoundToggle" title="Audio">🔊</button>
             <button class="icon-tool" id="btnResetSim" title="Refresh">🔄</button>
           </div>
         </div>
+
         <div class="sim-canvas-container">
           <canvas id="townCanvas" class="sim-canvas active"></canvas>
           <canvas id="mindmapCanvas" class="sim-canvas"></canvas>
+        </div>
+
+        <!-- Squad Dock at bottom of Agent Matrix -->
+        <div class="agent-squad-dock">
+          <div class="agent-chip active" data-agent="alice" style="border-left: 2px solid #a855f7;">
+            <span class="chip-avatar">👩‍💼</span>
+            <span class="chip-name">Alice</span>
+            <span class="chip-role" style="color: #a855f7;">Context</span>
+          </div>
+          <div class="agent-chip" data-agent="bob" style="border-left: 2px solid #10b981;">
+            <span class="chip-avatar">👨‍💻</span>
+            <span class="chip-name">Bob</span>
+            <span class="chip-role" style="color: #10b981;">Tasks</span>
+          </div>
+          <div class="agent-chip" data-agent="carol" style="border-left: 2px solid #f59e0b;">
+            <span class="chip-avatar">👩‍🎨</span>
+            <span class="chip-name">Carol</span>
+            <span class="chip-role" style="color: #f59e0b;">Vision</span>
+          </div>
+          <div class="agent-chip" data-agent="dave" style="border-left: 2px solid #00f2ff;">
+            <span class="chip-avatar">👨‍🔧</span>
+            <span class="chip-name">Dave</span>
+            <span class="chip-role" style="color: #00f2ff;">Security</span>
+          </div>
         </div>
       </div>
     </section>

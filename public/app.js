@@ -53,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (tabVisualBtn) tabVisualBtn.classList.remove('active');
       if (viewCockpit) viewCockpit.style.display = 'flex';
       if (viewAgentTown) viewAgentTown.style.display = 'none';
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     });
   }
 
@@ -65,6 +66,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (viewAgentTown) viewAgentTown.style.display = 'flex';
       if (townCanvas) townCanvas.classList.add('active');
       if (mindmapCanvas) mindmapCanvas.classList.remove('active');
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     });
   }
 
@@ -77,6 +79,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (viewAgentTown) viewAgentTown.style.display = 'flex';
       if (mindmapCanvas) mindmapCanvas.classList.add('active');
       if (townCanvas) townCanvas.classList.remove('active');
+      setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
     });
   }
 
