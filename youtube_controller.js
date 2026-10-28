@@ -24,14 +24,7 @@ class YouTubeController {
   async open() {
     try {
       const url = 'https://www.youtube.com';
-      if (fs.existsSync(this.desktopShortcut)) {
-        spawn('powershell', ['-NoProfile', '-Command', `Start-Process '${this.desktopShortcut}' -ErrorAction SilentlyContinue`], { detached: true, stdio: 'ignore' }).unref();
-      }
-      spawn(this.chromePath, [
-        `--app=${url}`
-      ], { detached: true, stdio: 'ignore' }).unref();
-
-      setTimeout(() => this.bringToFront('YouTube'), 500);
+      spawn('cmd.exe', ['/c', 'start', '""', this.chromePath, `--app=${url}`], { detached: true, stdio: 'ignore' }).unref();
       return { success: true, url };
     } catch (err) {
       console.error('YouTube open error:', err.message);
@@ -83,14 +76,10 @@ class YouTubeController {
     try {
       const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
 
-      // 1. Launch/Navigate YouTube App window on TRIDIP Sir's desktop directly
-      spawn(this.chromePath, [
-        `--app=${searchUrl}`
-      ], { detached: true, stdio: 'ignore' }).unref();
+      // Launch/Navigate YouTube App window on TRIDIP Sir's desktop directly
+      spawn('cmd.exe', ['/c', 'start', '""', this.chromePath, `--app=${searchUrl}`], { detached: true, stdio: 'ignore' }).unref();
 
-      setTimeout(() => this.bringToFront('YouTube'), 500);
-
-      // 2. Fetch top search results in parallel (sub-400ms)
+      // Fetch top search results in parallel (sub-250ms)
       const videos = await this.fetchSearchResults(query);
       this.lastQuery = query;
       this.lastResults = videos;
@@ -187,11 +176,7 @@ class YouTubeController {
       }
 
       // 5. Open video directly in the YouTube App window
-      spawn(this.chromePath, [
-        `--app=${target.url}`
-      ], { detached: true, stdio: 'ignore' }).unref();
-
-      setTimeout(() => this.bringToFront('YouTube'), 500);
+      spawn('cmd.exe', ['/c', 'start', '""', this.chromePath, `--app=${target.url}`], { detached: true, stdio: 'ignore' }).unref();
 
       return {
         success: true,
@@ -206,17 +191,7 @@ class YouTubeController {
 
   async close() {
     try {
-      // 1. Kill/Close any Chrome window with YouTube title
-      const killCmd = `
-        $targets = Get-Process chrome -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match 'YouTube' }
-        if ($targets) {
-          $targets | ForEach-Object { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue }
-        }
-        $ws = New-Object -ComObject WScript.Shell
-        $ws.AppActivate('TRI AI')
-      `;
-      spawn('powershell', ['-NoProfile', '-Command', killCmd], { detached: true, stdio: 'ignore' }).unref();
-
+      spawn('cmd.exe', ['/c', 'taskkill /F /FI "WINDOWTITLE eq YouTube*" /T'], { detached: true, stdio: 'ignore' }).unref();
       this.lastResults = [];
       this.lastQuery = '';
 

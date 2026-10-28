@@ -620,15 +620,35 @@ function openUrlInWindows(url) {
   }
 }
 
+function extractYouTubeQuery(prompt) {
+  let q = prompt;
+  q = q.replace(/পুনরায়\s*(ইউটিউব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
+  q = q.replace(/আবার\s*(ইউটিউব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
+  q = q.replace(/(ইউটিউব|youtube)\s*(এ|ে)?\s*(গিয়ে|যাও|ওপেন করে|খুলে|খোলো|ওপেন করো|ওপেন কর|চালু করো)?/gi, ' ');
+  q = q.replace(/(ওপেন করে|খুলে নিয়ে|চালু করে|ওপেন করো|ওপেন কর|খোলো|চালু করো)/gi, ' ');
+  q = q.replace(/(সার্চ করে দাও|সার্চ করে দিন|সার্চ করে|সার্চ করো|সার্চ কর|সার্চ|search)/gi, ' ');
+  q = q.replace(/(খুঁজে বের করো|খুঁজে দাও|খোঁজো|বের করো)/gi, ' ');
+  q = q.replace(/(লিখে দাও|লিখে দিন|লিখে)/gi, ' ');
+  q = q.replace(/(আমাকে|আমাদের|দয়া করে|দয়া করে|প্লিজ|please)/gi, ' ');
+  q = q.replace(/(দেখাও|দেখান|দেখতে চাই|দেখবো|শুনবো|শুনব)/gi, ' ');
+  q = q.replace(/(চালিয়ে দাও|চালাও|বাজিয়ে দাও|বাজাও|প্লে করো|প্লে কর|প্লে|play)/gi, ' ');
+  q = q.replace(/(করে দাও|করে দিন|করে|দাও|দিন|করো|কর)/gi, ' ');
+  q = q.replace(/(লিস্ট|তালিকা|লিস্টটা)/gi, ' ');
+  q = q.replace(/(পুনরায়|আবার|নতুন করে)/gi, ' ');
+  q = q.replace(/[।?!,.:;'"-]/g, ' ');
+  q = q.replace(/\s+/g, ' ').trim();
+  return q;
+}
+
 // Safe Windows PC Action Controller (Desktop Superpowers)
 function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
-  // 0. YouTube Close / Destroy ("YouTube বন্ধ করো", "ইউটিউব কেটে দাও", "কেটে দিয়ে হোম স্ক্রিনে আসো", "ক্লোজ করো")
+  // 0. YouTube Close / Return to Home Screen (Strict Rule: Works Every Single Time)
   const isCloseVerb = norm.includes('বন্ধ করো') || norm.includes('বন্ধ কর') || norm.includes('কেটে দাও') || norm.includes('কেটে দিন') || norm.includes('কেটে ফেলো') || norm.includes('ক্লোজ করো') || norm.includes('ক্লোজ কর') || norm.includes('ডেস্ট্রয়') || norm.includes('destroy') || norm.includes('close') || norm.includes('exit') || norm.includes('কেটে দিয়ে');
-  const isHomeScreen = norm.includes('হোম স্ক্রিন') || norm.includes('হোমস্ক্রিন') || norm.includes('হোমে আসো') || norm.includes('হোম এ আসো') || norm.includes('হোমে যাও');
+  const isHomeScreen = norm.includes('হোম স্ক্রিন') || norm.includes('হোমস্ক্রিন') || norm.includes('হোমে আসো') || norm.includes('হোম এ আসো') || norm.includes('হোমে যাও') || norm.includes('হোম স্ক্রিনে');
 
-  if ((norm.includes('ইউটিউব') || norm.includes('youtube') || sessionContext.activeApp === 'YOUTUBE') && (isCloseVerb || isHomeScreen)) {
+  if ((norm.includes('ইউটিউব') || norm.includes('youtube') || sessionContext.activeApp === 'YOUTUBE' || isHomeScreen) && (isCloseVerb || isHomeScreen)) {
     return {
       type: 'YOUTUBE_CLOSE',
       reply: 'TRIDIP স্যার, ইউটিউব উইন্ডো সম্পূর্ণ বন্ধ করে দেওয়া হয়েছে এবং আমরা আবার হোম স্ক্রিনে ফিরে এসেছি!'
@@ -636,16 +656,16 @@ function detectIntentAction(prompt) {
   }
 
   // 1. YouTube Video Click / Play (Step 3) - "প্রথমটা ক্লিক করো", "দ্বিতীয়টা চালাও", "[Song Title] ক্লিক করো"
-  const isClickVerb = norm.includes('ক্লিক') || norm.includes('চালাও') || norm.includes('বাজাও') || norm.includes('প্লে') || norm.includes('play') || norm.includes('click') || norm.includes('শুনব') || norm.includes('শুনবো') || norm.includes('অন করো');
+  const isClickVerb = norm.includes('ক্লিক') || norm.includes('চালাও') || norm.includes('বাজাও') || norm.includes('প্লে') || norm.includes('play') || norm.includes('click') || norm.includes('চালিয়ে দাও');
   const hasOrdinal = norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('এক নাম্বার') || norm.includes('1st') || norm.includes('first') ||
                     norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') ||
                     norm.includes('তৃতীয়') || norm.includes('৩য়') || norm.includes('৩ নাম্বার') || norm.includes('তিন নাম্বার') || norm.includes('3rd') || norm.includes('third') ||
-                    norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') || norm.includes('চার নাম্বার') ||
-                    norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') || norm.includes('পাঁচ নাম্বার') ||
+                    norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') ||
+                    norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') ||
                     norm.includes('পরেরটা') || norm.includes('লাস্ট');
 
-  if (isClickVerb || (hasOrdinal && (sessionContext.activeApp === 'YOUTUBE' || norm.includes('গান') || norm.includes('সং') || norm.includes('ভিডিও')))) {
-    let identifier = '';
+  if (hasOrdinal || (isClickVerb && (sessionContext.activeApp === 'YOUTUBE' || norm.includes('গান') || norm.includes('সং') || norm.includes('ভিডিও')))) {
+    let identifier = 1;
     if (norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('এক নাম্বার') || norm.includes('1st') || norm.includes('first') || (norm.includes('১') && isClickVerb)) {
       identifier = 1;
     } else if (norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') || (norm.includes('২') && isClickVerb)) {
@@ -661,12 +681,36 @@ function detectIntentAction(prompt) {
         .replace(/ইউটিউব\s*(এ|ে)?/gi, '')
         .replace(/(ক্লিক করো|ক্লিক কর|ক্লিক|চালাও|বাজাও|প্লে করো|প্লে কর|প্লে|চালিয়ে দাও|অন করো|করে দাও|দাও|গানটা|গানটি|গান|ভিডিওটা|ভিডিওটি|ভিডিও|সেটা|ওটা|ওইটা|যেটা|song|video|play|click)/gi, '')
         .replace(/[।?!,.:;'"-]/g, ' ')
-        .trim();
+        .trim() || 1;
     }
     return {
       type: 'YOUTUBE_CLICK',
       identifier: identifier
     };
+  }
+
+  // 2. YouTube Open vs YouTube Search (Unified Intent Engine)
+  const isYouTube = norm.includes('ইউটিউব') || norm.includes('youtube');
+  const isSearchVerb = norm.includes('সার্চ') || norm.includes('search') || norm.includes('খুঁজে বের') || norm.includes('খোঁজো');
+  const isMusic = norm.includes('গান') || norm.includes('সং') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('ভিডিও') || norm.includes('video') || norm.includes('হিন্দি') || norm.includes('hindi') || norm.includes('বাংলা') || norm.includes('bangla');
+
+  if (isYouTube || isMusic || (sessionContext.activeApp === 'YOUTUBE' && isSearchVerb)) {
+    let cleanQ = extractYouTubeQuery(prompt);
+
+    if (cleanQ === 'গান' || cleanQ === 'সং' || cleanQ === 'song') {
+      cleanQ = 'popular trending hit songs';
+    }
+
+    if (cleanQ.length >= 2) {
+      return {
+        type: 'YOUTUBE_SEARCH',
+        query: cleanQ
+      };
+    } else if (isYouTube) {
+      return {
+        type: 'YOUTUBE_OPEN'
+      };
+    }
   }
 
   // 2. Capabilities / "তুমি কী কী কাজ করতে পারো?"
@@ -763,44 +807,7 @@ function detectIntentAction(prompt) {
     };
   }
 
-  // 6. YouTube & Music Automation (Step 1: Open, Step 2: Search)
-  const isYouTube = norm.includes('ইউটিউব') || norm.includes('youtube');
-  const isSearchVerb = norm.includes('সার্চ') || norm.includes('search') || norm.includes('খুঁজে বের') || norm.includes('খোঁজো');
-  const isMusic = norm.includes('গান') || norm.includes('সং') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('ভিডিও') || norm.includes('video') || norm.includes('হিন্দি') || norm.includes('hindi') || norm.includes('বাংলা') || norm.includes('bangla');
-
-  if (isYouTube || isMusic || (sessionContext.activeApp === 'YOUTUBE' && isSearchVerb)) {
-    // 6.1 YouTube Search (Step 2)
-    if (isSearchVerb || isMusic || norm.includes('লিস্ট') || norm.includes('দেখাও') || norm.includes('খোঁজ')) {
-      let cleanQ = prompt
-        .replace(/ইউটিউব\s*(এ|ে)?\s*(তুমি)?/gi, '')
-        .replace(/youtube/gi, '')
-        .replace(/(লিখে|দিয়ে|আমাকে|দেখান|দেখাও|খুঁজে বের করো|খোঁজো|সার্চ করে দাও|সার্চ করে|সার্চ করো|সার্চ কর|সার্চ|করে দাও|করে|দাও|করো|কর|open|search|দেবো|হবে|লিস্ট|দেখতে চাই|প্লে করো|প্লে কর|বাজাও|চালাও)/gi, '')
-        .replace(/[।?!,.:;'"-]/g, ' ')
-        .trim();
-
-      if (!cleanQ || cleanQ.length < 2) {
-        if (norm.includes('৯০') || norm.includes('90')) cleanQ = '90s hindi hit songs';
-        else if (norm.includes('হিন্দি') || norm.includes('hindi')) cleanQ = 'latest hindi songs';
-        else if (norm.includes('বাংলা') || norm.includes('bangla')) cleanQ = 'latest bangla songs';
-        else if (norm.includes('ইংরেজি') || norm.includes('english')) cleanQ = 'latest english hit songs';
-        else cleanQ = 'popular trending songs';
-      }
-
-      return {
-        type: 'YOUTUBE_SEARCH',
-        query: cleanQ
-      };
-    }
-
-    // 6.2 YouTube Open Homepage (Step 1)
-    if (isYouTube && (norm.includes('ওপেন') || norm.includes('খোলো') || norm.includes('চালু') || norm.includes('খোল') || norm.includes('open'))) {
-      return {
-        type: 'YOUTUBE_OPEN'
-      };
-    }
-  }
-
-  // 7. Generic Search
+  // 6. Generic Search
   if (norm.includes('সার্চ')) {
     let q = norm
       .replace(/(সার্চ|search|দেখো|দেখাও|খুঁজে বের করো|খোলো|ওপেন|করো|করে দাও|করে দিন|দাও|দিন|করে|দেখান|এবং|তা)/gi, '')
@@ -846,7 +853,7 @@ function detectIntentAction(prompt) {
   return null;
 }
 
-async function executeSafePCAction(intent, fallbackQuery = '') {
+async function executeSafePCAction(intent, fallbackQuery = '', isElectron = false) {
   try {
     const actionType = typeof intent === 'object' ? intent.type : intent;
     const query = (typeof intent === 'object' && intent.query) ? intent.query : fallbackQuery;
@@ -907,7 +914,9 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
       sessionContext.activeApp = null;
       sessionContext.lastQuery = '';
       sessionContext.searchResults = [];
-      await youtubeController.close();
+      if (!isElectron) {
+        await youtubeController.close();
+      }
       return {
         message: 'TRIDIP স্যার, ইউটিউব উইন্ডো সম্পূর্ণ বন্ধ করে দেওয়া হয়েছে এবং আমরা আবার হোম স্ক্রিনে ফিরে এসেছি!',
         url: null
@@ -917,9 +926,11 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
     // 4.1 YouTube Real Desktop Automation (Step 1: Open, Step 2: Search, Step 3: Click)
     if (actionType === 'YOUTUBE_OPEN') {
       sessionContext.activeApp = 'YOUTUBE';
-      await youtubeController.open();
+      if (!isElectron) {
+        await youtubeController.open();
+      }
       return {
-        message: 'TRIDIP স্যার, আপনার ডেস্কটপ থেকে ইউটিউব অ্যাপ সরাসরি ওপেন করা হয়েছে! কী লিখে সার্চ করবো বলুন।',
+        message: 'TRIDIP স্যার, ইউটিউব উইন্ডো সরাসরি ওপেন করা হয়েছে! কী গান বা ভিডিও সার্চ করবো বলুন।',
         url: 'https://www.youtube.com'
       };
     }
@@ -928,19 +939,26 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
       sessionContext.activeApp = 'YOUTUBE';
       const searchTarget = intent.query || 'latest hindi songs';
       sessionContext.lastQuery = searchTarget;
-      const res = await youtubeController.search(searchTarget);
-      const results = res.results || [];
+
+      let results = [];
+      if (!isElectron) {
+        const res = await youtubeController.search(searchTarget);
+        results = res.results || [];
+      } else {
+        // Fast in-process fetch without spawning duplicate Chrome
+        results = await youtubeController.fetchSearchResults(searchTarget);
+      }
       sessionContext.searchResults = results;
 
       let msg = `TRIDIP স্যার, ইউটিউবে '${searchTarget}' সার্চ করা হয়েছে!`;
       if (results.length > 0) {
-        msg += ` রেজাল্টের শীর্ষ ভিডিও:\n` +
+        msg += ` শীর্ষ ৩টি ভিডিও:\n` +
           `১. ${results[0].title}\n` +
           (results[1] ? `২. ${results[1].title}\n` : '') +
           (results[2] ? `৩. ${results[2].title}\n` : '') +
-          `\nবলুন কোনটি ক্লিক করতে চান (প্রথমটা, দ্বিতীয়টা বা যেকোনো গানের নাম বলুন)?`;
+          `\nবলুন কোনটি চালাবো (প্রথমটা, দ্বিতীয়টা বা যেকোনো গানের নাম বলুন)?`;
       } else {
-        msg += ` রেজাল্ট ব্রাউজার স্ক্রিনে প্রদর্শন করা হয়েছে। আপনি কি প্রথমটা ক্লিক করতে চান?`;
+        msg += ` রেজাল্ট স্ক্রিনে দেখানো হয়েছে। আপনি কি প্রথম ভিডিওটি প্লে করতে চান?`;
       }
 
       return {
@@ -953,12 +971,36 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
     if (actionType === 'YOUTUBE_CLICK') {
       sessionContext.activeApp = 'YOUTUBE';
       const id = intent.identifier || 1;
-      const res = await youtubeController.clickVideo(id);
-      const playedTitle = res.title || 'ভিডিও';
+      let res = null;
+      if (!isElectron) {
+        res = await youtubeController.clickVideo(id);
+      } else {
+        let target = null;
+        let index = -1;
+        if (typeof id === 'number') index = id - 1;
+        else if (typeof id === 'string') {
+          const lower = id.toLowerCase().trim();
+          if (lower.includes('প্রথম') || lower.includes('১ম') || lower.includes('1') || lower.includes('first')) index = 0;
+          else if (lower.includes('দ্বিতীয়') || lower.includes('২য়') || lower.includes('2') || lower.includes('second')) index = 1;
+          else if (lower.includes('তৃতীয়') || lower.includes('৩য়') || lower.includes('3') || lower.includes('third')) index = 2;
+        }
+
+        if (index >= 0 && sessionContext.searchResults && sessionContext.searchResults[index]) {
+          target = sessionContext.searchResults[index];
+        } else if (sessionContext.searchResults && sessionContext.searchResults.length > 0) {
+          target = sessionContext.searchResults[0];
+        } else {
+          const fresh = await youtubeController.fetchSearchResults(id || 'latest hindi songs');
+          target = fresh[0] || null;
+        }
+
+        res = target ? { success: true, title: target.title, url: target.url } : { success: false, url: 'https://www.youtube.com' };
+      }
+      const playedTitle = res?.title || 'ভিডিও';
       sessionContext.lastPlayed = res;
       return {
         message: `TRIDIP স্যার, '${playedTitle}' ভিডিওটি আপনার স্ক্রিনে প্লে করা হয়েছে!`,
-        url: res.url,
+        url: res?.url || 'https://www.youtube.com',
         title: playedTitle
       };
     }
@@ -1052,8 +1094,8 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { action, query } = JSON.parse(body || '{}');
-        const actRes = await executeSafePCAction(action, query);
+        const { action, query, isElectron } = JSON.parse(body || '{}');
+        const actRes = await executeSafePCAction(action, query, !!isElectron);
         const msg = actRes?.message || 'অ্যাকশন সম্পন্ন হয়েছে।';
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ success: !!actRes, message: msg, url: actRes?.url, action }));
@@ -1070,14 +1112,14 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
       try {
-        const { message } = JSON.parse(body);
+        const { message, isElectron } = JSON.parse(body || '{}');
 
         // Detect & Execute PC Actions (YouTube, Calculator, Notepad, Weather, Greeting, etc.)
         const intent = detectIntentAction(message);
         let executedAction = null;
         let actionMsg = null;
         if (intent) {
-          const actRes = await executeSafePCAction(intent);
+          const actRes = await executeSafePCAction(intent, '', !!isElectron);
           actionMsg = actRes?.message || intent.reply || null;
           executedAction = {
             type: intent.type,

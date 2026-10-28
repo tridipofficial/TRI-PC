@@ -273,42 +273,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show temporary thinking state
     const thinkingNode = appendThinkingCard();
 
-    // Immediate synchronous window handling on direct user gesture (Bypasses Chrome popup blocker 100%)
-    const normText = prompt.toLowerCase();
-    const hasYT = normText.includes('youtube') || normText.includes('ইউটিউব') || normText.includes('yt');
-    const hasOpen = normText.includes('open') || normText.includes('ওপেন') || normText.includes('খোলো') || normText.includes('চালু') || normText.includes('খোল');
-    const hasClose = normText.includes('close') || normText.includes('বন্ধ') || normText.includes('কেটে') || normText.includes('ক্লোজ') || normText.includes('exit') || normText.includes('destroy') || normText.includes('হোম');
+    // Immediate synchronous window handling for Web Browser fallback (only if not Electron)
+    if (!window.electronAPI?.isElectron) {
+      const normText = prompt.toLowerCase();
+      const hasYT = normText.includes('youtube') || normText.includes('ইউটিউব') || normText.includes('yt');
+      const hasOpen = normText.includes('open') || normText.includes('ওপেন') || normText.includes('খোলো') || normText.includes('চালু') || normText.includes('খোল');
+      const hasClose = normText.includes('close') || normText.includes('বন্ধ') || normText.includes('কেটে') || normText.includes('ক্লোজ') || normText.includes('exit') || normText.includes('destroy') || normText.includes('হোম');
 
-    if (hasYT && hasOpen && !hasClose) {
-      try {
-        if (!triYouTubeWindow || triYouTubeWindow.closed) {
-          const w = 1200;
-          const h = 750;
-          const left = Math.max(0, (window.screen.width - w) / 2);
-          const top = Math.max(0, (window.screen.height - h) / 2);
-          triYouTubeWindow = window.open('https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+      if (hasYT && hasOpen && !hasClose) {
+        try {
+          if (!triYouTubeWindow || triYouTubeWindow.closed) {
+            const w = 1200;
+            const h = 750;
+            const left = Math.max(0, (window.screen.width - w) / 2);
+            const top = Math.max(0, (window.screen.height - h) / 2);
+            triYouTubeWindow = window.open('https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
+          }
+          if (triYouTubeWindow) {
+            triYouTubeWindow.focus();
+          }
+        } catch (e) {
+          console.warn('Sync open YouTube error:', e);
         }
-        if (triYouTubeWindow) {
-          triYouTubeWindow.focus();
-        }
-      } catch (e) {
-        console.warn('Sync open YouTube error:', e);
+      } else if (hasClose && (hasYT || (triYouTubeWindow && !triYouTubeWindow.closed))) {
+        try {
+          if (triYouTubeWindow && !triYouTubeWindow.closed) {
+            triYouTubeWindow.close();
+            triYouTubeWindow = null;
+          }
+          window.focus();
+        } catch (e) {}
       }
-    } else if (hasClose && (hasYT || (triYouTubeWindow && !triYouTubeWindow.closed))) {
-      try {
-        if (triYouTubeWindow && !triYouTubeWindow.closed) {
-          triYouTubeWindow.close();
-          triYouTubeWindow = null;
-        }
-        window.focus();
-      } catch (e) {}
     }
 
     try {
+      const isElectronApp = !!(window.electronAPI && window.electronAPI.isElectron);
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: prompt })
+        body: JSON.stringify({
+          message: prompt,
+          isElectron: isElectronApp
+        })
       });
 
       if (res.ok) {
@@ -683,7 +689,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!this.silenceTimer) {
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone);
-              }, 1100);
+              }, 650); // Snappy 650ms VAD for instant reaction
             }
           }
         };
@@ -693,12 +699,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHandsFreeUI('listening');
         btnMic.classList.add('listening');
 
-        // Maximum turn length (12s)
+        // Maximum turn length (10s)
         this.safetyTimer = setTimeout(() => {
           if (this.isListening) {
             this.stopAndProcess(this.onSpeechDone);
           }
-        }, 12000);
+        }, 10000);
 
       } catch (err) {
         console.error('Neural Whisper start error:', err);
@@ -738,20 +744,20 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Check if actual speech was detected
-      if (!this.speechDetected && this.maxRecordedVolume < 0.015) {
+      if (!this.speechDetected || this.maxRecordedVolume < 0.018) {
         console.log('No speech detected in audio stream.');
         updateHandsFreeUI('idle');
         if (isHandsFreeMode && !window.triAIIsSpeaking) {
-          setTimeout(() => startListeningLoop(), 400);
+          setTimeout(() => startListeningLoop(), 350);
         }
         return;
       }
 
       const totalLen = this.chunks.reduce((acc, c) => acc + c.length, 0);
-      if (totalLen < 6000) {
+      if (totalLen < 3500) {
         updateHandsFreeUI('idle');
         if (isHandsFreeMode && !window.triAIIsSpeaking) {
-          setTimeout(() => startListeningLoop(), 400);
+          setTimeout(() => startListeningLoop(), 350);
         }
         return;
       }
