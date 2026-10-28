@@ -1,7 +1,7 @@
 // ============================================================
 // TRI AI - IRON MAN / JARVIS 3D HOLOGRAPHIC COCKPIT (Three.js WebGL)
-// Central Arc Reactor (JARVIS MARK II) + 3D Robotic Mech Avatar
-// Real-Time Bengali Audio-Reactivity & Mouse Parallax Tracking
+// High-Fidelity 3D Iron Man Suit (GLTF + Sculpted Procedural Fallback)
+// Central Arc Reactor (JARVIS MARK II) + Real-Time Audio Reactivity
 // ============================================================
 
 (function() {
@@ -12,7 +12,7 @@
   // 1. SCENE, CAMERA, RENDERER
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, canvas.clientWidth / (canvas.clientHeight || 1), 0.1, 1000);
-  camera.position.set(0, 12, 150);
+  camera.position.set(0, 10, 140);
 
   const renderer = new THREE.WebGLRenderer({
     canvas: canvas,
@@ -30,21 +30,50 @@
     renderer.setSize(width, height, false);
   }
   window.addEventListener('resize', resize);
-  setTimeout(resize, 120);
+  setTimeout(resize, 100);
 
-  // 2. MASTER HOLOGRAPHIC STAGE GROUP
+  // 2. CINEMATIC LIGHTING FOR REALISTIC METALLIC PBR SHADING
+  const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+  scene.add(ambientLight);
+
+  // Key Light (Electric Cyan from top-front-right)
+  const dirLightCyan = new THREE.DirectionalLight(0x00f2ff, 1.5);
+  dirLightCyan.position.set(35, 55, 60);
+  scene.add(dirLightCyan);
+
+  // Fill Light (Warm Titanium-Gold from front-left)
+  const dirLightWarm = new THREE.DirectionalLight(0xf59e0b, 1.1);
+  dirLightWarm.position.set(-35, 45, 50);
+  scene.add(dirLightWarm);
+
+  // Rim Light (Ice Blue from behind for cinematic edge sheen)
+  const rimLight = new THREE.DirectionalLight(0x38bdf8, 1.4);
+  rimLight.position.set(0, 50, -60);
+  scene.add(rimLight);
+
+  // Chest Unibeam Point Light (Casts dynamic glow onto chin and armor)
+  const unibeamLight = new THREE.PointLight(0x00f2ff, 2.8, 65);
+  unibeamLight.position.set(0, -6, 16);
+  scene.add(unibeamLight);
+
+  // Helmet Visor Point Light
+  const visorLight = new THREE.PointLight(0x00f2ff, 1.8, 35);
+  visorLight.position.set(0, 7, 14);
+  scene.add(visorLight);
+
+  // 3. MASTER STAGE GROUP
   const stageGroup = new THREE.Group();
   scene.add(stageGroup);
 
   // ============================================================
-  // 3. CENTRAL ARC REACTOR (JARVIS MARK II) - UPPER CENTER
+  // 4. CENTRAL ARC REACTOR (JARVIS MARK II) - UPPER BACKGROUND
   // ============================================================
   const reactorGroup = new THREE.Group();
-  reactorGroup.position.set(0, 32, 0);
+  reactorGroup.position.set(0, 36, -10);
   stageGroup.add(reactorGroup);
 
-  // Glowing Arc Core Nucleus (Inner Diamond)
-  const coreGeo = new THREE.OctahedronGeometry(9, 2);
+  // Glowing Diamond Arc Core
+  const coreGeo = new THREE.OctahedronGeometry(8.5, 2);
   const coreMat = new THREE.MeshBasicMaterial({
     color: 0x00f2ff,
     wireframe: true,
@@ -55,312 +84,450 @@
   reactorGroup.add(coreMesh);
 
   // Solid Core Glow Sphere
-  const glowGeo = new THREE.SphereGeometry(5.5, 16, 16);
+  const glowGeo = new THREE.SphereGeometry(5, 16, 16);
   const glowMat = new THREE.MeshBasicMaterial({
     color: 0x38bdf8,
     transparent: true,
-    opacity: 0.95
+    opacity: 0.9
   });
   const glowMesh = new THREE.Mesh(glowGeo, glowMat);
   reactorGroup.add(glowMesh);
 
-  // Concentric Holographic Arc Rings
-  // Ring 1: Inner segmented ring with spokes
-  const ring1Geo = new THREE.RingGeometry(14, 15.5, 48);
-  const ring1Mat = new THREE.MeshBasicMaterial({
-    color: 0x00f2ff,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.75
-  });
+  // Concentric Holographic Gauge Rings
+  const ring1Geo = new THREE.RingGeometry(13, 14.5, 48);
+  const ring1Mat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
   const ring1 = new THREE.Mesh(ring1Geo, ring1Mat);
   reactorGroup.add(ring1);
 
-  // Ring 1 Radial Spokes
+  // Radial Spokes
   const spokesGroup = new THREE.Group();
   for (let i = 0; i < 8; i++) {
     const spokeGeo = new THREE.BufferGeometry();
-    const angle = (i / 8) * Math.PI * 2;
-    const pts = [
-      new THREE.Vector3(Math.cos(angle) * 7, Math.sin(angle) * 7, 0),
-      new THREE.Vector3(Math.cos(angle) * 14, Math.sin(angle) * 14, 0)
-    ];
-    spokeGeo.setFromPoints(pts);
-    const spokeLine = new THREE.Line(spokeGeo, new THREE.LineBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.8 }));
-    spokesGroup.add(spokeLine);
+    const a = (i / 8) * Math.PI * 2;
+    spokeGeo.setFromPoints([
+      new THREE.Vector3(Math.cos(a) * 6, Math.sin(a) * 6, 0),
+      new THREE.Vector3(Math.cos(a) * 13, Math.sin(a) * 13, 0)
+    ]);
+    spokesGroup.add(new THREE.Line(spokeGeo, new THREE.LineBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.8 })));
   }
   reactorGroup.add(spokesGroup);
 
-  // Ring 2: Middle Gear Ring (Rotating Counter-Clockwise)
-  const ring2Geo = new THREE.RingGeometry(19, 21.5, 36);
-  const ring2Mat = new THREE.MeshBasicMaterial({
-    color: 0x38bdf8,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.65
-  });
+  // Counter-Rotating Middle Gear Ring
+  const ring2Geo = new THREE.RingGeometry(18, 20.5, 36);
+  const ring2Mat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, side: THREE.DoubleSide, transparent: true, opacity: 0.65 });
   const ring2 = new THREE.Mesh(ring2Geo, ring2Mat);
   reactorGroup.add(ring2);
 
-  // Ring 3: Outer Tactical HUD Ring with Tick Marks
-  const ring3Geo = new THREE.RingGeometry(26, 27.5, 64);
-  const ring3Mat = new THREE.MeshBasicMaterial({
-    color: 0x00f2ff,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.7
-  });
+  // Outer Tactical Tick Ring
+  const ring3Geo = new THREE.RingGeometry(25, 26.5, 64);
+  const ring3Mat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, side: THREE.DoubleSide, transparent: true, opacity: 0.7 });
   const ring3 = new THREE.Mesh(ring3Geo, ring3Mat);
   reactorGroup.add(ring3);
 
-  // Outer Tick Marks Group
   const ticksGroup = new THREE.Group();
   for (let i = 0; i < 36; i++) {
     const tickGeo = new THREE.BufferGeometry();
-    const angle = (i / 36) * Math.PI * 2;
+    const a = (i / 36) * Math.PI * 2;
     const len = i % 9 === 0 ? 3.5 : 1.8;
-    const pts = [
-      new THREE.Vector3(Math.cos(angle) * 27.5, Math.sin(angle) * 27.5, 0),
-      new THREE.Vector3(Math.cos(angle) * (27.5 + len), Math.sin(angle) * (27.5 + len), 0)
-    ];
-    tickGeo.setFromPoints(pts);
-    const tickLine = new THREE.Line(tickGeo, new THREE.LineBasicMaterial({
+    tickGeo.setFromPoints([
+      new THREE.Vector3(Math.cos(a) * 26.5, Math.sin(a) * 26.5, 0),
+      new THREE.Vector3(Math.cos(a) * (26.5 + len), Math.sin(a) * (26.5 + len), 0)
+    ]);
+    ticksGroup.add(new THREE.Line(tickGeo, new THREE.LineBasicMaterial({
       color: i % 9 === 0 ? 0xf59e0b : 0x00f2ff,
       transparent: true,
       opacity: 0.75
-    }));
-    ticksGroup.add(tickLine);
+    })));
   }
   reactorGroup.add(ticksGroup);
 
-  // Gyroscopic 3D Gimbal Rings (Rotating around X and Y)
-  const gimbal1Geo = new THREE.RingGeometry(33, 34, 64);
-  const gimbal1Mat = new THREE.MeshBasicMaterial({
-    color: 0xa855f7,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.5
-  });
+  // Gyroscopic Gimbal Rings
+  const gimbal1Geo = new THREE.RingGeometry(31, 32, 64);
+  const gimbal1Mat = new THREE.MeshBasicMaterial({ color: 0xa855f7, side: THREE.DoubleSide, transparent: true, opacity: 0.45 });
   const gimbal1 = new THREE.Mesh(gimbal1Geo, gimbal1Mat);
   reactorGroup.add(gimbal1);
 
-  const gimbal2Geo = new THREE.RingGeometry(38, 39, 64);
-  const gimbal2Mat = new THREE.MeshBasicMaterial({
-    color: 0x00f2ff,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.45
-  });
+  const gimbal2Geo = new THREE.RingGeometry(36, 37, 64);
+  const gimbal2Mat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, side: THREE.DoubleSide, transparent: true, opacity: 0.4 });
   const gimbal2 = new THREE.Mesh(gimbal2Geo, gimbal2Mat);
   reactorGroup.add(gimbal2);
 
   // Ambient Core Energy Particles
-  const pCount = 160;
+  const pCount = 140;
   const pGeo = new THREE.BufferGeometry();
   const pPos = new Float32Array(pCount * 3);
   for (let i = 0; i < pCount; i++) {
     const theta = Math.random() * Math.PI * 2;
-    const r = 10 + Math.random() * 26;
+    const r = 9 + Math.random() * 25;
     pPos[i * 3] = Math.cos(theta) * r;
     pPos[i * 3 + 1] = Math.sin(theta) * r;
     pPos[i * 3 + 2] = (Math.random() - 0.5) * 20;
   }
   pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
-  const pMat = new THREE.PointsMaterial({
+  const coreParticles = new THREE.Points(pGeo, new THREE.PointsMaterial({
     color: 0x00f2ff,
-    size: 1.8,
+    size: 1.6,
     transparent: true,
     opacity: 0.8,
     blending: THREE.AdditiveBlending
-  });
-  const coreParticles = new THREE.Points(pGeo, pMat);
+  }));
   reactorGroup.add(coreParticles);
 
   // ============================================================
-  // 4. 3D ROBOTIC MECH AVATAR (LOWER STAGE ON CYBER-PEDESTAL)
+  // 5. 3D AVATAR STAGE (CYBER-PEDESTAL + IRON MAN MECH SUIT)
   // ============================================================
   const avatarGroup = new THREE.Group();
   avatarGroup.position.set(0, -22, 0);
   stageGroup.add(avatarGroup);
 
-  // Cyber-Pedestal Base
-  const pedestalGeo = new THREE.CylinderGeometry(26, 30, 4, 32);
-  const pedestalMat = new THREE.MeshBasicMaterial({
-    color: 0x0a192f,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.6
+  // Cyber-Pedestal Base Platform
+  const pedestalGeo = new THREE.CylinderGeometry(28, 32, 4, 36);
+  const pedestalMat = new THREE.MeshStandardMaterial({
+    color: 0x0b1728,
+    roughness: 0.35,
+    metalness: 0.8,
+    wireframe: false
   });
   const pedestal = new THREE.Mesh(pedestalGeo, pedestalMat);
   pedestal.position.y = -22;
   avatarGroup.add(pedestal);
 
+  // Pedestal Wireframe Highlight
+  const pWireGeo = new THREE.CylinderGeometry(28.2, 32.2, 4.1, 36);
+  const pWireMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, wireframe: true, transparent: true, opacity: 0.3 });
+  const pWire = new THREE.Mesh(pWireGeo, pWireMat);
+  pWire.position.y = -22;
+  avatarGroup.add(pWire);
+
   // Glowing Pedestal Energy Rim
-  const rimGeo = new THREE.RingGeometry(26.5, 29.5, 32);
-  const rimMat = new THREE.MeshBasicMaterial({
-    color: 0x00f2ff,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.7
-  });
+  const rimGeo = new THREE.RingGeometry(28.5, 31.5, 36);
+  const rimMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, side: THREE.DoubleSide, transparent: true, opacity: 0.75 });
   const rimMesh = new THREE.Mesh(rimGeo, rimMat);
   rimMesh.rotation.x = Math.PI / 2;
-  rimMesh.position.y = -20;
+  rimMesh.position.y = -19.9;
   avatarGroup.add(rimMesh);
 
-  // Pedestal Holographic Grid Ring
-  const pGridGeo = new THREE.RingGeometry(16, 24, 24);
-  const pGridMat = new THREE.MeshBasicMaterial({
-    color: 0xa855f7,
-    side: THREE.DoubleSide,
-    transparent: true,
-    opacity: 0.5
-  });
+  // Holographic Grid Ring on Pedestal
+  const pGridGeo = new THREE.RingGeometry(16, 26, 28);
+  const pGridMat = new THREE.MeshBasicMaterial({ color: 0xa855f7, side: THREE.DoubleSide, transparent: true, opacity: 0.5 });
   const pGridMesh = new THREE.Mesh(pGridGeo, pGridMat);
   pGridMesh.rotation.x = Math.PI / 2;
-  pGridMesh.position.y = -19.8;
+  pGridMesh.position.y = -19.7;
   avatarGroup.add(pGridMesh);
 
-  // Mech Robot Body Assembly
-  const mechGroup = new THREE.Group();
-  avatarGroup.add(mechGroup);
-
-  // Shared Cyber Armor Materials
-  const armorMat = new THREE.MeshBasicMaterial({
-    color: 0x0f2338,
-    wireframe: false,
-    transparent: true,
-    opacity: 0.85
-  });
-  const wireMat = new THREE.MeshBasicMaterial({
-    color: 0x00f2ff,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.6
-  });
-  const neonCyanMat = new THREE.MeshBasicMaterial({
-    color: 0x00f2ff,
-    transparent: true,
-    opacity: 0.95
-  });
-  const goldAccentMat = new THREE.MeshBasicMaterial({
-    color: 0xf59e0b,
-    transparent: true,
-    opacity: 0.85
-  });
-
-  // Torso / Chest Plate
-  const torsoGeo = new THREE.BoxGeometry(16, 18, 10);
-  const torsoMesh = new THREE.Mesh(torsoGeo, armorMat);
-  torsoMesh.position.y = -4;
-  mechGroup.add(torsoMesh);
-
-  const torsoWire = new THREE.Mesh(torsoGeo, wireMat);
-  torsoWire.position.y = -4;
-  mechGroup.add(torsoWire);
-
-  // Chest Mini Arc Reactor
-  const chestCoreGeo = new THREE.CylinderGeometry(3.2, 3.2, 1.5, 16);
-  chestCoreGeo.rotateX(Math.PI / 2);
-  const chestCore = new THREE.Mesh(chestCoreGeo, neonCyanMat);
-  chestCore.position.set(0, -1.5, 5);
-  mechGroup.add(chestCore);
-
-  // Chest Reactor Outer Ring
-  const chestRingGeo = new THREE.RingGeometry(3.6, 4.4, 16);
-  const chestRing = new THREE.Mesh(chestRingGeo, goldAccentMat);
-  chestRing.position.set(0, -1.5, 5.8);
-  mechGroup.add(chestRing);
-
-  // Shoulder Armor (Left & Right)
-  const shoulderGeo = new THREE.BoxGeometry(7, 6, 8);
-
-  const leftShoulder = new THREE.Mesh(shoulderGeo, armorMat);
-  leftShoulder.position.set(-12, 3, 0);
-  mechGroup.add(leftShoulder);
-  const leftShoulderWire = new THREE.Mesh(shoulderGeo, wireMat);
-  leftShoulderWire.position.set(-12, 3, 0);
-  mechGroup.add(leftShoulderWire);
-
-  const rightShoulder = new THREE.Mesh(shoulderGeo, armorMat);
-  rightShoulder.position.set(12, 3, 0);
-  mechGroup.add(rightShoulder);
-  const rightShoulderWire = new THREE.Mesh(shoulderGeo, wireMat);
-  rightShoulderWire.position.set(12, 3, 0);
-  mechGroup.add(rightShoulderWire);
-
-  // Bicep / Arms (Tactical Guardian Stance)
-  const armGeo = new THREE.CylinderGeometry(2, 1.8, 14, 8);
-  const leftArm = new THREE.Mesh(armGeo, armorMat);
-  leftArm.position.set(-13, -7, 0);
-  leftArm.rotation.z = 0.15;
-  mechGroup.add(leftArm);
-  const leftArmWire = new THREE.Mesh(armGeo, wireMat);
-  leftArmWire.position.set(-13, -7, 0);
-  leftArmWire.rotation.z = 0.15;
-  mechGroup.add(leftArmWire);
-
-  const rightArm = new THREE.Mesh(armGeo, armorMat);
-  rightArm.position.set(13, -7, 0);
-  rightArm.rotation.z = -0.15;
-  mechGroup.add(rightArm);
-  const rightArmWire = new THREE.Mesh(armGeo, wireMat);
-  rightArmWire.position.set(13, -7, 0);
-  rightArmWire.rotation.z = -0.15;
-  mechGroup.add(rightArmWire);
-
-  // Mech Head / Helmet Group (Tracks Cursor)
-  const headGroup = new THREE.Group();
-  headGroup.position.set(0, 9.5, 0);
-  mechGroup.add(headGroup);
-
-  // Helmet Core
-  const helmetGeo = new THREE.BoxGeometry(9, 9.5, 8.5);
-  const helmetMesh = new THREE.Mesh(helmetGeo, armorMat);
-  headGroup.add(helmetMesh);
-  const helmetWire = new THREE.Mesh(helmetGeo, wireMat);
-  headGroup.add(helmetWire);
-
-  // Helmet Cheek Guards (Angular V-Shape)
-  const cheekGeo = new THREE.ConeGeometry(2, 6, 4);
-  const leftCheek = new THREE.Mesh(cheekGeo, goldAccentMat);
-  leftCheek.position.set(-4.5, -2, 3);
-  leftCheek.rotation.z = -0.4;
-  headGroup.add(leftCheek);
-
-  const rightCheek = new THREE.Mesh(cheekGeo, goldAccentMat);
-  rightCheek.position.set(4.5, -2, 3);
-  rightCheek.rotation.z = 0.4;
-  headGroup.add(rightCheek);
-
-  // Visor (Glowing Cyan Optical Slit)
-  const visorGeo = new THREE.BoxGeometry(7.2, 1.8, 2.2);
-  const visorMesh = new THREE.Mesh(visorGeo, neonCyanMat);
-  visorMesh.position.set(0, 0.8, 4.2);
-  headGroup.add(visorMesh);
-
-  // Floating Data Sparks / Holographic Dust
+  // Floating Cyber Sparks / Data Dust
   const dustCount = 80;
   const dustGeo = new THREE.BufferGeometry();
   const dustPos = new Float32Array(dustCount * 3);
   for (let i = 0; i < dustCount; i++) {
     dustPos[i * 3] = (Math.random() - 0.5) * 60;
-    dustPos[i * 3 + 1] = (Math.random() - 0.5) * 80;
-    dustPos[i * 3 + 2] = (Math.random() - 0.5) * 40;
+    dustPos[i * 3 + 1] = Math.random() * 50 - 15;
+    dustPos[i * 3 + 2] = (Math.random() - 0.5) * 45;
   }
   dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-  const dustMat = new THREE.PointsMaterial({
+  const holoDust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
     color: 0x38bdf8,
     size: 1.5,
     transparent: true,
     opacity: 0.6,
     blending: THREE.AdditiveBlending
-  });
-  const holoDust = new THREE.Points(dustGeo, dustMat);
-  stageGroup.add(holoDust);
+  }));
+  avatarGroup.add(holoDust);
+
+  // Reference variables for live animation
+  let activeMechModel = null;
+  let proceduralMech = null;
+  let headReference = null;
+  let chestReactorRef = null;
 
   // ============================================================
-  // 5. AUDIO-REACTIVE & CURSOR TRACKING STATE
+  // 6. BUILD SCULPTED PROCEDURAL IRON MAN BUST (HIGH-REALISM)
+  // (Instant visual while GLB prepares, or as resilient standalone)
+  // ============================================================
+  function buildSculptedProceduralMech() {
+    const group = new THREE.Group();
+
+    // High-tech PBR Materials
+    const crimsonArmorMat = new THREE.MeshStandardMaterial({
+      color: 0x881337, // Iron Man Hot-Rod Red / Deep Crimson Titanium
+      roughness: 0.22,
+      metalness: 0.9,
+      envMapIntensity: 1.2
+    });
+
+    const goldAlloyMat = new THREE.MeshStandardMaterial({
+      color: 0xd97706, // Titanium-Gold Alloy
+      roughness: 0.18,
+      metalness: 0.92,
+      envMapIntensity: 1.5
+    });
+
+    const darkTitaniumMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a, // Dark Carbon / Titanium Undersuit
+      roughness: 0.35,
+      metalness: 0.85
+    });
+
+    const glowingEyeMat = new THREE.MeshBasicMaterial({
+      color: 0x00f2ff,
+      transparent: true,
+      opacity: 0.95
+    });
+
+    const unibeamMat = new THREE.MeshBasicMaterial({
+      color: 0x00f2ff,
+      transparent: true,
+      opacity: 0.95
+    });
+
+    // --- CHEST & TORSO ---
+    const torsoGroup = new THREE.Group();
+    group.add(torsoGroup);
+
+    // Main Chest Chassis
+    const chestGeo = new THREE.CylinderGeometry(11, 8.5, 16, 8, 1);
+    const chestMesh = new THREE.Mesh(chestGeo, crimsonArmorMat);
+    chestMesh.position.set(0, -4, 0);
+    torsoGroup.add(chestMesh);
+
+    // Sculpted Left & Right Pectoral Armor Plates
+    const pecGeo = new THREE.BoxGeometry(7.2, 7.5, 3.5);
+    const leftPec = new THREE.Mesh(pecGeo, crimsonArmorMat);
+    leftPec.position.set(-4.5, -1.2, 5.2);
+    leftPec.rotation.y = 0.2;
+    leftPec.rotation.z = -0.08;
+    torsoGroup.add(leftPec);
+
+    const rightPec = new THREE.Mesh(pecGeo, crimsonArmorMat);
+    rightPec.position.set(4.5, -1.2, 5.2);
+    rightPec.rotation.y = -0.2;
+    rightPec.rotation.z = 0.08;
+    torsoGroup.add(rightPec);
+
+    // Collarbone / Clavicle Gold Accents
+    const collarGeo = new THREE.BoxGeometry(6.5, 2.2, 2.5);
+    const leftCollar = new THREE.Mesh(collarGeo, goldAlloyMat);
+    leftCollar.position.set(-4.8, 3.2, 4.2);
+    leftCollar.rotation.z = -0.22;
+    torsoGroup.add(leftCollar);
+
+    const rightCollar = new THREE.Mesh(collarGeo, goldAlloyMat);
+    rightCollar.position.set(4.8, 3.2, 4.2);
+    rightCollar.rotation.z = 0.22;
+    torsoGroup.add(rightCollar);
+
+    // Central Unibeam Housing & Arc Core
+    const unibeamRingGeo = new THREE.TorusGeometry(3.6, 0.7, 16, 32);
+    const unibeamRing = new THREE.Mesh(unibeamRingGeo, goldAlloyMat);
+    unibeamRing.position.set(0, -1.5, 6.4);
+    torsoGroup.add(unibeamRing);
+
+    const unibeamCoreGeo = new THREE.CylinderGeometry(2.8, 2.8, 0.8, 24);
+    unibeamCoreGeo.rotateX(Math.PI / 2);
+    const unibeamCore = new THREE.Mesh(unibeamCoreGeo, unibeamMat);
+    unibeamCore.position.set(0, -1.5, 6.2);
+    torsoGroup.add(unibeamCore);
+    chestReactorRef = unibeamCore;
+
+    // Segmented Abdominal Rib Plates
+    for (let i = 0; i < 3; i++) {
+      const abGeo = new THREE.BoxGeometry(8 - i * 0.9, 1.8, 3.2);
+      const abPlate = new THREE.Mesh(abGeo, darkTitaniumMat);
+      abPlate.position.set(0, -7.5 - i * 2.1, 4.4 - i * 0.4);
+      torsoGroup.add(abPlate);
+    }
+
+    // --- SHOULDERS & ARMS ---
+    // Curved Aerodynamic Pauldrons (Left & Right)
+    const pauldronGeo = new THREE.SphereGeometry(5.2, 16, 12, 0, Math.PI * 2, 0, Math.PI * 0.55);
+    pauldronGeo.rotateX(Math.PI / 2);
+
+    const leftPauldron = new THREE.Mesh(pauldronGeo, crimsonArmorMat);
+    leftPauldron.position.set(-13.5, 2.5, 0);
+    leftPauldron.rotation.z = -0.4;
+    leftPauldron.scale.set(1.2, 1.4, 1.1);
+    torsoGroup.add(leftPauldron);
+
+    const rightPauldron = new THREE.Mesh(pauldronGeo, crimsonArmorMat);
+    rightPauldron.position.set(13.5, 2.5, 0);
+    rightPauldron.rotation.z = 0.4;
+    rightPauldron.scale.set(1.2, 1.4, 1.1);
+    torsoGroup.add(rightPauldron);
+
+    // Gold Shoulder Trim Insets
+    const trimGeo = new THREE.CylinderGeometry(4.2, 4.8, 1.2, 16);
+    const leftTrim = new THREE.Mesh(trimGeo, goldAlloyMat);
+    leftTrim.position.set(-13.2, 3.8, 0);
+    leftTrim.rotation.z = -0.4;
+    torsoGroup.add(leftTrim);
+
+    const rightTrim = new THREE.Mesh(trimGeo, goldAlloyMat);
+    rightTrim.position.set(13.2, 3.8, 0);
+    rightTrim.rotation.z = 0.4;
+    torsoGroup.add(rightTrim);
+
+    // Bicep Hydraulic Arms (Tactical Alert Stance)
+    const armGeo = new THREE.CylinderGeometry(2.4, 2.1, 14, 12);
+    const leftArm = new THREE.Mesh(armGeo, darkTitaniumMat);
+    leftArm.position.set(-13.8, -6, 0);
+    leftArm.rotation.z = 0.12;
+    torsoGroup.add(leftArm);
+
+    const rightArm = new THREE.Mesh(armGeo, darkTitaniumMat);
+    rightArm.position.set(13.8, -6, 0);
+    rightArm.rotation.z = -0.12;
+    torsoGroup.add(rightArm);
+
+    // Forearm Gauntlets
+    const gauntletGeo = new THREE.CylinderGeometry(2.7, 2.2, 10, 12);
+    const leftGauntlet = new THREE.Mesh(gauntletGeo, crimsonArmorMat);
+    leftGauntlet.position.set(-14.8, -15, 1);
+    torsoGroup.add(leftGauntlet);
+
+    const rightGauntlet = new THREE.Mesh(gauntletGeo, crimsonArmorMat);
+    rightGauntlet.position.set(14.8, -15, 1);
+    torsoGroup.add(rightGauntlet);
+
+    // --- CYBERNETIC NECK & HYDRAULICS ---
+    const neckGeo = new THREE.CylinderGeometry(3.8, 4.4, 5, 16);
+    const neck = new THREE.Mesh(neckGeo, darkTitaniumMat);
+    neck.position.set(0, 5.5, 0);
+    torsoGroup.add(neck);
+
+    // --- IRON MAN HELMET (SCULPTED MULTI-PIECE HEAD) ---
+    const headGroup = new THREE.Group();
+    headGroup.position.set(0, 9.5, 0.5);
+    torsoGroup.add(headGroup);
+    headReference = headGroup;
+
+    // Helmet Crown & Skull Shell (Crimson)
+    const skullGeo = new THREE.SphereGeometry(5.2, 24, 20);
+    skullGeo.scale(1.0, 1.15, 1.05);
+    const skull = new THREE.Mesh(skullGeo, crimsonArmorMat);
+    skull.position.set(0, 1.2, -0.6);
+    headGroup.add(skull);
+
+    // Iconic Gold Faceplate (Sculpted Contours)
+    const faceplateGeo = new THREE.BoxGeometry(5.6, 6.8, 3.2);
+    const faceplate = new THREE.Mesh(faceplateGeo, goldAlloyMat);
+    faceplate.position.set(0, 0.4, 3.2);
+    faceplate.scale.set(0.95, 1.0, 0.85);
+    headGroup.add(faceplate);
+
+    // Angular Tapering Jaw / Chin Plate
+    const jawGeo = new THREE.ConeGeometry(2.8, 4.5, 4);
+    jawGeo.rotateY(Math.PI / 4);
+    const jaw = new THREE.Mesh(jawGeo, goldAlloyMat);
+    jaw.position.set(0, -2.6, 3.2);
+    jaw.rotation.x = Math.PI;
+    jaw.scale.set(1.2, 0.85, 0.7);
+    headGroup.add(jaw);
+
+    // Dual Angular Glowing Cyan Eyes (Iconic Iron Man Slit Eyes)
+    const eyeGeo = new THREE.BoxGeometry(1.6, 0.42, 0.5);
+
+    const leftEye = new THREE.Mesh(eyeGeo, glowingEyeMat);
+    leftEye.position.set(-1.6, 1.2, 4.8);
+    leftEye.rotation.z = -0.18; // Inward aggressive tilt
+    headGroup.add(leftEye);
+
+    const rightEye = new THREE.Mesh(eyeGeo, glowingEyeMat);
+    rightEye.position.set(1.6, 1.2, 4.8);
+    rightEye.rotation.z = 0.18; // Inward aggressive tilt
+    headGroup.add(rightEye);
+
+    // Side Temporal Ear Audio Discs
+    const earGeo = new THREE.CylinderGeometry(1.8, 1.8, 0.8, 16);
+    earGeo.rotateZ(Math.PI / 2);
+    const leftEar = new THREE.Mesh(earGeo, goldAlloyMat);
+    leftEar.position.set(-5.1, 0.5, 0);
+    headGroup.add(leftEar);
+
+    const rightEar = new THREE.Mesh(earGeo, goldAlloyMat);
+    rightEar.position.set(5.1, 0.5, 0);
+    headGroup.add(rightEar);
+
+    // Floating Target Reticle HUD around Helmet
+    const reticleGeo = new THREE.RingGeometry(6.5, 6.9, 32);
+    const reticleMat = new THREE.MeshBasicMaterial({ color: 0x00f2ff, transparent: true, opacity: 0.35, side: THREE.DoubleSide });
+    const reticle = new THREE.Mesh(reticleGeo, reticleMat);
+    reticle.position.set(0, 0.8, 7.5);
+    headGroup.add(reticle);
+
+    return group;
+  }
+
+  // Mount sculpted procedural model immediately
+  proceduralMech = buildSculptedProceduralMech();
+  avatarGroup.add(proceduralMech);
+  activeMechModel = proceduralMech;
+
+  // ============================================================
+  // 7. ASYNCHRONOUS GLTF 3D SUIT LOADER (/ironman.glb)
+  // ============================================================
+  if (window.THREE && window.THREE.GLTFLoader) {
+    const loader = new THREE.GLTFLoader();
+    loader.load('/ironman.glb', (gltf) => {
+      const gltfSuit = gltf.scene;
+
+      // Compute bounding box to scale and center model
+      const box = new THREE.Box3().setFromObject(gltfSuit);
+      const size = box.getSize(new THREE.Vector3());
+      const center = box.getCenter(new THREE.Vector3());
+
+      const targetHeight = 56;
+      const scale = targetHeight / Math.max(size.y, 0.01);
+      gltfSuit.scale.set(scale, scale, scale);
+
+      // Align feet with cyber-pedestal
+      gltfSuit.position.x = -center.x * scale;
+      gltfSuit.position.z = -center.z * scale;
+      gltfSuit.position.y = -center.y * scale + (size.y * scale) * 0.44 - 20;
+
+      // Enhance materials with PBR reflectivity & emissive eyes
+      gltfSuit.traverse((child) => {
+        if (child.isMesh) {
+          child.castShadow = true;
+          child.receiveShadow = true;
+          if (child.material) {
+            child.material.metalness = 0.88;
+            child.material.roughness = 0.24;
+            child.material.envMapIntensity = 1.3;
+
+            const n = (child.name || '').toLowerCase();
+            if (n.includes('eye') || n.includes('arc') || n.includes('reactor') || n.includes('glow') || n.includes('light')) {
+              child.material.emissive = new THREE.Color(0x00f2ff);
+              child.material.emissiveIntensity = 2.8;
+            }
+          }
+        }
+      });
+
+      // Seamlessly replace the procedural placeholder
+      if (proceduralMech && proceduralMech.parent) {
+        avatarGroup.remove(proceduralMech);
+      }
+
+      avatarGroup.add(gltfSuit);
+      activeMechModel = gltfSuit;
+      headReference = gltfSuit;
+
+      const cap = document.querySelector('.orb-status-text');
+      if (cap) cap.textContent = '• JARVIS MARK 85 • 3D SUIT ONLINE •';
+      console.log('TRI AI: Authentic 3D Iron Man Suit loaded successfully!');
+    }, (xhr) => {
+      if (xhr.total > 0) {
+        const pct = Math.round((xhr.loaded / xhr.total) * 100);
+        const cap = document.querySelector('.orb-status-text');
+        if (cap && pct < 100) cap.textContent = `• LOADING 3D IRON MAN SUIT (${pct}%) •`;
+      }
+    }, (err) => {
+      console.warn('GLTF load fallback: Active on sculpted procedural armor.', err);
+    });
+  }
+
+  // ============================================================
+  // 8. AUDIO-REACTIVE & MOUSE PARALLAX TRACKING
   // ============================================================
   let audioPulse = 0;
   let targetPulse = 0;
@@ -375,24 +542,23 @@
     const cy = rect.top + rect.height / 2;
     mouseX = (e.clientX - cx) / (window.innerWidth / 2);
     mouseY = (e.clientY - cy) / (window.innerHeight / 2);
-    targetLookX = mouseX * 0.4;
-    targetLookY = -mouseY * 0.25;
+    targetLookX = mouseX * 0.35;
+    targetLookY = -mouseY * 0.22;
   });
 
   // Global pulse trigger callable from audio player
-  window.triggerCorePulse = function(intensity = 0.9) {
+  window.triggerCorePulse = function(intensity = 1.0) {
     targetPulse = Math.max(targetPulse, intensity);
   };
 
-  // Click to emit shockwave
   if (orbViewport) {
     orbViewport.addEventListener('click', () => {
-      targetPulse = 1.0;
+      targetPulse = 1.2;
     });
   }
 
   // ============================================================
-  // 6. MAIN ANIMATION LOOP
+  // 9. RENDER & ANIMATION LOOP
   // ============================================================
   const clock = new THREE.Clock();
 
@@ -402,62 +568,68 @@
     const delta = clock.getDelta();
     const time = clock.getElapsedTime();
 
-    // Check if TRI AI assistant is currently speaking
+    // Voice modulation check
     const isSpeaking = window.triAIIsSpeaking || false;
     if (isSpeaking) {
-      // Modulate speech frequency
-      targetPulse = 0.5 + Math.sin(time * 14) * 0.35 + Math.cos(time * 22) * 0.15;
+      targetPulse = 0.55 + Math.sin(time * 15) * 0.35 + Math.cos(time * 24) * 0.15;
     } else {
-      targetPulse *= 0.92; // Decay
+      targetPulse *= 0.92;
+    }
+    audioPulse += (targetPulse - audioPulse) * 0.16;
+
+    // Head / Suit Parallax Tracking
+    if (headReference) {
+      headReference.rotation.y += (targetLookX - headReference.rotation.y) * 0.08;
+      headReference.rotation.x += (targetLookY - headReference.rotation.x) * 0.08;
     }
 
-    audioPulse += (targetPulse - audioPulse) * 0.18;
+    // Gentle Whole-Stage Parallax
+    stageGroup.rotation.y += (targetLookX * 0.25 - stageGroup.rotation.y) * 0.05;
+    stageGroup.rotation.x += (targetLookY * 0.18 - stageGroup.rotation.x) * 0.05;
 
-    // Head Visor Tracking
-    headGroup.rotation.y += (targetLookX - headGroup.rotation.y) * 0.08;
-    headGroup.rotation.x += (targetLookY - headGroup.rotation.x) * 0.08;
+    // Organic Idle Breathing Motion
+    const breath = Math.sin(time * 1.6) * 0.7;
+    if (activeMechModel) {
+      activeMechModel.position.y += (breath * 0.05);
+    }
 
-    // Stage Parallax
-    stageGroup.rotation.y += (targetLookX * 0.3 - stageGroup.rotation.y) * 0.05;
-    stageGroup.rotation.x += (targetLookY * 0.2 - stageGroup.rotation.x) * 0.05;
+    // Dynamic Light Intensity based on Voice
+    unibeamLight.intensity = 2.5 + audioPulse * 3.5;
+    visorLight.intensity = 1.6 + audioPulse * 2.2;
 
-    // Mech Breathing Idle Motion
-    const breath = Math.sin(time * 1.8) * 0.8;
-    mechGroup.position.y = breath;
-    shoulderGeo.parameters.height = 6 + breath * 0.2;
-
-    // Arc Reactor Core Rotations
-    coreMesh.rotation.y += 0.015;
-    coreMesh.rotation.x -= 0.01;
-    ring1.rotation.z += 0.018;
-    spokesGroup.rotation.z += 0.018;
-    ring2.rotation.z -= 0.024; // Counter-rotating gear
+    // Upper Arc Reactor Rotations & Flares
+    coreMesh.rotation.y += 0.016;
+    coreMesh.rotation.x -= 0.009;
+    ring1.rotation.z += 0.016;
+    spokesGroup.rotation.z += 0.016;
+    ring2.rotation.z -= 0.022; // Counter-rotating gear
     ring3.rotation.z += 0.006;
     ticksGroup.rotation.z += 0.006;
 
-    // Gimbal 3D rotations
-    gimbal1.rotation.x = Math.PI / 3 + Math.sin(time * 0.8) * 0.2;
+    // Gyroscope 3D Tilts
+    gimbal1.rotation.x = Math.PI / 3 + Math.sin(time * 0.8) * 0.18;
     gimbal1.rotation.y += 0.01;
-    gimbal2.rotation.y = Math.PI / 4 + Math.cos(time * 0.7) * 0.2;
+    gimbal2.rotation.y = Math.PI / 4 + Math.cos(time * 0.7) * 0.18;
     gimbal2.rotation.x += 0.008;
 
-    // Audio-Reactive Scale & Glow Expansion
-    const coreScale = 1.0 + audioPulse * 0.35;
+    // Audio-reactive scale on Arc Core
+    const coreScale = 1.0 + audioPulse * 0.32;
     coreMesh.scale.set(coreScale, coreScale, coreScale);
     glowMesh.scale.set(coreScale * 1.1, coreScale * 1.1, coreScale * 1.1);
-    chestCore.scale.set(1.0 + audioPulse * 0.4, 1.0 + audioPulse * 0.4, 1.0 + audioPulse * 0.4);
+    glowMat.opacity = 0.65 + audioPulse * 0.35;
 
-    // Dynamic Opacity / Flare
-    glowMat.opacity = 0.7 + audioPulse * 0.3;
-    visorMesh.material.opacity = 0.85 + audioPulse * 0.15;
+    // Audio-reactive Unibeam Flare on Procedural Model
+    if (chestReactorRef) {
+      chestReactorRef.scale.set(1.0 + audioPulse * 0.35, 1.0 + audioPulse * 0.35, 1.0 + audioPulse * 0.35);
+    }
 
-    // Pedestal Rim Rotation
+    // Pedestal Energy Rim Rotation
     rimMesh.rotation.z += 0.008;
     pGridMesh.rotation.z -= 0.012;
 
-    // Holographic Dust Float
+    // Holographic Particles Float
     holoDust.rotation.y += 0.002;
-    coreParticles.rotation.z += 0.005;
+    coreParticles.rotation.z += 0.004;
 
     renderer.render(scene, camera);
   }
