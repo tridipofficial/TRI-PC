@@ -1451,33 +1451,6 @@ body {
   box-shadow: 0 0 12px var(--primary);
 }
 
-/* Quick Command Chips */
-.quick-cmd-dock {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.quick-cmd-chip {
-  background: rgba(0, 242, 255, 0.06);
-  border: 1px solid rgba(0, 242, 255, 0.2);
-  border-radius: 4px;
-  color: var(--text-muted);
-  font-family: var(--font-bengali);
-  font-size: 11px;
-  padding: 4px 8px;
-  cursor: pointer;
-  white-space: nowrap;
-  transition: all 0.2s;
-}
-
-.quick-cmd-chip:hover {
-  background: rgba(0, 242, 255, 0.18);
-  border-color: var(--primary);
-  color: #fff;
-}
-
 /* ============================================================
    KEYFRAME ANIMATIONS
    ============================================================ */

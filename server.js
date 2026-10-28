@@ -571,7 +571,15 @@ const server = http.createServer(async (req, res) => {
 // Helper to normalize Bengali & English text for bulletproof intent recognition
 function normalizeBn(str) {
   if (!str) return '';
-  return str.normalize('NFC').toLowerCase();
+  return str.normalize('NFC').toLowerCase().replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
+}
+
+function openUrlInWindows(url) {
+  try {
+    spawn('powershell', ['-NoProfile', '-Command', `Start-Process '${url.replace(/'/g, "''")}'`]);
+  } catch (e) {
+    console.error('Failed to open URL in Windows:', e.message);
+  }
 }
 
 // Safe Windows PC Action Controller (Desktop Superpowers)
@@ -580,77 +588,188 @@ function detectIntentAction(prompt) {
 
   // 1. Greetings (যেমন: কেমন আছো, কি খবর, কেমন আছেন)
   if (norm.includes('কেমন আছো') || norm.includes('কেমন আছেন') || norm.includes('কি খবর') || norm.includes('কী খবর') || norm.includes('কি অবস্থা') || norm.includes('how are you')) {
-    return { type: 'GREETING' };
+    return {
+      type: 'GREETING',
+      reply: 'আমি খুব ভালো আছি TRIDIP স্যার! আপনার কি খবর বলুন, আমি কীভাবে সাহায্য করতে পারি?'
+    };
   }
 
-  // 2. Weather Details (যেমন: আবহাওয়ার ডিটেইলস কি, আবহাওয়া কেমন)
+  // 2. Google Search (Prioritized if Google is explicitly mentioned)
+  if (norm.includes('গুগল') || norm.includes('google')) {
+    let q = norm
+      .replace(/google(\s*এ)?/gi, '')
+      .replace(/গুগল(ে)?(\s*এ)?/gi, '')
+      .replace(/(সার্চ|search|দেখো|দেখাও|খুঁজে বের করো|খোলো|ওপেন|করো|করে দাও|করে দিন|দাও|দিন|করে|দেখান|এবং|তা|সম্পর্কে|নিয়ে)/gi, '')
+      .trim();
+    if (q.length > 1) {
+      const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+      return {
+        type: 'OPEN_GOOGLE',
+        query: q,
+        url: url,
+        reply: `TRIDIP স্যার, গুগলে "${q}" সার্চ করে রেজাল্ট ওপেন করা হয়েছে!`
+      };
+    }
+    return {
+      type: 'OPEN_GOOGLE',
+      query: '',
+      url: 'https://www.google.com',
+      reply: 'TRIDIP স্যার, গুগল ব্রাউজারে ওপেন করা হয়েছে। কি তথ্য অনুসন্ধান করবো?'
+    };
+  }
+
+  // 3. Weather Details (যেমন: আবহাওয়ার ডিটেইলস কি, আবহাওয়া কেমন)
   const weatherNorm = normalizeBn('আবহাওয়া');
   if (norm.includes(weatherNorm) || norm.includes('আবহাও') || norm.includes('আবোয়ার') || norm.includes('weather') || norm.includes('তাপমাত্রা') || norm.includes('বৃষ্টি')) {
     return { type: 'WEATHER' };
   }
 
-  // 3. Save to Notepad on Desktop (যেমন: নোটপ্যাডে এটা সেভ করো, নোটপ্যাডে লিখো)
-  if (norm.includes('নোটপ্যাড') || (norm.includes('নোট') && (norm.includes('সেভ') || norm.includes('লিখ') || norm.includes('করো')))) {
+  // 4. Save to Notepad on Desktop (যেমন: নোটপ্যাডে এটা সেভ করো, নোটপ্যাডে লিখো)
+  if (norm.includes('নোটপ্যাড') || (norm.includes('নোট') && (norm.includes('সেভ') || norm.includes('লিখ') || norm.includes('রাখ')))) {
     let noteText = prompt
-      .replace(/(নোটপ্যাডে|নোটপ্যাড|নোট|এটা|একটি|একটা|সেভ|করো|করে দাও|রেখে দাও|লিখো|লেখো|তুলে রাখো|save|note)/gi, '')
+      .replace(/(নোটপ্যাডে|নোটপ্যাড|নোট|এটা|একটি|একটা|সেভ|করো|করে দাও|রেখে দাও|রাখো|লিখো|লেখো|তুলে রাখো|save|note)/gi, '')
+      .replace(/[।?!,.:;'"-]/g, ' ')
       .trim();
-    return { type: 'SAVE_NOTE', text: noteText || 'TRIDIP স্যারের ব্যক্তিগত ভয়েস নোট' };
+    return {
+      type: 'SAVE_NOTE',
+      text: noteText || 'TRIDIP স্যারের ব্যক্তিগত ভয়েস নোট',
+      reply: "TRIDIP স্যার, আপনার নোটটি ডেস্কটপে 'TRI_AI_Notes.txt' ফাইলে সেভ করে নোটপ্যাডে ওপেন করা হয়েছে!"
+    };
   }
 
-  // 4. Music / Songs / YouTube (যেমন: গান বাজাও, হিন্দি গান বাজাও, বাংলা গান চালাও, ইউটিউব খোলো)
-  if (norm.includes('গান') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('ইউটিউব') || norm.includes('youtube') || norm.includes('বাজাও')) {
-    let q = '';
-    if (norm.includes('হিন্দি') || norm.includes('hindi')) {
-      q = 'hindi songs';
-    } else if (norm.includes('বাংলা') || norm.includes('bangla')) {
-      q = 'bangla songs';
-    } else if (norm.includes('ইংরেজি') || norm.includes('english')) {
-      q = 'english hit songs';
-    } else {
-      q = prompt
-        .replace(/ইউটিউব(ে)?/gi, '')
-        .replace(/youtube/gi, '')
-        .replace(/(একটি|একটা|ভিডিও|গান|খোলো|ওপেন|চালু|করো|করে দাও|করে দিন|দাও|চালাও|বাজাও|দেখাও|প্লে|যাও|search|play|open)/gi, '')
-        .trim();
-      if (!q) q = 'popular hit songs';
+  // 5. YouTube & Music (Comprehensive Bengali & English matching)
+  const isYouTube = norm.includes('ইউটিউব') || norm.includes('youtube');
+  const isMusic = norm.includes('গান') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('বাজাও') || norm.includes('চালাও') || norm.includes('প্লে');
+
+  if (isYouTube || isMusic) {
+    // 5.1 90s Hindi Songs
+    if (norm.includes('৯০') || norm.includes('90') || norm.includes('নব্বই') || (norm.includes('পুরানো') && norm.includes('হিন্দি'))) {
+      const q = '90s hindi hit songs';
+      return {
+        type: 'OPEN_YOUTUBE',
+        mode: '90s_HINDI',
+        query: q,
+        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        reply: 'TRIDIP স্যার, ইউটিউবে ৯০ দশকের সুপারহিট হিন্দি গানের লিস্ট ওপেন করা হয়েছে!'
+      };
     }
-    return { type: 'OPEN_YOUTUBE', query: q };
-  }
 
-  // 5. Google Search (যেমন: Google এ সার্চ করে দেখাও, গুগলে সার্চ করো আজকের খবর)
-  if (norm.includes('গুগল') || norm.includes('google') || norm.includes('সার্চ')) {
-    let q = prompt
-      .replace(/google(\s*এ)?/gi, '')
-      .replace(/গুগল(ে)?(\s*এ)?/gi, '')
-      .replace(/(সার্চ|search|দেখো|দেখাও|খুঁজে বের করো|খোলো|ওপেন|করো|করে দাও|করে দিন|দাও|দিন|করে)/gi, '')
+    // 5.2 Bangla Songs
+    if (norm.includes('বাংলা') || norm.includes('bangla')) {
+      const q = 'latest bangla songs';
+      return {
+        type: 'OPEN_YOUTUBE',
+        mode: 'BANGLA_SONGS',
+        query: q,
+        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        reply: 'TRIDIP স্যার, ইউটিউবে লেটেস্ট বাংলা গানের লিস্ট ওপেন করা হয়েছে!'
+      };
+    }
+
+    // 5.3 Hindi Songs
+    if (norm.includes('হিন্দি') || norm.includes('hindi')) {
+      const q = 'hindi hit songs';
+      return {
+        type: 'OPEN_YOUTUBE',
+        mode: 'HINDI_SONGS',
+        query: q,
+        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        reply: 'TRIDIP স্যার, ইউটিউবে জনপ্রিয় হিন্দি গানের লিস্ট ওপেন করা হয়েছে!'
+      };
+    }
+
+    // 5.4 English Songs
+    if (norm.includes('ইংরেজি') || norm.includes('english')) {
+      const q = 'english hit songs';
+      return {
+        type: 'OPEN_YOUTUBE',
+        mode: 'ENGLISH_SONGS',
+        query: q,
+        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        reply: 'TRIDIP স্যার, ইউটিউবে জনপ্রিয় ইংরেজি গানের লিস্ট ওপেন করা হয়েছে!'
+      };
+    }
+
+    // Clean query from filler words
+    let cleanQ = norm
+      .replace(/ইউটিউব(ে)?/gi, '')
+      .replace(/youtube/gi, '')
+      .replace(/(একটি|একটা|ভিডিও|গান|গানের|লিস্ট|খোলো|ওপেন|চালু|করো|করে|দাও|দিন|চালাও|বাজাও|দেখাও|প্লে|যাও|search|play|open|এবং|তা|টা|বলুন|দেখান|এর)/gi, '')
+      .replace(/\s+/g, ' ')
       .trim();
-    return { type: 'OPEN_GOOGLE', query: q || '' };
+
+    // 5.5 Specific artist or search query
+    if (cleanQ.length > 1) {
+      return {
+        type: 'OPEN_YOUTUBE',
+        mode: 'SEARCH',
+        query: cleanQ,
+        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanQ)}`,
+        reply: `TRIDIP স্যার, ইউটিউবে "${cleanQ}" সার্চ করে ভিডিও ওপেন করা হয়েছে!`
+      };
+    }
+
+    // 5.6 General Song request (e.g. "গান বাজাও", "একটি গান চালাও")
+    if (isMusic) {
+      const q = 'popular trending songs';
+      return {
+        type: 'OPEN_YOUTUBE',
+        mode: 'TOP_SONGS',
+        query: q,
+        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(q)}`,
+        reply: 'TRIDIP স্যার, ইউটিউবে সেরা গানের প্লেলিস্ট ওপেন করা হয়েছে!'
+      };
+    }
+
+    // 5.7 Just "ইউটিউব খোলো" / "ইউটিউব ওপেন করো"
+    return {
+      type: 'OPEN_YOUTUBE',
+      mode: 'HOMEPAGE',
+      query: '',
+      url: 'https://www.youtube.com',
+      reply: 'TRIDIP স্যার, ইউটিউব ওপেন করা হয়েছে। বলুন আপনি কি দেখতে বা শুনতে চান?'
+    };
   }
 
-  // 6. Volume Control (যেমন: কম্পিউটারের ভলিউম করো, ভলিউম বাড়াও, ভলিউম কমাও, মিউট করো)
-  // Be careful: "কম্পিউটার" contains "কম", so do NOT use simple norm.includes('কম')
+  // 6. Generic Search
+  if (norm.includes('সার্চ')) {
+    let q = norm
+      .replace(/(সার্চ|search|দেখো|দেখাও|খুঁজে বের করো|খোলো|ওপেন|করো|করে দাও|করে দিন|দাও|দিন|করে|দেখান|এবং|তা)/gi, '')
+      .trim();
+    if (q.length > 1) {
+      const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
+      return {
+        type: 'OPEN_GOOGLE',
+        query: q,
+        url: url,
+        reply: `TRIDIP স্যার, গুগলে "${q}" সার্চ করে রেজাল্ট ওপেন করা হয়েছে!`
+      };
+    }
+  }
+
+  // 7. Volume Control (যেমন: কম্পিউটারের ভলিউম করো, ভলিউম বাড়াও, ভলিউম কমাও, মিউট করো)
   if (norm.includes('ভলিউম') || norm.includes('সাউন্ড') || norm.includes('volume') || norm.includes('sound')) {
-    const isDown = /কমাও|কমিয়ে|কমায়ে|ডাউন|down|decrease|সাউন্ড\s*কম/i.test(prompt);
-    const isMute = /মিউট|বন্ধ|নিঃশব্দ|mute/i.test(prompt);
-    if (isMute) return { type: 'VOLUME_MUTE' };
-    if (isDown) return { type: 'VOLUME_DOWN' };
-    return { type: 'VOLUME_UP' }; // Default increase (e.g. "কম্পিউটারের ভলিউম করো" or "ভলিউম বাড়াও")
+    const isDown = /কমাও|কমিয়ে|কমায়ে|ডাউন|down|decrease|সাউন্ড\s*কম/i.test(norm);
+    const isMute = /মিউট|বন্ধ|নিঃশব্দ|mute/i.test(norm);
+    if (isMute) return { type: 'VOLUME_MUTE', reply: 'কম্পিউটারের সাউন্ড মিউট করা হয়েছে, TRIDIP স্যার।' };
+    if (isDown) return { type: 'VOLUME_DOWN', reply: 'কম্পিউটারের সাউন্ড ভলিউম কমিয়ে দেওয়া হয়েছে, TRIDIP স্যার।' };
+    return { type: 'VOLUME_UP', reply: 'কম্পিউটারের সাউন্ড ভলিউম বাড়িয়ে দেওয়া হয়েছে, TRIDIP স্যার।' };
   }
 
-  // 7. Windows Native Apps
-  if (norm.includes('ক্যালকুলেটর') || norm.includes('calculator') || norm.includes('calc')) return { type: 'OPEN_CALC' };
-  if (norm.includes('ফাইল') || norm.includes('explorer') || norm.includes('মাই কম্পিউটার') || norm.includes('দিস পিসি')) return { type: 'OPEN_EXPLORER' };
-  if (norm.includes('টাস্ক ম্যানেজার') || norm.includes('task manager') || norm.includes('taskmgr')) return { type: 'OPEN_TASKMGR' };
-  if (norm.includes('পেইন্ট') || norm.includes('paint') || norm.includes('mspaint')) return { type: 'OPEN_PAINT' };
-  if (norm.includes('কমান্ড প্রম্পট') || norm.includes('cmd') || norm.includes('টার্মিনাল')) return { type: 'OPEN_CMD' };
-  if (norm.includes('সেটিংস') || norm.includes('settings')) return { type: 'OPEN_SETTINGS' };
+  // 8. Windows Native Apps
+  if (norm.includes('ক্যালকুলেটর') || norm.includes('calculator') || norm.includes('calc')) return { type: 'OPEN_CALC', reply: 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('ফাইল') || norm.includes('explorer') || norm.includes('মাই কম্পিউটার') || norm.includes('দিস পিসি')) return { type: 'OPEN_EXPLORER', reply: 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('টাস্ক ম্যানেজার') || norm.includes('task manager') || norm.includes('taskmgr')) return { type: 'OPEN_TASKMGR', reply: 'উইন্ডোজ টাস্ক ম্যানেজার ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('পেইন্ট') || norm.includes('paint') || norm.includes('mspaint')) return { type: 'OPEN_PAINT', reply: 'উইন্ডোজ পেইন্ট ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('কমান্ড প্রম্পট') || norm.includes('cmd') || norm.includes('টার্মিনাল')) return { type: 'OPEN_CMD', reply: 'উইন্ডোজ কমান্ড প্রম্পট ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('সেটিংস') || norm.includes('settings')) return { type: 'OPEN_SETTINGS', reply: 'উইন্ডোজ সেটিংস প্যানেল ওপেন করা হয়েছে, TRIDIP স্যার।' };
 
-  // 8. Social & Web Services
-  if (norm.includes('ফেসবুক') || norm.includes('facebook')) return { type: 'OPEN_FACEBOOK' };
-  if (norm.includes('জিমেইল') || norm.includes('জি-মেইল') || norm.includes('gmail') || norm.includes('ইমেইল')) return { type: 'OPEN_GMAIL' };
-  if (norm.includes('গিটহাব') || norm.includes('github')) return { type: 'OPEN_GITHUB' };
-  if (norm.includes('উইকিপিডিয়া') || norm.includes('wikipedia')) return { type: 'OPEN_WIKIPEDIA' };
-  if (norm.includes('চ্যাটজিপিটি') || norm.includes('chatgpt')) return { type: 'OPEN_CHATGPT' };
+  // 9. Social & Web Services
+  if (norm.includes('ফেসবুক') || norm.includes('facebook')) return { type: 'OPEN_FACEBOOK', url: 'https://www.facebook.com', reply: 'ফেসবুক ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('জিমেইল') || norm.includes('জি-মেইল') || norm.includes('gmail') || norm.includes('ইমেইল')) return { type: 'OPEN_GMAIL', url: 'https://mail.google.com', reply: 'জি-মেইল ইনবক্স ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('গিটহাব') || norm.includes('github')) return { type: 'OPEN_GITHUB', url: 'https://github.com/tridipofficial/TRI-PC', reply: 'আপনার গিটহাব রিপোজিটরি ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('উইকিপিডিয়া') || norm.includes('wikipedia')) return { type: 'OPEN_WIKIPEDIA', url: 'https://bn.wikipedia.org', reply: 'উইকিপিডিয়া ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (norm.includes('চ্যাটজিপিটি') || norm.includes('chatgpt')) return { type: 'OPEN_CHATGPT', url: 'https://chatgpt.com', reply: 'চ্যাটজিপিটি ওপেন করা হয়েছে, TRIDIP স্যার।' };
 
   return null;
 }
@@ -659,10 +778,12 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
   try {
     const actionType = typeof intent === 'object' ? intent.type : intent;
     const query = (typeof intent === 'object' && intent.query) ? intent.query : fallbackQuery;
+    const presetReply = typeof intent === 'object' ? intent.reply : null;
+    const intentUrl = typeof intent === 'object' ? intent.url : null;
 
     // 1. Conversational Greeting
     if (actionType === 'GREETING') {
-      return 'আমি খুব ভালো আছি TRIDIP স্যার! আপনার কি খবর? আপনার দিনটি কেমন যাচ্ছে বলুন, আমি সবসময় আপনার সেবায় প্রস্তুত আছি।';
+      return { message: presetReply || 'আমি খুব ভালো আছি TRIDIP স্যার! আপনার কি খবর? আপনার দিনটি কেমন যাচ্ছে বলুন, আমি সবসময় আপনার সেবায় প্রস্তুত আছি।', url: null };
     }
 
     // 2. Live Weather Details
@@ -675,12 +796,18 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
           const temp = curr.temp_C;
           const humidity = curr.humidity;
           const desc = curr.weatherDesc[0].value;
-          return `TRIDIP স্যার, ঢাকার বর্তমান তাপমাত্রা ${temp} ডিগ্রি সেলসিয়াস। আকাশ ${desc.toLowerCase()} এবং বাতাসের আর্দ্রতা ${humidity} শতাংশ। আজ বৃষ্টির সম্ভাবনা খুব কম।`;
+          return {
+            message: `TRIDIP স্যার, ঢাকার বর্তমান তাপমাত্রা ${temp} ডিগ্রি সেলসিয়াস। আকাশ ${desc.toLowerCase()} এবং বাতাসের আর্দ্রতা ${humidity} শতাংশ। আজ বৃষ্টির সম্ভাবনা খুব কম।`,
+            url: null
+          };
         }
       } catch (err) {
         console.warn('Weather fetch error:', err.message);
       }
-      return 'TRIDIP স্যার, ঢাকার বর্তমান তাপমাত্রা প্রায় ২৮ ডিগ্রি সেলসিয়াস, আকাশ আংশিক মেঘলা এবং বাতাসের আর্দ্রতা ৬৫ শতাংশ। বৃষ্টির সম্ভাবনা খুব কম।';
+      return {
+        message: 'TRIDIP স্যার, ঢাকার বর্তমান তাপমাত্রা প্রায় ২৮ ডিগ্রি সেলসিয়াস, আকাশ আংশিক মেঘলা এবং বাতাসের আর্দ্রতা ৬৫ শতাংশ। বৃষ্টির সম্ভাবনা খুব কম।',
+        url: null
+      };
     }
 
     // 3. Save to Notepad on Desktop
@@ -692,102 +819,80 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
       const entry = `\n========================================\n[তারিখ ও সময়: ${timeStr}]\n${noteText}\n========================================\n`;
       fs.appendFileSync(noteFile, entry, 'utf8');
       spawn('notepad.exe', [noteFile]);
-      return `TRIDIP স্যার, আপনার নোটটি ডেস্কটপে 'TRI_AI_Notes.txt' ফাইলে সেভ করে নোটপ্যাডে ওপেন করা হয়েছে!`;
+      return {
+        message: presetReply || `TRIDIP স্যার, আপনার নোটটি ডেস্কটপে 'TRI_AI_Notes.txt' ফাইলে সেভ করে নোটপ্যাডে ওপেন করা হয়েছে!`,
+        url: null
+      };
     }
 
-    // 4. YouTube (Plays songs / searches)
+    // 4. YouTube
     if (actionType === 'OPEN_YOUTUBE') {
-      if (query && query.length > 0 && query !== 'popular hit songs') {
-        const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
-        spawn('cmd.exe', ['/c', 'start', '""', url]);
-        return `TRIDIP স্যার, ইউটিউবে আপনার জন্য "${query}" সার্চ করে ভিডিও ওপেন করা হয়েছে!`;
-      } else if (query === 'popular hit songs') {
-        const url = `https://www.youtube.com/results?search_query=${encodeURIComponent('popular hit songs')}`;
-        spawn('cmd.exe', ['/c', 'start', '""', url]);
-        return `TRIDIP স্যার, ইউটিউবে আপনার জন্য গান সার্চ করে ভিডিও প্লেলিস্ট ওপেন করা হয়েছে!`;
-      } else {
-        spawn('cmd.exe', ['/c', 'start', '""', 'https://www.youtube.com']);
-        return 'ইউটিউব ব্রাউজারে ওপেন করা হয়েছে, TRIDIP স্যার।';
-      }
+      const targetUrl = intentUrl || (query ? `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}` : 'https://www.youtube.com');
+      openUrlInWindows(targetUrl);
+      return {
+        message: presetReply || `TRIDIP স্যার, ইউটিউবে আপনার জন্য ভিডিও ওপেন করা হয়েছে!`,
+        url: targetUrl
+      };
     }
 
     // 5. Google Search
     if (actionType === 'OPEN_GOOGLE') {
-      const q = query && query.trim();
-      if (q) {
-        const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
-        spawn('cmd.exe', ['/c', 'start', '""', url]);
-        return `গুগলে "${q}" সার্চ করে আপনার ব্রাউজারে দেখানো হয়েছে, TRIDIP স্যার!`;
-      } else {
-        spawn('cmd.exe', ['/c', 'start', '""', 'https://www.google.com']);
-        return 'গুগল ব্রাউজারে ওপেন করা হয়েছে, TRIDIP স্যার!';
-      }
+      const targetUrl = intentUrl || (query ? `https://www.google.com/search?q=${encodeURIComponent(query)}` : 'https://www.google.com');
+      openUrlInWindows(targetUrl);
+      return {
+        message: presetReply || `গুগলে তথ্য ওপেন করা হয়েছে, TRIDIP স্যার!`,
+        url: targetUrl
+      };
     }
 
     // 6. Volume Controls
     if (actionType === 'VOLUME_UP') {
       spawn('powershell', ['-NoProfile', '-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]175); (New-Object -ComObject WScript.Shell).SendKeys([char]175); (New-Object -ComObject WScript.Shell).SendKeys([char]175)']);
-      return 'সিস্টেম ভলিউম বাড়িয়ে দেওয়া হয়েছে, TRIDIP স্যার।';
+      return { message: presetReply || 'কম্পিউটারের সাউন্ড ভলিউম বাড়িয়ে দেওয়া হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'VOLUME_DOWN') {
       spawn('powershell', ['-NoProfile', '-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]174); (New-Object -ComObject WScript.Shell).SendKeys([char]174); (New-Object -ComObject WScript.Shell).SendKeys([char]174)']);
-      return 'সিস্টেম ভলিউম কমিয়ে দেওয়া হয়েছে, TRIDIP স্যার।';
+      return { message: presetReply || 'কম্পিউটারের সাউন্ড ভলিউম কমিয়ে দেওয়া হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'VOLUME_MUTE') {
       spawn('powershell', ['-NoProfile', '-Command', '(New-Object -ComObject WScript.Shell).SendKeys([char]173)']);
-      return 'সিস্টেম সাউন্ড মিউট/আনমিউট করা হয়েছে, TRIDIP স্যার।';
+      return { message: presetReply || 'কম্পিউটারের সাউন্ড মিউট করা হয়েছে, TRIDIP স্যার।', url: null };
     }
 
     // 7. Native Apps
     if (actionType === 'OPEN_NOTEPAD') {
       spawn('notepad.exe');
-      return 'উইন্ডোজ নোটপ্যাড চালু করা হয়েছে, TRIDIP স্যার।';
+      return { message: 'উইন্ডোজ নোটপ্যাড চালু করা হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'OPEN_CALC') {
       spawn('calc.exe');
-      return 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে, TRIDIP স্যার।';
+      return { message: 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'OPEN_EXPLORER') {
       spawn('explorer.exe');
-      return 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে, TRIDIP স্যার।';
+      return { message: 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'OPEN_TASKMGR') {
       spawn('taskmgr.exe');
-      return 'উইন্ডোজ টাস্ক ম্যানেজার ওপেন করা হয়েছে, TRIDIP স্যার।';
+      return { message: 'উইন্ডোজ টাস্ক ম্যানেজার ওপেন করা হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'OPEN_PAINT') {
       spawn('mspaint.exe');
-      return 'উইন্ডোজ পেইন্ট ওপেন করা হয়েছে, TRIDIP স্যার।';
+      return { message: 'উইন্ডোজ পেইন্ট ওপেন করা হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'OPEN_CMD') {
       spawn('cmd.exe', ['/c', 'start', 'cmd.exe']);
-      return 'উইন্ডোজ কমান্ড প্রম্পট ওপেন করা হয়েছে, TRIDIP স্যার।';
+      return { message: 'উইন্ডোজ কমান্ড প্রম্পট ওপেন করা হয়েছে, TRIDIP স্যার।', url: null };
     }
     if (actionType === 'OPEN_SETTINGS') {
       spawn('cmd.exe', ['/c', 'start', 'ms-settings:']);
-      return 'উইন্ডোজ সেটিংস প্যানেল ওপেন করা হয়েছে, TRIDIP স্যার।';
+      return { message: 'উইন্ডোজ সেটিংস প্যানেল ওপেন করা হয়েছে, TRIDIP স্যার।', url: null };
     }
 
     // 8. Social
-    if (actionType === 'OPEN_FACEBOOK') {
-      spawn('cmd.exe', ['/c', 'start', '""', 'https://www.facebook.com']);
-      return 'ফেসবুক ওপেন করা হয়েছে, TRIDIP স্যার।';
-    }
-    if (actionType === 'OPEN_GMAIL') {
-      spawn('cmd.exe', ['/c', 'start', '""', 'https://mail.google.com']);
-      return 'জি-মেইল ইনবক্স ওপেন করা হয়েছে, TRIDIP স্যার।';
-    }
-    if (actionType === 'OPEN_GITHUB') {
-      spawn('cmd.exe', ['/c', 'start', '""', 'https://github.com/tridipofficial/TRI-PC']);
-      return 'আপনার গিটহাব রিপোজিটরি ওপেন করা হয়েছে, TRIDIP স্যার।';
-    }
-    if (actionType === 'OPEN_WIKIPEDIA') {
-      spawn('cmd.exe', ['/c', 'start', '""', 'https://bn.wikipedia.org']);
-      return 'উইকিপিডিয়া ওপেন করা হয়েছে, TRIDIP স্যার।';
-    }
-    if (actionType === 'OPEN_CHATGPT') {
-      spawn('cmd.exe', ['/c', 'start', '""', 'https://chatgpt.com']);
-      return 'চ্যাটজিপিটি ওপেন করা হয়েছে, TRIDIP স্যার।';
+    if (intentUrl) {
+      openUrlInWindows(intentUrl);
+      return { message: presetReply || 'ওয়েবসাইট ওপেন করা হয়েছে, TRIDIP স্যার।', url: intentUrl };
     }
   } catch (e) {
     console.error('Safe action error:', e.message);
@@ -802,9 +907,10 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
     req.on('end', async () => {
       try {
         const { action, query } = JSON.parse(body || '{}');
-        const actionMsg = await executeSafePCAction(action, query);
+        const actRes = await executeSafePCAction(action, query);
+        const msg = actRes?.message || 'অ্যাকশন সম্পন্ন হয়েছে।';
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: !!actionMsg, message: actionMsg, action }));
+        res.end(JSON.stringify({ success: !!actRes, message: msg, url: actRes?.url, action }));
       } catch (err) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: err.message }));
@@ -825,8 +931,14 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
         let executedAction = null;
         let actionMsg = null;
         if (intent) {
-          actionMsg = await executeSafePCAction(intent);
-          executedAction = { type: intent.type, message: actionMsg, query: intent.query };
+          const actRes = await executeSafePCAction(intent);
+          actionMsg = actRes?.message || intent.reply || null;
+          executedAction = {
+            type: intent.type,
+            message: actionMsg,
+            url: actRes?.url || intent.url || null,
+            query: intent.query || null
+          };
         }
 
         let response = null;
@@ -837,10 +949,6 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
           response = {
             mode: 'ACTION_EXECUTED',
             provider: 'TRI AI Engine',
-            reasoning: [
-              { stage: 'ভয়েস কমান্ড শনাক্তকরণ', detail: `ইনপুট গ্রহণ: "${message}". কমান্ড: ${intent.type}` },
-              { stage: 'সিস্টেম অ্যাকশন নির্বাহ', detail: actionMsg }
-            ],
             reply: actionMsg,
             action: executedAction
           };

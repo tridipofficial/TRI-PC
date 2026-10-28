@@ -283,7 +283,15 @@ document.addEventListener('DOMContentLoaded', () => {
         thinkingNode.remove();
         appendAssistantMessage(data);
 
-        // Perform any action triggered by assistant (e.g. task added)
+        // Perform any action triggered by assistant (e.g. task added, url opened)
+        if (data.action?.url) {
+          try {
+            window.open(data.action.url, '_blank');
+          } catch (e) {
+            console.warn('Browser open blocked:', e);
+          }
+        }
+
         if (data.action?.type === 'TASKS_UPDATED') {
           tasks = data.action.tasks;
           renderTasks();
@@ -332,17 +340,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const msg = document.createElement('div');
     msg.className = 'msg msg-assistant';
 
-    let actionHtml = '';
-    if (data.action && data.action.message) {
-      actionHtml = `
-        <div style="background: rgba(0, 242, 255, 0.1); border: 1px solid var(--primary); padding: 5px 10px; border-radius: 4px; font-size: 11px; margin-bottom: 4px; display: flex; align-items: center; gap: 6px; color: #fff;">
-          <span style="color: var(--primary);">⚡</span> <strong>EXECUTED:</strong> ${escapeHtml(data.action.message)}
-        </div>
-      `;
-    }
-
     let reasoningHtml = '';
-    if (data.reasoning && data.reasoning.length > 0) {
+    // Only display thought process for complex conversational queries, NOT for executed actions
+    if (data.mode !== 'ACTION_EXECUTED' && data.reasoning && data.reasoning.length > 0) {
       reasoningHtml = `
         <div class="thought-card">
           <div class="thought-header">🧠 THOUGHT PROCESS</div>
@@ -364,7 +364,6 @@ document.addEventListener('DOMContentLoaded', () => {
         <span>TRI AI • JARVIS</span>
         <button class="btn-listen" title="কণ্ঠে শুনুন">🔊 শুনুন</button>
       </div>
-      ${actionHtml}
       ${reasoningHtml}
       <div class="msg-bubble">${formattedReply}</div>
     `;
@@ -820,18 +819,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 7. Quick Command Prompt Chips
-  document.querySelectorAll('.quick-cmd-chip').forEach(chip => {
-    chip.addEventListener('click', () => {
-      const cmd = chip.dataset.cmd;
-      if (cmd) {
-        chatInput.value = cmd;
-        sendMessage(cmd);
-      }
-    });
-  });
-
-  // 8. Clear Chat Action
+  // 7. Clear Chat Action
   const btnClearChat = document.getElementById('btnClearChat');
   if (btnClearChat) {
     btnClearChat.addEventListener('click', () => {
