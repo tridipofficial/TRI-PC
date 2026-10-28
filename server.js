@@ -624,6 +624,17 @@ function openUrlInWindows(url) {
 function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
+  // 0. YouTube Close / Destroy ("YouTube বন্ধ করো", "ইউটিউব কেটে দাও", "কেটে দিয়ে হোম স্ক্রিনে আসো", "ক্লোজ করো")
+  const isCloseVerb = norm.includes('বন্ধ করো') || norm.includes('বন্ধ কর') || norm.includes('কেটে দাও') || norm.includes('কেটে দিন') || norm.includes('কেটে ফেলো') || norm.includes('ক্লোজ করো') || norm.includes('ক্লোজ কর') || norm.includes('ডেস্ট্রয়') || norm.includes('destroy') || norm.includes('close') || norm.includes('exit') || norm.includes('কেটে দিয়ে');
+  const isHomeScreen = norm.includes('হোম স্ক্রিন') || norm.includes('হোমস্ক্রিন') || norm.includes('হোমে আসো') || norm.includes('হোম এ আসো') || norm.includes('হোমে যাও');
+
+  if ((norm.includes('ইউটিউব') || norm.includes('youtube') || sessionContext.activeApp === 'YOUTUBE') && (isCloseVerb || isHomeScreen)) {
+    return {
+      type: 'YOUTUBE_CLOSE',
+      reply: 'TRIDIP স্যার, ইউটিউব উইন্ডো সম্পূর্ণ বন্ধ করে দেওয়া হয়েছে এবং আমরা আবার হোম স্ক্রিনে ফিরে এসেছি!'
+    };
+  }
+
   // 1. YouTube Video Click / Play (Step 3) - "প্রথমটা ক্লিক করো", "দ্বিতীয়টা চালাও", "[Song Title] ক্লিক করো"
   const isClickVerb = norm.includes('ক্লিক') || norm.includes('চালাও') || norm.includes('বাজাও') || norm.includes('প্লে') || norm.includes('play') || norm.includes('click') || norm.includes('শুনব') || norm.includes('শুনবো') || norm.includes('অন করো');
   const hasOrdinal = norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('এক নাম্বার') || norm.includes('1st') || norm.includes('first') ||
@@ -755,7 +766,7 @@ function detectIntentAction(prompt) {
   // 6. YouTube & Music Automation (Step 1: Open, Step 2: Search)
   const isYouTube = norm.includes('ইউটিউব') || norm.includes('youtube');
   const isSearchVerb = norm.includes('সার্চ') || norm.includes('search') || norm.includes('খুঁজে বের') || norm.includes('খোঁজো');
-  const isMusic = norm.includes('গান') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music');
+  const isMusic = norm.includes('গান') || norm.includes('সং') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('ভিডিও') || norm.includes('video') || norm.includes('হিন্দি') || norm.includes('hindi') || norm.includes('বাংলা') || norm.includes('bangla');
 
   if (isYouTube || isMusic || (sessionContext.activeApp === 'YOUTUBE' && isSearchVerb)) {
     // 6.1 YouTube Search (Step 2)
@@ -891,12 +902,24 @@ async function executeSafePCAction(intent, fallbackQuery = '') {
       };
     }
 
-    // 4. YouTube Real Desktop Automation (Step 1: Open, Step 2: Search, Step 3: Click)
+    // 4. YouTube Close / Destroy & Return to TRI AI Home Screen
+    if (actionType === 'YOUTUBE_CLOSE') {
+      sessionContext.activeApp = null;
+      sessionContext.lastQuery = '';
+      sessionContext.searchResults = [];
+      await youtubeController.close();
+      return {
+        message: 'TRIDIP স্যার, ইউটিউব উইন্ডো সম্পূর্ণ বন্ধ করে দেওয়া হয়েছে এবং আমরা আবার হোম স্ক্রিনে ফিরে এসেছি!',
+        url: null
+      };
+    }
+
+    // 4.1 YouTube Real Desktop Automation (Step 1: Open, Step 2: Search, Step 3: Click)
     if (actionType === 'YOUTUBE_OPEN') {
       sessionContext.activeApp = 'YOUTUBE';
       await youtubeController.open();
       return {
-        message: 'TRIDIP স্যার, আপনার ব্রাউজারে ইউটিউব ওপেন করা হয়েছে! আপনি কী লিখে সার্চ করতে চান বলুন।',
+        message: 'TRIDIP স্যার, আপনার ডেস্কটপ থেকে ইউটিউব অ্যাপ সরাসরি ওপেন করা হয়েছে! কী লিখে সার্চ করবো বলুন।',
         url: 'https://www.youtube.com'
       };
     }

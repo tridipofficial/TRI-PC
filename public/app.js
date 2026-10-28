@@ -360,13 +360,20 @@ document.addEventListener('DOMContentLoaded', () => {
       .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
       .replace(/\n/g, '<br>');
 
-    // Specialized UI for YouTube Automation (Open, Search Results Grid, Live Playing)
+    // Specialized UI for YouTube Automation (Open, Search Results Grid, Live Playing, Close)
     let ytAutomationHtml = '';
     if (data.action?.type === 'YOUTUBE_OPEN') {
       ytAutomationHtml = `
         <div style="margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(0, 242, 255, 0.1); border: 1px solid rgba(0, 242, 255, 0.35); font-size: 11px; color: #00f2ff;">
           <span style="color: #00f2ff; animation: pulse-glow 1s infinite alternate;">●</span>
-          <strong>Chrome ব্রাউজারে YouTube ওপেন হয়েছে</strong>
+          <strong>ডেস্কটপ থেকে YouTube অ্যাপ ওপেন হয়েছে</strong>
+        </div>
+      `;
+    } else if (data.action?.type === 'YOUTUBE_CLOSE') {
+      ytAutomationHtml = `
+        <div style="margin-top: 10px; display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px; border-radius: 20px; background: rgba(239, 68, 68, 0.12); border: 1px solid rgba(239, 68, 68, 0.35); font-size: 11px; color: #f87171;">
+          <span style="color: #ef4444;">⏹</span>
+          <strong>YouTube উইন্ডো বন্ধ করা হয়েছে • TRI AI হোম স্ক্রিন</strong>
         </div>
       `;
     } else if (data.action?.type === 'YOUTUBE_SEARCH' && Array.isArray(data.action?.results) && data.action.results.length > 0) {
