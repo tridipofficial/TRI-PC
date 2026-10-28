@@ -1318,6 +1318,12 @@ body {
   box-shadow: 0 0 25px rgba(239, 68, 68, 0.8);
 }
 
+.central-mic-orb.speaking {
+  background: radial-gradient(circle, #a855f7 0%, #030712 90%);
+  border-color: #a855f7;
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.85);
+}
+
 .mic-sonar-ring {
   position: absolute;
   top: -4px;
@@ -1331,11 +1337,64 @@ body {
 }
 
 .central-mic-orb.listening .mic-sonar-ring.ring-1 {
+  border-color: #ef4444;
   animation: sonar-pulse 1.6s infinite ease-out;
 }
 
 .central-mic-orb.listening .mic-sonar-ring.ring-2 {
+  border-color: #ef4444;
   animation: sonar-pulse 1.6s infinite ease-out 0.8s;
+}
+
+.central-mic-orb.speaking .mic-sonar-ring.ring-1 {
+  border-color: #a855f7;
+  animation: sonar-pulse 1.4s infinite ease-out;
+}
+
+.central-mic-orb.speaking .mic-sonar-ring.ring-2 {
+  border-color: #a855f7;
+  animation: sonar-pulse 1.4s infinite ease-out 0.7s;
+}
+
+/* Hands-Free Live Telemetry Badge */
+.hands-free-badge {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 242, 255, 0.08);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  padding: 4px 10px;
+  border-radius: 14px;
+  font-family: var(--font-display);
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  color: var(--primary);
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: all 0.25s ease;
+}
+
+.hands-free-badge.listening {
+  border-color: #10b981;
+  color: #10b981;
+  background: rgba(16, 185, 129, 0.12);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+}
+
+.hands-free-badge.speaking {
+  border-color: #a855f7;
+  color: #c084fc;
+  background: rgba(168, 85, 247, 0.12);
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.3);
+}
+
+.hands-free-badge .pulse-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: pulse-glow 1s infinite alternate;
 }
 
 /* Chat Input Bar */

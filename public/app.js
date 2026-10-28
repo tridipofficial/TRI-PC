@@ -4,8 +4,10 @@ document.addEventListener('DOMContentLoaded', () => {
   let tasks = [];
   let currentFilter = 'ALL';
   let currentSubFilter = 'ALL';
-  let isVoiceEnabled = false;
+  let isVoiceEnabled = true; // Auto-voice enabled by default
+  let isHandsFreeMode = true; // Hands-Free Zero-Mouse Mode active by default
   let isListening = false;
+  window.triAIIsSpeaking = false;
   let recognition = null;
 
   // DOM Elements
@@ -16,6 +18,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const addObjectiveBtn = document.getElementById('addObjectiveBtn');
   const progressPctText = document.getElementById('progressPctText');
   const progressFill = document.getElementById('progressFill');
+
+  const handsFreeStatusBadge = document.getElementById('handsFreeStatusBadge');
+  const handsFreeStatusText = document.getElementById('handsFreeStatusText');
 
   const chatStream = document.getElementById('chatStream');
   const chatInput = document.getElementById('chatInput');
@@ -381,10 +386,48 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.key === 'Enter') sendMessage();
   });
 
-  // 4. Voice Assistant Integration (Web Speech API with Runtime Voice Detection)
+  // 4. Voice Assistant Integration (Zero-Mouse Hands-Free Continuous Loop)
   let activeBengaliVoice = null;
   let voiceDetectionAttempted = false;
-  let isHandsFreeMode = false;
+
+  function updateHandsFreeUI(status) {
+    if (!handsFreeStatusBadge || !handsFreeStatusText) return;
+    if (status === 'listening') {
+      handsFreeStatusBadge.className = 'hands-free-badge listening';
+      handsFreeStatusText.textContent = 'ZERO-MOUSE: LISTENING...';
+      btnMic.classList.add('listening');
+      btnMic.classList.remove('speaking');
+      chatInput.placeholder = 'TRIDIP স্যার, মুখে বলুন: "গান বাজাও", "আবহাওয়ার ডিটেইলস", "ভলিউম বাড়াও"...';
+    } else if (status === 'speaking') {
+      handsFreeStatusBadge.className = 'hands-free-badge speaking';
+      handsFreeStatusText.textContent = 'JARVIS SPEAKING // MIC MUTED';
+      btnMic.classList.remove('listening');
+      btnMic.classList.add('speaking');
+      chatInput.placeholder = 'TRIDIP স্যার, জার্ভিস উত্তর দিচ্ছে...';
+    } else if (status === 'processing') {
+      handsFreeStatusBadge.className = 'hands-free-badge';
+      handsFreeStatusText.textContent = 'EXECUTING ACTION...';
+      btnMic.classList.remove('listening');
+      btnMic.classList.remove('speaking');
+      chatInput.placeholder = 'আপনার আদেশ প্রক্রিয়াধীন...';
+    } else {
+      handsFreeStatusBadge.className = 'hands-free-badge';
+      handsFreeStatusText.textContent = 'HANDS-FREE PAUSED';
+      btnMic.classList.remove('listening');
+      btnMic.classList.remove('speaking');
+      chatInput.placeholder = 'TRIDIP স্যার, এখানে বাংলায় অথবা ইংরেজিতে লিখুন...';
+    }
+  }
+
+  function startListeningLoop() {
+    if (!recognition || !isHandsFreeMode || window.triAIIsSpeaking) return;
+    if (isListening) return;
+    try {
+      recognition.start();
+    } catch (e) {
+      // Ignored if already started or state transitioning
+    }
+  }
 
   function scanVoices() {
     if (!window.speechSynthesis) return;
@@ -405,7 +448,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeBengaliVoice) {
       console.log('TRI AI Speech: Active voice loaded ->', activeBengaliVoice.name, `(${activeBengaliVoice.lang})`);
     } else {
-      console.log('TRI AI Speech: No native Bengali voice found on this system. Operating in text mode.');
+      console.log('TRI AI Speech: Operating in Studio Neural TTS mode with fallback.');
     }
   }
 
@@ -423,27 +466,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     recognition.onstart = () => {
       isListening = true;
-      btnMic.classList.add('listening');
-      chatInput.placeholder = 'TRIDIP স্যার, আপনার কথা শুনছি...';
+      updateHandsFreeUI('listening');
     };
 
     recognition.onresult = (e) => {
       const transcript = e.results[0][0].transcript;
-      chatInput.value = transcript;
-      sendMessage(transcript);
+      if (transcript && transcript.trim()) {
+        chatInput.value = transcript;
+        updateHandsFreeUI('processing');
+        sendMessage(transcript);
+      }
     };
 
     recognition.onerror = (e) => {
-      console.warn('Voice recognition error:', e.error);
+      console.warn('Voice recognition event:', e.error);
       isListening = false;
       btnMic.classList.remove('listening');
-      chatInput.placeholder = 'TRIDIP স্যার, এখানে বাংলায় অথবা ইংরেজিতে লিখুন...';
+      if (isHandsFreeMode && !window.triAIIsSpeaking) {
+        setTimeout(() => {
+          if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+            startListeningLoop();
+          }
+        }, 350);
+      }
     };
 
     recognition.onend = () => {
       isListening = false;
       btnMic.classList.remove('listening');
-      chatInput.placeholder = 'TRIDIP স্যার, এখানে বাংলায় অথবা ইংরেজিতে লিখুন...';
+      if (isHandsFreeMode && !window.triAIIsSpeaking) {
+        setTimeout(() => {
+          if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+            startListeningLoop();
+          }
+        }, 250);
+      } else if (!window.triAIIsSpeaking) {
+        updateHandsFreeUI('idle');
+      }
     };
   }
 
@@ -453,9 +512,14 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     if (isListening) {
+      isHandsFreeMode = false;
+      btnHandsFree?.classList.remove('active');
       recognition.stop();
+      updateHandsFreeUI('idle');
     } else {
-      recognition.start();
+      isHandsFreeMode = true;
+      btnHandsFree?.classList.add('active');
+      startListeningLoop();
     }
   });
 
@@ -467,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function stopAllSpeech() {
     currentAudioSession++; // Invalidate any ongoing callbacks
     window.triAIIsSpeaking = false;
+    btnMic.classList.remove('speaking');
     try {
       globalAudio.pause();
       globalAudio.currentTime = 0;
@@ -501,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
     isVoiceEnabled = !isVoiceEnabled;
     btnVoiceToggle.classList.toggle('active', isVoiceEnabled);
     if (isVoiceEnabled) {
-      speakText('হ্যালো, TRIDIP স্যার! আমি আপনার TRI AI অ্যাসিস্ট্যান্ট। আপনাকে কীভাবে সাহায্য করতে পারি?');
+      speakText('হ্যালো, TRIDIP স্যার! আমি আপনার TRI AI অ্যাসিস্ট্যান্ট। আমি সবসময় আপনার আদেশ শুনতে প্রস্তুত আছি।');
     } else {
       stopAllSpeech();
     }
@@ -515,18 +580,30 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isHandsFreeMode) {
         isVoiceEnabled = true;
         btnVoiceToggle.classList.add('active');
-        speakText('TRIDIP স্যার, হ্যান্ডস-ফ্রি জার্ভিস মোড সক্রিয় হয়েছে। এখন আপনি সরাসরি মুখে যেকোনো আদেশ দিতে পারেন।');
+        speakText('TRIDIP স্যার, হ্যান্ডস-ফ্রি জার্ভিস মোড সক্রিয় হয়েছে। এখন আপনি মাউস ছাড়া সরাসরি মুখে যেকোনো আদেশ দিতে পারেন।');
+        setTimeout(startListeningLoop, 1500);
       } else {
         stopAllSpeech();
+        if (recognition && isListening) {
+          try { recognition.stop(); } catch(e) {}
+        }
+        updateHandsFreeUI('idle');
       }
     });
   }
 
   async function speakText(rawText) {
-    if (!rawText) return;
+    if (!rawText || !isVoiceEnabled) return;
 
     // Immediately stop any currently playing voice (No overlap, single assistant voice only)
     stopAllSpeech();
+
+    // Mute mic & update visual state to speaking
+    window.triAIIsSpeaking = true;
+    updateHandsFreeUI('speaking');
+    if (recognition && isListening) {
+      try { recognition.stop(); } catch (e) {}
+    }
 
     const sessionId = ++currentAudioSession;
     if (btnStopVoice) {
@@ -536,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const emotion = detectEmotion(rawText);
 
     try {
-      // 1. Try High-Definition Studio Neural Voice (bn-BD-NabanitaNeural via server /api/tts)
+      // 1. High-Definition Studio Neural Voice (bn-BD-NabanitaNeural via server /api/tts)
       const res = await fetch('/api/tts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -552,22 +629,25 @@ document.addEventListener('DOMContentLoaded', () => {
           globalAudio.src = data.audioUrl;
           globalAudio.onended = () => {
             window.triAIIsSpeaking = false;
+            btnMic.classList.remove('speaking');
             if (sessionId === currentAudioSession && btnStopVoice) {
               btnStopVoice.style.display = 'none';
             }
-            if (isHandsFreeMode && recognition && !isListening) {
+            if (isHandsFreeMode) {
               setTimeout(() => {
-                try { recognition.start(); } catch (e) {}
-              }, 700);
+                if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+                  startListeningLoop();
+                }
+              }, 400);
             }
           };
           globalAudio.onerror = () => {
             window.triAIIsSpeaking = false;
+            btnMic.classList.remove('speaking');
             if (sessionId === currentAudioSession) {
               fallbackBrowserTTS(rawText, emotion, sessionId);
             }
           };
-          window.triAIIsSpeaking = true;
           await globalAudio.play();
           return;
         }
@@ -585,6 +665,9 @@ document.addEventListener('DOMContentLoaded', () => {
   function fallbackBrowserTTS(text, emotion, sessionId) {
     if (!window.speechSynthesis || sessionId !== currentAudioSession) {
       if (btnStopVoice) btnStopVoice.style.display = 'none';
+      window.triAIIsSpeaking = false;
+      btnMic.classList.remove('speaking');
+      if (isHandsFreeMode) setTimeout(startListeningLoop, 350);
       return;
     }
     scanVoices();
@@ -597,6 +680,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (!cleanSpeech) {
       if (btnStopVoice) btnStopVoice.style.display = 'none';
+      window.triAIIsSpeaking = false;
+      btnMic.classList.remove('speaking');
+      if (isHandsFreeMode) setTimeout(startListeningLoop, 350);
       return;
     }
 
@@ -613,23 +699,48 @@ document.addEventListener('DOMContentLoaded', () => {
     utter.pitch = emotion === 'joyful' ? 1.08 : 1.05;
 
     utter.onend = () => {
+      window.triAIIsSpeaking = false;
+      btnMic.classList.remove('speaking');
       if (sessionId === currentAudioSession && btnStopVoice) {
         btnStopVoice.style.display = 'none';
       }
-      if (isHandsFreeMode && recognition && !isListening) {
+      if (isHandsFreeMode) {
         setTimeout(() => {
-          try { recognition.start(); } catch (e) {}
-        }, 700);
+          if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+            startListeningLoop();
+          }
+        }, 400);
       }
     };
     utter.onerror = () => {
+      window.triAIIsSpeaking = false;
+      btnMic.classList.remove('speaking');
       if (sessionId === currentAudioSession && btnStopVoice) {
         btnStopVoice.style.display = 'none';
       }
+      if (isHandsFreeMode) setTimeout(startListeningLoop, 400);
     };
 
     window.speechSynthesis.speak(utter);
   }
+
+  // 100% Zero-Mouse Hands-Free Auto-Activator
+  // Browser policy may require an initial gesture to unlock mic/audio:
+  const unlockAndRunHandsFree = () => {
+    if (isHandsFreeMode && !isListening && !window.triAIIsSpeaking) {
+      startListeningLoop();
+    }
+  };
+  window.addEventListener('click', unlockAndRunHandsFree, { passive: true });
+  window.addEventListener('keydown', unlockAndRunHandsFree, { passive: true });
+  window.addEventListener('touchstart', unlockAndRunHandsFree, { passive: true });
+
+  // Initial auto-start attempt
+  setTimeout(() => {
+    if (isHandsFreeMode) {
+      startListeningLoop();
+    }
+  }, 600);
 
   // Hook up welcome message speak button
   const btnSpeakWelcome = document.getElementById('btnSpeakWelcome');

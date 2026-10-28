@@ -393,8 +393,8 @@
         <!-- Input Bar with Toggles -->
         <div class="chat-input-wrapper">
           <div class="input-toggles">
-            <button class="toggle-pill" id="btnVoiceToggle">🎙️ VOICE ASSISTANT</button>
-            <button class="toggle-pill" id="btnHandsFree" title="স্বয়ংক্রিয় হ্যান্ডস-ফ্রি ভয়েস লুপ">🤖 HANDS-FREE</button>
+            <button class="toggle-pill active" id="btnVoiceToggle">🎙️ VOICE ASSISTANT</button>
+            <button class="toggle-pill active" id="btnHandsFree" title="স্বয়ংক্রিয় হ্যান্ডস-ফ্রি ভয়েস লুপ">🤖 HANDS-FREE ACTIVE</button>
             <button class="toggle-pill btn-stop-voice" id="btnStopVoice" style="display:none; color:#ef4444; border-color:rgba(239, 68, 68, 0.4);" title="ভয়েস বন্ধ করুন">⏹️ থামুন</button>
             <button class="toggle-pill active" id="btnExpertToggle">⚡ 120B EXPERT</button>
           </div>
@@ -410,11 +410,17 @@
   <footer class="tactical-footer">
     <div class="footer-inner">
       <!-- High-Tech Central Mic Button -->
-      <button class="central-mic-orb" id="btnMic" title="ভয়েসে কথা বলুন (বাংলা)">
+      <button class="central-mic-orb listening" id="btnMic" title="ভয়েসে কথা বলুন (বাংলা)">
         <span class="mic-icon">🎙️</span>
         <span class="mic-sonar-ring ring-1"></span>
         <span class="mic-sonar-ring ring-2"></span>
       </button>
+
+      <!-- Hands-Free Live Telemetry Badge -->
+      <div class="hands-free-badge listening" id="handsFreeStatusBadge" title="হ্যান্ডস-ফ্রি ভয়েস মোড (জিরো মাউস)">
+        <span class="pulse-dot"></span>
+        <span id="handsFreeStatusText">ZERO-MOUSE: LISTENING</span>
+      </div>
 
       <!-- Bengali & English Chat Input Bar -->
       <div class="tactical-input-container">
