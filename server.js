@@ -645,14 +645,20 @@ const openUrlInWindows = launchUrlInWindows;
 function cleanSearchQuery(q) {
   let s = q;
   const removeWords = [
-    'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'youtube', 'yt',
+    'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
     'গুগলে', 'গুগল', 'google',
-    'খোলো', 'খুলো', 'খোল', 'কোলো', 'কুলো', 'ওপেন', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
+    'লিখে সার্চ করো', 'লিখে সারচ করো', 'লিখে সরচ করো', 'লিখে সর্চ করো', 'লিখে সার্চ', 'লিখে সারচ', 'লিখে সর্চ', 'লিখে',
+    'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ করো', 'সার্চ কর', 'সার্চ',
+    'সারচ করে দাও', 'সারচ করে দিন', 'সারচ করো', 'সারচ কর', 'সারচ',
+    'সরচ করে দাও', 'সরচ করে দিন', 'সরচ করো', 'সরচ কর', 'সরচ',
+    'সর্চ করে দাও', 'সর্চ করে দিন', 'সর্চ করো', 'সর্চ কর', 'সর্চ',
+    'সার্স করে দাও', 'সার্স করে দিন', 'সার্স করো', 'সার্স কর', 'সার্স',
+    'খোঁজো', 'খোজো', 'খুঁজে দাও', 'খুজে দাও', 'বের করো', 'search', 'find',
+    'খোলো', 'খুলো', 'খোল', 'কোলো', 'কুলো', 'ওপেন করো', 'ওপেন কর', 'ওপেন',
+    'চালু করো', 'চালু কর', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
     'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run',
-    'সার্চ করো', 'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ কর', 'সার্চ', 'সার্স করো', 'সার্স কর', 'সার্স', 'সারচ', 'search',
-    'খোঁজো', 'খোজো', 'খুঁজে দাও', 'খুজে দাও', 'বের করো',
     'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন', 'koro', 'kor', 'kore', 'dao', 'din',
-    'এবং', 'এ঵ন', 'আর', 'এন্ড', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'and', 'then'
+    'এবং', 'এ঵ন', 'এবম', 'আর', 'এন্ড', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'গিয়ে', 'গিয়া', 'and', 'then'
   ];
 
   for (const w of removeWords) {
@@ -669,11 +675,11 @@ function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
   // Common Action Verbs (Bengali + English + Banglish)
-  const isActionVerb = /খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সার্স|খোঁজো|খোজো|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search/i.test(norm);
+  const isActionVerb = /খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সারচ|সরচ|সর্চ|সার্স|খোঁজো|খোজো|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search/i.test(norm);
 
   // 1. YouTube & Music Intent
-  const isYt = /ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|youtube|\byt\b/i.test(norm);
-  const isSongOrMusic = /গান|সঙ্গীত|গানবাজনা|মিউজিক|সং|ভিডিও|গীতি|song|music|video/i.test(norm);
+  const isYt = /ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|youtube|\byt\b/i.test(norm);
+  const isSongOrMusic = /গান|গন|সঙ্গীত|গানবাজনা|মিউজিক|সং|ভিডিও|গীতি|song|music|video/i.test(norm);
 
   if (isYt || (isSongOrMusic && isActionVerb)) {
     const query = cleanSearchQuery(prompt);
@@ -779,7 +785,7 @@ function detectIntentAction(prompt) {
   }
 
   // 7. Generic Search
-  if (norm.includes('সার্চ') || norm.includes('সার্স') || norm.includes('search') || norm.includes('খোঁজো') || norm.includes('খোজো')) {
+  if (norm.includes('সার্চ') || norm.includes('সারচ') || norm.includes('সরচ') || norm.includes('সর্চ') || norm.includes('সার্স') || norm.includes('search') || norm.includes('খোঁজো') || norm.includes('খোজো')) {
     const q = cleanSearchQuery(prompt);
     if (q && q.length > 1) {
       const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
@@ -1137,7 +1143,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
-        formData.append('prompt', 'বাংলা ও ইংরেজি ভয়েস কমান্ড এবং কথোপকথন।');
+        formData.append('prompt', 'ইউটিউব, গুগল, হিন্দি গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
