@@ -550,26 +550,31 @@ document.addEventListener('DOMContentLoaded', () => {
       this.maxVolume = 0;
       this.onSpeechDone = null;
       this.animFrameId = null;
+      this.isInteractive = false;
 
       // Dynamic ambient noise baseline calibration
       this.startTime = 0;
-      this.ambientNoiseRMS = 0.008;
+      this.ambientNoiseRMS = 0.005;
       this.ambientSamples = 0;
       this.isCalibrated = false;
     }
 
-    async start(onSpeechDone) {
+    async start(onSpeechDone, isInteractive = false) {
       if (this.isListening || this.isTranscribing || window.triAIIsSpeaking) return;
-      if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+      this.isInteractive = isInteractive;
+
+      // Only show HUD overlay immediately if user explicitly clicked the mic button
+      if (this.isInteractive && window.electronAPI && window.electronAPI.sendHudUpdate) {
         window.electronAPI.sendHudUpdate({ phase: 'listening' });
       }
+
       try {
         this.audioChunks = [];
         this.speechDetected = false;
         this.speechFrames = 0;
         this.maxVolume = 0;
         this.startTime = Date.now();
-        this.ambientNoiseRMS = 0.008;
+        this.ambientNoiseRMS = 0.005;
         this.ambientSamples = 0;
         this.isCalibrated = false;
         this.onSpeechDone = onSpeechDone;
@@ -600,12 +605,16 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         };
 
-        // Emit chunks every 250ms
-        this.mediaRecorder.start(250);
+        // Emit chunks every 200ms
+        this.mediaRecorder.start(200);
 
         // VAD Analyser setup
         const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
         this.audioCtx = new AudioCtxClass();
+        if (this.audioCtx.state === 'suspended') {
+          try { await this.audioCtx.resume(); } catch (e) {}
+        }
+
         const source = this.audioCtx.createMediaStreamSource(stream);
         this.analyser = this.audioCtx.createAnalyser();
         this.analyser.fftSize = 512;
@@ -634,28 +643,34 @@ document.addEventListener('DOMContentLoaded', () => {
           for (let i = 1; i < vocalBins; i++) vocalSum += freqData[i];
           const vocalEnergy = vocalSum / vocalBins;
 
-          // Ambient noise floor calibration during first 280ms
+          // Ambient noise floor calibration during first 250ms
           const elapsed = Date.now() - this.startTime;
-          if (elapsed < 280) {
+          if (elapsed < 250) {
             noiseSum += rms;
             this.ambientSamples++;
             this.animFrameId = requestAnimationFrame(checkVAD);
             return;
           } else if (!this.isCalibrated) {
-            this.ambientNoiseRMS = Math.max(0.005, (noiseSum / (this.ambientSamples || 1)));
+            this.ambientNoiseRMS = Math.max(0.003, (noiseSum / (this.ambientSamples || 1)));
             this.isCalibrated = true;
           }
 
           const currentLevel = Math.max(rms * 100, vocalEnergy);
           if (currentLevel > this.maxVolume) this.maxVolume = currentLevel;
 
-          // Adaptive Thresholds relative to ambient noise floor
-          const speechThreshold = Math.max(0.022, this.ambientNoiseRMS * 2.8);
-          const silenceThreshold = Math.max(0.010, this.ambientNoiseRMS * 1.35);
+          // Realistic Speech Threshold (Never miss quiet or normal speech)
+          const speechThreshold = Math.max(0.007, this.ambientNoiseRMS * 1.35);
+          const silenceThreshold = Math.max(0.003, this.ambientNoiseRMS * 1.05);
 
           // User speaking detected
-          if (rms > speechThreshold || (vocalEnergy > 8 && rms > this.ambientNoiseRMS * 1.5)) {
-            this.speechDetected = true;
+          if (rms > speechThreshold || (vocalEnergy > 5 && rms > this.ambientNoiseRMS * 1.2)) {
+            if (!this.speechDetected) {
+              this.speechDetected = true;
+              // Show HUD popup now that user has actually begun speaking!
+              if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+                window.electronAPI.sendHudUpdate({ phase: 'listening' });
+              }
+            }
             this.speechFrames++;
             if (this.silenceTimer) {
               clearTimeout(this.silenceTimer);
@@ -665,12 +680,12 @@ document.addEventListener('DOMContentLoaded', () => {
               clearTimeout(this.noSpeechTimeout);
               this.noSpeechTimeout = null;
             }
-          } else if (this.speechDetected && (rms < silenceThreshold && vocalEnergy < 5)) {
+          } else if (this.speechDetected && (rms < silenceThreshold && vocalEnergy < 4)) {
             if (!this.silenceTimer) {
-              // Natural 850ms human pause marks end of turn
+              // Natural 700ms pause marks end of turn
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone, true);
-              }, 850);
+              }, 700);
             }
           }
 
@@ -684,23 +699,26 @@ document.addEventListener('DOMContentLoaded', () => {
 
         this.animFrameId = requestAnimationFrame(checkVAD);
 
-        // Turn timeout 1: If NO speech at all within 4.5 seconds, cancel cleanly (never send silence to Whisper!)
+        // Safety Turn timeout 1: If no speech within 5.5s, process if audio exists, else rest silently
         this.noSpeechTimeout = setTimeout(() => {
-          if (this.isListening && !this.speechDetected) {
-            console.log('[Voice Engine] No speech detected within 4.5s timeout. Restarting clean cycle.');
-            this.stop();
-            if (isHandsFreeMode && !window.triAIIsSpeaking) {
-              setTimeout(() => startListeningLoop(), 300);
+          if (this.isListening) {
+            if (this.speechDetected && this.audioChunks.length > 0) {
+              this.stopAndProcess(this.onSpeechDone, true);
+            } else {
+              this.stop();
+              if (isHandsFreeMode && !window.triAIIsSpeaking) {
+                setTimeout(() => startListeningLoop(), 400);
+              }
             }
           }
-        }, 4500);
+        }, 5500);
 
-        // Turn timeout 2: Maximum turn duration safety limit (6.5s) if user was speaking
+        // Safety Turn timeout 2: Maximum turn duration limit (7.5s)
         this.maxSpeechTimer = setTimeout(() => {
-          if (this.isListening && this.speechDetected) {
+          if (this.isListening && (this.speechDetected || this.audioChunks.length > 0)) {
             this.stopAndProcess(this.onSpeechDone, true);
           }
-        }, 6500);
+        }, 7500);
 
       } catch (err) {
         console.error('Native voice recorder start error:', err);
@@ -708,6 +726,9 @@ document.addEventListener('DOMContentLoaded', () => {
         isListening = false;
         updateHandsFreeUI('idle');
         btnMic.classList.remove('listening');
+        if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+          window.electronAPI.sendHudUpdate({ phase: 'hide' });
+        }
       }
     }
 
@@ -729,16 +750,6 @@ document.addEventListener('DOMContentLoaded', () => {
         this.audioCtx = null;
       }
 
-      // Pre-validation: reject transient clicks or silence
-      if (!forceProcess && (!this.speechDetected || this.speechFrames < 5)) {
-        console.log('[Voice Engine] Only transient noise detected. Ignoring.');
-        this.stop();
-        if (isHandsFreeMode && !window.triAIIsSpeaking) {
-          setTimeout(() => startListeningLoop(), 400);
-        }
-        return;
-      }
-
       if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
         this.mediaRecorder.onstop = async () => {
           if (this.mediaStream) {
@@ -749,8 +760,12 @@ document.addEventListener('DOMContentLoaded', () => {
           const blobType = this.mediaRecorder.mimeType || 'audio/webm';
           const audioBlob = new Blob(this.audioChunks, { type: blobType });
 
-          if (audioBlob.size < 1200) {
+          // If blob is too small, silently restart loop without hanging the HUD
+          if (audioBlob.size < 800) {
             updateHandsFreeUI('idle');
+            if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+              window.electronAPI.sendHudUpdate({ phase: 'hide' });
+            }
             if (isHandsFreeMode && !window.triAIIsSpeaking) {
               setTimeout(() => startListeningLoop(), 400);
             }
@@ -760,6 +775,10 @@ document.addEventListener('DOMContentLoaded', () => {
           const base64Audio = await this.blobToBase64(audioBlob);
 
           this.isTranscribing = true;
+          if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+            window.electronAPI.sendHudUpdate({ phase: 'processing', text: 'প্রসেসিং হচ্ছে...' });
+          }
+
           try {
             const res = await fetch('/api/transcribe', {
               method: 'POST',
@@ -775,6 +794,9 @@ document.addEventListener('DOMContentLoaded', () => {
               if (onSpeechDone) onSpeechDone(data.text.trim());
             } else {
               updateHandsFreeUI('idle');
+              if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+                window.electronAPI.sendHudUpdate({ phase: 'hide' });
+              }
               if (isHandsFreeMode && !window.triAIIsSpeaking) {
                 setTimeout(() => startListeningLoop(), 400);
               }
@@ -782,6 +804,9 @@ document.addEventListener('DOMContentLoaded', () => {
           } catch (e) {
             console.error('Transcribe error:', e);
             updateHandsFreeUI('idle');
+            if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+              window.electronAPI.sendHudUpdate({ phase: 'hide' });
+            }
             if (isHandsFreeMode && !window.triAIIsSpeaking) {
               setTimeout(() => startListeningLoop(), 400);
             }
@@ -833,9 +858,11 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       btnMic.classList.remove('listening');
       updateHandsFreeUI('idle');
+      if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+        window.electronAPI.sendHudUpdate({ phase: 'hide' });
+      }
     }
   }
-
   const neuralWhisper = new NativeMediaRecorderEngine();
 
   function startListeningLoop() {
@@ -953,7 +980,13 @@ document.addEventListener('DOMContentLoaded', () => {
       } else {
         isHandsFreeMode = true;
         btnHandsFree?.classList.add('active');
-        startListeningLoop();
+        neuralWhisper.start((transcript) => {
+          if (transcript && transcript.trim()) {
+            chatInput.value = transcript;
+            updateHandsFreeUI('processing');
+            sendMessage(transcript);
+          }
+        }, true);
       }
       return;
     }

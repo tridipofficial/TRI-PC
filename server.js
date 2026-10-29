@@ -649,9 +649,9 @@ function cleanSearchQuery(q) {
     'গুগলে', 'গুগল', 'google',
     'খোলো', 'খুলো', 'খুল', 'ওপেন', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
     'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run',
-    'সার্চ', 'সারচ', 'search',
+    'সার্চ করো', 'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ কর', 'সার্চ', 'সারচ', 'search',
     'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন', 'koro', 'kor', 'kore', 'dao', 'din',
-    'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা'
+    'এবং', 'আর', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'and', 'then'
   ];
 
   for (const w of removeWords) {
@@ -1150,8 +1150,8 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
-        formData.append('language', 'bn');
-        formData.append('prompt', 'TRIDIP স্যারের বাংলা এবং ইংরেজি ভয়েস কমান্ড: কথা বলো, সাহায্য করো, ব্রাউজার খোলো, গান শোনাও, সার্চ করো, ফাইল ওপেন করো, নোট সেভ করো।');
+        // Do not force language: 'bn' so bilingual Bengali+English commands (e.g. "YouTube open koro and search...") are transcribed without distortion
+        formData.append('prompt', 'TRIDIP স্যারের ভয়েস কমান্ড: YouTube ওপেন করো এবং হিন্দি গান সার্চ করো, ইউটিউব খোলো, ক্যালকুলেটর, নোটপ্যাড, ব্রাউজার, গুগল সার্চ, ফেসবুক, গান বাজাও।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();

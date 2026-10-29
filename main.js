@@ -70,11 +70,13 @@ function createHudWindow() {
 
   hudWindow.setAlwaysOnTop(true, 'screen-saver');
   hudWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  hudWindow.setIgnoreMouseEvents(true, { forward: true });
 
   hudWindow.loadFile(path.join(__dirname, 'public', 'hud-overlay.html'));
 
+  // HUD starts completely hidden until a live voice command is detected or action occurs
   hudWindow.once('ready-to-show', () => {
-    hudWindow.show();
+    // Keep hidden by default
   });
 
   hudWindow.on('closed', () => {
@@ -161,7 +163,9 @@ ipcMain.on('hud-update', (event, data) => {
   }
   try {
     if (hudWindow && !hudWindow.isDestroyed()) {
-      if (!hudWindow.isVisible() && data && data.phase !== 'hide') {
+      if (data && (data.phase === 'hide' || data.action === 'hide')) {
+        hudWindow.hide();
+      } else if (!hudWindow.isVisible() && data && data.phase !== 'hide') {
         hudWindow.show();
       }
       hudWindow.webContents.send('hud-update-event', data);
