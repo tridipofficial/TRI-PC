@@ -600,45 +600,85 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-// Helper to normalize Bengali & English text for bulletproof intent recognition
-function normalizeBn(str) {
-  if (!str) return '';
-  // 1. Strip Latin diacritics (í -> i, ó -> o, etc.) and replace Icelandic eth (ð -> d)
-  let s = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  // Re-compose back to canonical NFC so Bengali vowels (ো, ৌ, etc.) are 100% unified
+// Universal Banglish, Transliteration & Phonetic Normalizer to Clean Bengali
+function normalizeBanglishToBengali(raw) {
+  if (!raw) return '';
+  let s = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   s = s.normalize('NFC');
   s = s.replace(/ð/gi, 'd').replace(/Ð/g, 'D');
   s = s.replace(/[-_]/g, ' ');
-  s = s.toLowerCase().replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
+  s = s.replace(/[.,:;।?!]/g, ' ');
+  s = s.replace(/\s+/g, ' ').trim();
 
-  // 2. Transliteration fallback mappings (in case any Latin/Icelandic phonetics slip through)
-  s = s.replace(/(^|[\s\p{P}])(jutid|yutid|youtube|yt|chocub|ychuub)(?=[\s\p{P}]|$)/gui, '$1ইউটিউব');
-  s = s.replace(/(^|[\s\p{P}])(kolo|kholo|open|bapen|apano)(?=[\s\p{P}]|$)/gui, '$1খোলো');
-  s = s.replace(/(^|[\s\p{P}])(evan|ebang|ebom|and)(?=[\s\p{P}]|$)/gui, '$1এবং');
-  s = s.replace(/(^|[\s\p{P}])(salskora|salskor|search|sach)(?=[\s\p{P}]|$)/gui, '$1সার্চ করো');
-  s = s.replace(/(^|[\s\p{P}])(hindi)(?=[\s\p{P}]|$)/gui, '$1হিন্দি');
-  s = s.replace(/(^|[\s\p{P}])(svanglyki|gaan|gan|song)(?=[\s\p{P}]|$)/gui, '$1গান');
-  s = s.replace(/(^|[\s\p{P}])(nogbed|notbed|notepad|notpad)(?=[\s\p{P}]|$)/gui, '$1নোটপ্যাড');
+  // 1. Compound Transliterated & Banglish Phrases
+  s = s.replace(/\b(?:jutid|yutid)\s*(?:kolo|kholo|open|opin)\s*(?:evan|ebong|and|r|ar)\s*(?:salskora|sars|search)\s*(?:hindi|hindí)\s*(?:svanglyki|gaan|gan|song)\b/gi, 'YouTube খোলো এবং সার্চ করো হিন্দি গান');
+  s = s.replace(/\byoutube\s*(?:opin|open|oppen|kolo|kholo|chalu)\s*(?:koro|kor)?\b/gi, 'YouTube ওপেন করো');
+  s = s.replace(/\bgoogle\s*(?:opin|open|oppen|kolo|kholo|chalu)\s*(?:koro|kor)?\b/gi, 'Google ওপেন করো');
+  s = s.replace(/\b(?:indigan|hindi\s*gaan|hindi\s*gan|hindi\s*song|hindi\s*songs|hindisongs|hindi\s*গানস)\b/gi, 'হিন্দি গান');
+  s = s.replace(/\b(?:banglagan|bangla\s*gaan|bangla\s*gan|bangla\s*song|bangla\s*songs|bangla\s*গানস)\b/gi, 'বাংলা গান');
+  s = s.replace(/\b(?:likja|likhe|likhi|lekho|likh)\b/gi, 'লিখে');
+  s = s.replace(/\b(?:sars|salskora|search|sarce|sarch|sarc)\s*(?:koro|kor)?\b/gi, 'সার্চ করো');
+  
+  // 2. Action verbs
+  s = s.replace(/\b(?:kholo|khol|kolo|kul|khul|khulo)\s*(?:koro|kor)?\b/gi, 'খোলো');
+  s = s.replace(/\b(?:open|opin|oppen)\s*(?:koro|kor)?\b/gi, 'ওপেন করো');
+  s = s.replace(/\b(?:chalu|start|launch)\s*(?:koro|kor)?\b/gi, 'চালু করো');
+  s = s.replace(/\b(?:koro|kor|kora)\b/gi, 'করো');
+  s = s.replace(/\b(?:ar|aar|r)\b/gi, 'আর');
+  s = s.replace(/\b(?:ebong|evan|ebom|and)\b/gi, 'এবং');
 
-  // 3. Normalize common Whisper Bengali phonetic variations to canonical Bengali terms
-  s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
-  s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি|কাকাজ)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
-  s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
-  s = s.replace(/(^|[\s\p{P}])(আবহাওন|আবোয়ার|আবহাওয়া)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  // 3. Brands
+  s = s.replace(/\b(?:youtube|yt|jutid|yutid)\b/gi, 'YouTube');
+  s = s.replace(/\b(?:google|gogol)\b/gi, 'Google');
+  s = s.replace(/\b(?:facebook|fb)\b/gi, 'Facebook');
+  s = s.replace(/\b(?:gmail|g-mail)\b/gi, 'Gmail');
+  s = s.replace(/\b(?:github)\b/gi, 'GitHub');
+  s = s.replace(/\b(?:wikipedia)\b/gi, 'Wikipedia');
+  s = s.replace(/\b(?:chatgpt)\b/gi, 'ChatGPT');
+  
+  // 4. Media & Languages
+  s = s.replace(/\b(?:bangla|bengali|bangali)\b/gi, 'বাংলা');
+  s = s.replace(/\b(?:hindi|hindí)\b/gi, 'হিন্দি');
+  s = s.replace(/\b(?:gaan|gan|song|songs|svanglyki)\b/gi, 'গান');
+  s = s.replace(/\b(?:video|vedio|vidio)\b/gi, 'ভিডিও');
+  
+  // 5. Apps & Utilities
+  s = s.replace(/\b(?:kalkuletor|calculeter|calc|calculator)\b/gi, 'ক্যালকুলেটর');
+  s = s.replace(/\b(?:nogbed|notbed|notepad|noteped)\b/gi, 'নোটপ্যাড');
+  s = s.replace(/\b(?:camera|kamera)\b/gi, 'ক্যামেরা');
+  s = s.replace(/\b(?:weather|abohawa|abawa|tapmatra)\b/gi, 'আবহাওয়া');
+  s = s.replace(/\b(?:dhaka|dhakar|daka|dakar)\b/gi, 'ঢাকা');
+  
+  // 6. Conversational Banglish
+  s = s.replace(/\b(?:sound|volume|shound)\b/gi, 'সাউন্ড');
+  s = s.replace(/\b(?:barao|baraw|up|increase)\b/gi, 'বাড়িয়ে দাও');
+  s = s.replace(/\b(?:komao|komaw|down|decrease)\b/gi, 'কমিয়ে দাও');
+  s = s.replace(/\b(?:tomar|tumar)\b/gi, 'তোমার');
+  s = s.replace(/\b(?:kaj|kaaj|kaach)\b/gi, 'কাজ');
+  s = s.replace(/\b(?:ki|kee|kya)\b/gi, 'কি');
+  s = s.replace(/\b(?:kemon|kemn)\s*(?:acho|aso)\b/gi, 'কেমন আছো');
+  s = s.replace(/\b(?:kemon|kemn)\b/gi, 'কেমন');
+  s = s.replace(/\b(?:koto|kto)\b/gi, 'কত');
+  s = s.replace(/\b(?:boloto|bolo)\b/gi, 'বলো');
+
+  // 7. Bengali Whisper phonetic cleanup
+  s = s.replace(/(^|[\s\p{P}])(উপিন|উপইন|ওপপেন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
+  s = s.replace(/(^|[\s\p{P}])(যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|উটিউব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+  s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
+  s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
   s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
-  s = s.replace(/(^|[\s\p{P}])(চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|উটিউব|জেচু)(?=[\s\p{P}]|$)/gui, '$1ইউটিউব');
-  s = s.replace(/(^|[\s\p{P}])(গন)(?=[\s\p{P}]|$)/gui, '$1গান');
-  s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
-  s = s.replace(/(^|[\s\p{P}])(এ঵ন|এবম|এবংগ|এবংং+)(?=[\s\p{P}]|$)/gui, '$1এবং');
-  s = s.replace(/(^|[\s\p{P}])(কোলো|কুলো|খুল|বাপেন)(?=[\s\p{P}]|$)/gui, '$1খোলো');
-  s = s.replace(/(^|[\s\p{P}])(বিডিও|ভিডিউ)(?=[\s\p{P}]|$)/gui, '$1ভিডিও');
-  s = s.replace(/(^|[\s\p{P}])(কেলকুলেটর|কেল্কুলেটর|কালকুলেটর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
-  s = s.replace(/(^|[\s\p{P}])(নোটপেড)(?=[\s\p{P}]|$)/gui, '$1নোটপ্যাড');
-  s = s.replace(/(^|[\s\p{P}])(চালারো|চালাউ)(?=[\s\p{P}]|$)/gui, '$1চালাও');
-  s = s.replace(/(^|[\s\p{P}])(নোতুন)(?=[\s\p{P}]|$)/gui, '$1নতুন');
+  s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
+  s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
+  s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
+  s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
+  s = s.replace(/(^|[\s\p{P}])(আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
+  s = s.replace(/(^|[\s\p{P}])(গানস|গান্স)(?=[\s\p{P}]|$)/gui, '$1গান');
 
-  return s.replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
+  return s.replace(/\s+/g, ' ').trim();
 }
+
+const normalizeBn = normalizeBanglishToBengali;
 
 // Global Session Context
 let sessionContext = {
@@ -1019,7 +1059,8 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
     req.on('end', async () => {
       try {
         const { message, prompt: bodyPrompt, isElectron } = JSON.parse(body || '{}');
-        const userMessage = (message || bodyPrompt || '').trim();
+        const rawUserMessage = (message || bodyPrompt || '').trim();
+        const userMessage = normalizeBanglishToBengali(rawUserMessage);
 
         if (!userMessage) {
           res.writeHead(400, { 'Content-Type': 'application/json' });
@@ -1270,10 +1311,11 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           console.warn(`[Whisper STT] Rejected repetitive hallucination: "${text}"`);
           text = '';
         }
-        console.log(`[Whisper STT] Transcribed in ${Date.now() - t0}ms: "${text}"`);
+        const cleanText = normalizeBanglishToBengali(text);
+        console.log(`[Whisper STT] Transcribed in ${Date.now() - t0}ms: "${text}" -> Clean: "${cleanText}"`);
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ success: true, text }));
+        res.end(JSON.stringify({ success: true, text: cleanText, rawText: text }));
       } catch (err) {
         console.error('Transcribe endpoint error:', err.message);
         res.writeHead(500, { 'Content-Type': 'application/json' });
