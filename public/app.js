@@ -686,14 +686,17 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isCalibrated = true;
           }
 
-          const speechThreshold = Math.max(0.007, this.ambientNoiseRMS * 1.35);
-          const silenceThreshold = Math.max(0.003, this.ambientNoiseRMS * 1.05);
+          const speechThreshold = Math.max(0.008, this.ambientNoiseRMS * 1.4);
+          const silenceThreshold = Math.max(0.0035, this.ambientNoiseRMS * 1.1);
 
           if (rms > speechThreshold) {
-            if (!this.speechDetected) {
-              this.speechDetected = true;
-              if (window.electronAPI && window.electronAPI.sendHudUpdate) {
-                window.electronAPI.sendHudUpdate({ phase: 'listening' });
+            this.speechFramesCount = (this.speechFramesCount || 0) + 1;
+            if (this.speechFramesCount >= 2) {
+              if (!this.speechDetected) {
+                this.speechDetected = true;
+                if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+                  window.electronAPI.sendHudUpdate({ phase: 'listening' });
+                }
               }
             }
             if (this.silenceTimer) {
@@ -705,11 +708,13 @@ document.addEventListener('DOMContentLoaded', () => {
               this.noSpeechTimeout = null;
             }
           } else if (this.speechDetected && rms < silenceThreshold) {
+            this.speechFramesCount = 0;
             if (!this.silenceTimer) {
-              // 650ms natural pause ends utterance
+              // 1400ms natural pause: Patiently waits for TRIDIP Sir to completely finish speaking
+              // Never cuts off sentences mid-speech or interrupts while speaking!
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone);
-              }, 650);
+              }, 1400);
             }
           }
         };
@@ -731,14 +736,14 @@ document.addEventListener('DOMContentLoaded', () => {
               }
             }
           }
-        }, 5500);
+        }, 6500);
 
-        // Turn timeout 2: Maximum utterance length (8.0s)
+        // Turn timeout 2: Maximum utterance length (18.0s)
         this.maxSpeechTimer = setTimeout(() => {
           if (this.isListening && (this.speechDetected || this.pcmChunks.length > 0)) {
             this.stopAndProcess(this.onSpeechDone);
           }
-        }, 8000);
+        }, 18000);
 
       } catch (err) {
         console.error('Studio PCM Audio Engine error:', err);

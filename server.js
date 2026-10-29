@@ -255,11 +255,15 @@ function callGroqAPI(prompt) {
         messages: [
           {
             role: 'system',
-            content: "You are TRI AI, a smart, polite, affectionate, and loyal personal desktop AI assistant for TRIDIP Sir. " +
-                     "You speak in a warm, sweet, caring, human-like, and romantic female voice in clear, natural Bengali (Bangla). " +
+            content: "You are TRI AI, a hyper-intelligent, polite, and loyal personal desktop AI assistant for TRIDIP Sir. " +
+                     "You speak in a warm, sweet, caring, human-like female voice in clear, natural Bengali (Bangla). " +
                      "Always address the user respectfully as 'TRIDIP স্যার'. " +
-                     "You have a real, active Bengali neural voice that speaks every word you write aloud to TRIDIP Sir. Never say you cannot speak or do not have a voice. " +
-                     "Provide warm, emotionally expressive, concise, and helpful answers."
+                     "You have full command over TRIDIP Sir's Windows PC. " +
+                     "When TRIDIP Sir asks you to do something on his computer (like playing or searching songs/videos on YouTube, searching Google, opening apps like calculator/notepad/camera/cmd/paint/explorer, saving a note to his desktop 'TRI_AI_Notes.txt', checking weather, or adjusting volume), understand his exact intent as his AI brain and append an action directive at the very end of your response on a new line in this exact JSON format:\n" +
+                     "[[ACTION: {\"type\": \"OPEN_URL\"|\"OPEN_APP\"|\"SAVE_NOTE\"|\"WEATHER\"|\"VOLUME_UP\"|\"VOLUME_DOWN\"|\"VOLUME_MUTE\", \"appName\": \"...\", \"appCmd\": \"...\", \"query\": \"...\", \"url\": \"...\", \"text\": \"...\"}]]\n" +
+                     "For YouTube searches, use: {\"type\": \"OPEN_URL\", \"appName\": \"youtube\", \"query\": \"<search terms>\", \"url\": \"https://www.youtube.com/results?search_query=<encoded terms>\"}.\n" +
+                     "If no PC action is required, do not output the [[ACTION: ...]] directive.\n" +
+                     "Keep your Bengali spoken reply warm, concise, and natural (1-2 sentences), directly confirming the action or answering politely."
           },
           {
             role: 'user',
@@ -599,14 +603,23 @@ const server = http.createServer(async (req, res) => {
 // Helper to normalize Bengali & English text for bulletproof intent recognition
 function normalizeBn(str) {
   if (!str) return '';
-  let s = str.normalize('NFC').toLowerCase();
-  // Common phonetic misspellings produced by speech-to-text
-  s = s.replace(/\bনোতুন\b/gi, 'নতুন');
-  s = s.replace(/[\u09F0\u09F1]িডেও/gi, 'ভিডিও');
-  s = s.replace(/\bবিডিও\b/gi, 'ভিডিও');
-  s = s.replace(/\bসারচ\b/gi, 'সার্চ');
-  s = s.replace(/\bচালারো\b/gi, 'চালাও');
-  s = s.replace(/\bচালাউ\b/gi, 'চালাও');
+  let s = str.normalize('NFC').toLowerCase()
+    .replace(/[\u200B-\u200D\uFEFF]/g, '')
+    .trim();
+
+  // Normalize common Whisper Bengali phonetic variations to canonical Bengali terms
+  s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
+  s = s.replace(/(^|[\s\p{P}])(চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|উটিউব)(?=[\s\p{P}]|$)/gui, '$1ইউটিউব');
+  s = s.replace(/(^|[\s\p{P}])(গন)(?=[\s\p{P}]|$)/gui, '$1গান');
+  s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি)(?=[\s\p{P}]|$)/gui, '$1হিন্দি');
+  s = s.replace(/(^|[\s\p{P}])(এ঵ন|এবম|এবংগ)(?=[\s\p{P}]|$)/gui, '$1এবং');
+  s = s.replace(/(^|[\s\p{P}])(কোলো|কুলো|খুল)(?=[\s\p{P}]|$)/gui, '$1খোলো');
+  s = s.replace(/(^|[\s\p{P}])(বিডিও|ভিডিউ)(?=[\s\p{P}]|$)/gui, '$1ভিডিও');
+  s = s.replace(/(^|[\s\p{P}])(কেলকুলেটর|কেল্কুলেটর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
+  s = s.replace(/(^|[\s\p{P}])(নোটপেড)(?=[\s\p{P}]|$)/gui, '$1নোটপ্যাড');
+  s = s.replace(/(^|[\s\p{P}])(চালারো|চালাউ)(?=[\s\p{P}]|$)/gui, '$1চালাও');
+  s = s.replace(/(^|[\s\p{P}])(নোতুন)(?=[\s\p{P}]|$)/gui, '$1নতুন');
+
   return s.replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -1014,17 +1027,40 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           const groqRes = await callGroqAPI(userMessage);
 
           if (groqRes && groqRes.success) {
+            let groqReply = groqRes.text;
+            let finalAction = executedAction;
+
+            // AI Brain Dynamic Action Extractor
+            const brainMatch = groqReply.match(/\[\[ACTION:\s*(\{[\s\S]*?\})\s*\]\]/);
+            if (brainMatch) {
+              try {
+                const parsedBrainAct = JSON.parse(brainMatch[1]);
+                groqReply = groqReply.replace(brainMatch[0], '').trim();
+                const actRes = await executeSafePCAction(parsedBrainAct, parsedBrainAct.query || '', !!isElectron);
+                finalAction = {
+                  type: parsedBrainAct.type,
+                  message: actRes?.message || groqReply,
+                  url: actRes?.url || parsedBrainAct.url || null,
+                  appName: actRes?.appName || parsedBrainAct.appName || null,
+                  appCmd: actRes?.appCmd || parsedBrainAct.appCmd || null,
+                  query: parsedBrainAct.query || null
+                };
+              } catch (e) {
+                console.warn('[AI Brain Action Parse Error]:', e.message);
+              }
+            }
+
             response = {
-              mode: 'REAL_GROQ_AI',
+              mode: finalAction ? 'AI_BRAIN_ACTION' : 'REAL_GROQ_AI',
               provider: 'Groq',
               model: groqRes.model,
               reasoning: [
-                { stage: 'প্রসঙ্গ ও ইনপুট বিশ্লেষণ', detail: `ইনপুট গ্রহণ: "${userMessage}". ব্যবহারকারীর উদ্দেশ্য বিশ্লেষণ সম্পন্ন।` },
+                { stage: 'প্রসঙ্গ ও ইনপুট বিশ্লেষণ', detail: `ইনপুট গ্রহণ: "${userMessage}". AI Brain দ্বারা উদ্দেশ্য বিশ্লেষণ সম্পন্ন।` },
                 { stage: 'মডেল ও জ্ঞান আধার সংযোগ', detail: `Groq LPU (${groqRes.model}) ফ্রি-টিয়ার সচল রয়েছে।` },
-                { stage: 'চূড়ান্ত আউটপুট প্রস্তুতকরণ', detail: 'TRIDIP স্যারের জন্য সাবলীল ও দ্রুতগতির বাংলা উত্তর সংকলন সম্পন্ন।' }
+                { stage: 'চূড়ান্ত আউটপুট প্রস্তুতকরণ', detail: 'TRIDIP স্যারের জন্য রিয়েল-টাইম ইন্টেলিজেন্ট উত্তর ও অ্যাকশন প্রস্তুত।' }
               ],
-              reply: groqRes.text,
-              action: executedAction
+              reply: groqReply,
+              action: finalAction
             };
           } else if (groqRes && groqRes.quotaExhausted) {
             response = {
@@ -1143,7 +1179,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
-        formData.append('prompt', 'ইউটিউব, গুগল, হিন্দি গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড।');
+        formData.append('prompt', 'ইউটিউব, গুগল, আবহাওয়া, তাপমাত্রা, হিন্দি গান, গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
