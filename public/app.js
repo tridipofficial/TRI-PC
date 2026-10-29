@@ -264,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let s = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
     s = s.normalize('NFC');
     s = s.replace(/ð/gi, 'd').replace(/Ð/g, 'D');
+    s = s.replace(/þ/gi, 'th').replace(/Þ/g, 'Th');
     s = s.replace(/[-_]/g, ' ');
     s = s.replace(/[.,:;।?!]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim();
@@ -300,12 +301,20 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/\b(?:gaan|gan|song|songs|svanglyki)\b/gi, 'গান');
     s = s.replace(/\b(?:video|vedio|vidio)\b/gi, 'ভিডিও');
     
-    // 5. Apps & Utilities
+    // 5. Apps & Utilities & Cities
+    s = s.replace(/\b(?:hunar\s*og|hunar|kolnar|kulnar|kholnar|khulnar|kólnar|kúlnar|húnar)\b/gi, 'খুলনার');
+    s = s.replace(/\b(?:kolna|kulna|kholna|khulna|kólna|kúlna)\b/gi, 'খুলনা');
+    s = s.replace(/\b(?:dhakar|dakar)\b/gi, 'ঢাকার');
+    s = s.replace(/\b(?:dhaka|daka)\b/gi, 'ঢাকা');
+    s = s.replace(/\b(?:ctg|chittagong|chattogram)\b/gi, 'চট্টগ্রাম');
     s = s.replace(/\b(?:kalkuletor|calculeter|calc|calculator)\b/gi, 'ক্যালকুলেটর');
     s = s.replace(/\b(?:nogbed|notbed|notepad|noteped)\b/gi, 'নোটপ্যাড');
     s = s.replace(/\b(?:camera|kamera)\b/gi, 'ক্যামেরা');
-    s = s.replace(/\b(?:weather|abohawa|abawa|tapmatra)\b/gi, 'আবহাওয়া');
-    s = s.replace(/\b(?:dhaka|dhakar|daka|dakar)\b/gi, 'ঢাকা');
+    s = s.replace(/\b(?:weather|abohawa|abawa|tapmatra|af\s*ovar|af\s*óvar|bad\s*er|thad\s*er|þad\s*er|það\s*er|fotti\s*a|fótti\s*á|vosta\s*bolu|vosta\s*bólu)\b/gi, 'আবহাওয়া');
+    s = s.replace(/\b(?:afstakir|vottumannig|bottumannir|erdad|erðað|report|riport)\b/gi, 'রিপোর্ট');
+    s = s.replace(/\b(?:details|detail)\b/gi, 'ডিটেইলস');
+    s = s.replace(/\b(?:khobor|khobr|kki|ki\s*khobor)\b/gi, 'কি খবর');
+    s = s.replace(/\b(?:dao|din)\b/gi, 'দাও');
     
     // 6. Conversational Banglish
     s = s.replace(/\b(?:sound|volume|shound)\b/gi, 'সাউন্ড');
@@ -321,13 +330,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 7. Bengali Whisper phonetic cleanup
     s = s.replace(/(^|[\s\p{P}])(উপিন|উপইন|ওপপেন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
-    s = s.replace(/(^|[\s\p{P}])(যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|উটিউব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+    s = s.replace(/(^|[\s\p{P}])(যুতিউব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|উটিউব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
     s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
     s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
     s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
     s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
     s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
     s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
+    s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
+    s = s.replace(/(^|[\s\p{P}])(আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+    s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
     s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
     s = s.replace(/(^|[\s\p{P}])(আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
     s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
@@ -910,10 +922,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       }
 
-      // Downsample to clean 16kHz mono PCM and encode pure WAV
-      const downsampled = downsampleBuffer(fullBuffer, inputSampleRate, 16000);
-      const pcm16 = floatTo16BitPCM(downsampled);
-      const wavBlob = encodeWAV(pcm16, 16000);
+      // Studio-Quality Native PCM: Retains 100% crispness & high-frequency acoustic clarity
+      const pcm16 = floatTo16BitPCM(fullBuffer);
+      const wavBlob = encodeWAV(pcm16, inputSampleRate);
 
       const base64Audio = await this.blobToBase64(wavBlob);
 

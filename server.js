@@ -606,6 +606,7 @@ function normalizeBanglishToBengali(raw) {
   let s = raw.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   s = s.normalize('NFC');
   s = s.replace(/ð/gi, 'd').replace(/Ð/g, 'D');
+  s = s.replace(/þ/gi, 'th').replace(/Þ/g, 'Th');
   s = s.replace(/[-_]/g, ' ');
   s = s.replace(/[.,:;।?!]/g, ' ');
   s = s.replace(/\s+/g, ' ').trim();
@@ -642,12 +643,20 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/\b(?:gaan|gan|song|songs|svanglyki)\b/gi, 'গান');
   s = s.replace(/\b(?:video|vedio|vidio)\b/gi, 'ভিডিও');
   
-  // 5. Apps & Utilities
+  // 5. Apps & Utilities & Cities
+  s = s.replace(/\b(?:hunar\s*og|hunar|kolnar|kulnar|kholnar|khulnar|kólnar|kúlnar|húnar)\b/gi, 'খুলনার');
+  s = s.replace(/\b(?:kolna|kulna|kholna|khulna|kólna|kúlna)\b/gi, 'খুলনা');
+  s = s.replace(/\b(?:dhakar|dakar)\b/gi, 'ঢাকার');
+  s = s.replace(/\b(?:dhaka|daka)\b/gi, 'ঢাকা');
+  s = s.replace(/\b(?:ctg|chittagong|chattogram)\b/gi, 'চট্টগ্রাম');
   s = s.replace(/\b(?:kalkuletor|calculeter|calc|calculator)\b/gi, 'ক্যালকুলেটর');
   s = s.replace(/\b(?:nogbed|notbed|notepad|noteped)\b/gi, 'নোটপ্যাড');
   s = s.replace(/\b(?:camera|kamera)\b/gi, 'ক্যামেরা');
-  s = s.replace(/\b(?:weather|abohawa|abawa|tapmatra)\b/gi, 'আবহাওয়া');
-  s = s.replace(/\b(?:dhaka|dhakar|daka|dakar)\b/gi, 'ঢাকা');
+  s = s.replace(/\b(?:weather|abohawa|abawa|tapmatra|af\s*ovar|af\s*óvar|bad\s*er|thad\s*er|þad\s*er|það\s*er|fotti\s*a|fótti\s*á|vosta\s*bolu|vosta\s*bólu)\b/gi, 'আবহাওয়া');
+  s = s.replace(/\b(?:afstakir|vottumannig|bottumannir|erdad|erðað|report|riport)\b/gi, 'রিপোর্ট');
+  s = s.replace(/\b(?:details|detail)\b/gi, 'ডিটেইলস');
+  s = s.replace(/\b(?:khobor|khobr|kki|ki\s*khobor)\b/gi, 'কি খবর');
+  s = s.replace(/\b(?:dao|din)\b/gi, 'দাও');
   
   // 6. Conversational Banglish
   s = s.replace(/\b(?:sound|volume|shound)\b/gi, 'সাউন্ড');
@@ -663,7 +672,7 @@ function normalizeBanglishToBengali(raw) {
 
   // 7. Bengali Whisper phonetic cleanup
   s = s.replace(/(^|[\s\p{P}])(উপিন|উপইন|ওপপেন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
-  s = s.replace(/(^|[\s\p{P}])(যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|উটিউব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+  s = s.replace(/(^|[\s\p{P}])(যুতিউব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|উটিউব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
   s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
   s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
   s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
@@ -671,7 +680,8 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
   s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
   s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
-  s = s.replace(/(^|[\s\p{P}])(আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
   s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
   s = s.replace(/(^|[\s\p{P}])(গানস|গান্স)(?=[\s\p{P}]|$)/gui, '$1গান');
 
@@ -836,7 +846,7 @@ function detectIntentAction(prompt) {
   }
 
   // 4. Greetings
-  if (norm.includes('কেমন আছো') || norm.includes('কেমন আছেন') || norm.includes('কি খবর') || norm.includes('কী খবর') || norm.includes('কি অবস্থা') || norm.includes('how are you')) {
+  if (!norm.includes('আবহাও') && !norm.includes('weather') && !norm.includes('খুলনা') && !norm.includes('ঢাকা') && (norm.includes('কেমন আছো') || norm.includes('কেমন আছেন') || norm.includes('কি খবর') || norm.includes('কী খবর') || norm.includes('কি অবস্থা') || norm.includes('how are you'))) {
     return {
       type: 'GREETING',
       reply: 'আমি খুব ভালো আছি TRIDIP স্যার! আপনার কি খবর বলুন, আমি কীভাবে সাহায্য করতে পারি?'
@@ -844,9 +854,29 @@ function detectIntentAction(prompt) {
   }
 
   // 5. Weather Details
-  const weatherNorm = normalizeBn('আবহাওয়া');
-  if (norm.includes(weatherNorm) || norm.includes('আবহাও') || norm.includes('আবোয়ার') || norm.includes('weather') || norm.includes('তাপমাত্রা') || norm.includes('বৃষ্টি')) {
-    return { type: 'WEATHER' };
+  const weatherNorm = normalizeBn('আবহাওয়া');
+  if (
+    norm.includes(weatherNorm) || norm.includes('আবহাওয়া') || norm.includes('আবহাওয়া') ||
+    norm.includes('আবহাও') || norm.includes('weather') || norm.includes('তাপমাত্রা') ||
+    norm.includes('বৃষ্টি') ||
+    ((norm.includes('রিপোর্ট') || norm.includes('ডিটেইলস') || norm.includes('খবর')) && (norm.includes('খুলনা') || norm.includes('ঢাকা') || norm.includes('আবহাও')))
+  ) {
+    let cityEn = 'Khulna';
+    let cityBn = 'খুলনা';
+    if (/ঢাকা|dhaka|ঢাকার/i.test(norm)) { cityEn = 'Dhaka'; cityBn = 'ঢাকা'; }
+    else if (/চট্টগ্রাম|chittagong|ctg|চিটাগাং/i.test(norm)) { cityEn = 'Chittagong'; cityBn = 'চট্টগ্রাম'; }
+    else if (/সিলেট|sylhet/i.test(norm)) { cityEn = 'Sylhet'; cityBn = 'সিলেট'; }
+    else if (/রাজশাহী|rajshahi/i.test(norm)) { cityEn = 'Rajshahi'; cityBn = 'রাজশাহী'; }
+    else if (/বরিশাল|barisal/i.test(norm)) { cityEn = 'Barisal'; cityBn = 'বরিশাল'; }
+    else if (/রংপুর|rangpur/i.test(norm)) { cityEn = 'Rangpur'; cityBn = 'রংপুর'; }
+    else if (/ময়মনসিংহ|ময়মনসিংহ|mymensingh/i.test(norm)) { cityEn = 'Mymensingh'; cityBn = 'ময়মনসিংহ'; }
+    else if (/কুমিল্লা|comilla/i.test(norm)) { cityEn = 'Comilla'; cityBn = 'কুমিল্লা'; }
+    else if (/কক্সবাজার|coxs\s*bazar|cox/i.test(norm)) { cityEn = 'Cox\'s Bazar'; cityBn = 'কক্সবাজার'; }
+    else if (/বগুড়া|বগুড়া|bogra/i.test(norm)) { cityEn = 'Bogra'; cityBn = 'বগুড়া'; }
+    else if (/যশোর|jashore|jessore/i.test(norm)) { cityEn = 'Jashore'; cityBn = 'যশোর'; }
+    else { cityEn = 'Khulna'; cityBn = 'খুলনা'; }
+
+    return { type: 'WEATHER', cityEn, cityBn };
   }
 
   // 6. Save Note vs Open Notepad
@@ -935,8 +965,10 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
 
     // 2. Live Weather Details
     if (actionType === 'WEATHER') {
+      const cityEn = (typeof intent === 'object' && intent.cityEn) ? intent.cityEn : 'Khulna';
+      const cityBn = (typeof intent === 'object' && intent.cityBn) ? intent.cityBn : 'খুলনা';
       try {
-        const res = await fetch('https://wttr.in/Dhaka?format=j1', { signal: AbortSignal.timeout(3000) });
+        const res = await fetch(`https://wttr.in/${encodeURIComponent(cityEn)}?format=j1`, { signal: AbortSignal.timeout(3000) });
         if (res.ok) {
           const data = await res.json();
           const curr = data.current_condition[0];
@@ -944,7 +976,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           const humidity = curr.humidity;
           const desc = curr.weatherDesc[0].value;
           return {
-            message: `TRIDIP স্যার, ঢাকার বর্তমান তাপমাত্রা ${temp} ডিগ্রি সেলসিয়াস। আকাশ ${desc.toLowerCase()} এবং বাতাসের আর্দ্রতা ${humidity} শতাংশ। আজ বৃষ্টির সম্ভাবনা খুব কম।`,
+            message: `TRIDIP স্যার, ${cityBn}-র বর্তমান তাপমাত্রা ${temp} ডিগ্রি সেলসিয়াস। আকাশ ${desc.toLowerCase()} এবং বাতাসের আর্দ্রতা ${humidity} শতাংশ।`,
             url: null
           };
         }
@@ -952,7 +984,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         console.warn('Weather fetch error:', err.message);
       }
       return {
-        message: 'TRIDIP স্যার, ঢাকার বর্তমান তাপমাত্রা প্রায় ২৮ ডিগ্রি সেলসিয়াস, আকাশ আংশিক মেঘলা এবং বাতাসের আর্দ্রতা ৬৫ শতাংশ। বৃষ্টির সম্ভাবনা খুব কম।',
+        message: `TRIDIP স্যার, ${cityBn}-র বর্তমান তাপমাত্রা প্রায় ২৪ ডিগ্রি সেলসিয়াস, আকাশ আংশিক মেঘলা এবং বাতাসের আর্দ্রতা ৬৫ শতাংশ।`,
         url: null
       };
     }
@@ -1260,9 +1292,9 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const formData = new FormData();
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
-        formData.append('model', 'whisper-large-v3-turbo');
+        formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'ইউটিউব, গুগল, আবহাওয়া, তাপমাত্রা, হিন্দি গান, গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, YouTube, Google, Facebook, Notepad.');
+        formData.append('prompt', 'খুলনা, ঢাকা, চট্টগ্রাম, রাজশাহী, সিলেট, বরিশাল, রংপুর, ময়মনসিংহ, আবহাওয়া, তাপমাত্রা, বৃষ্টি, রিপোর্ট, ডিটেইলস, খবর, ইউটিউব, বাংলা গান, হিন্দি গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, YouTube, Google, Facebook.');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
