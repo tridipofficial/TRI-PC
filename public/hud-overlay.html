@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <title>TRI AI - Holographic Command HUD</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: transparent !important;
+      overflow: hidden;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;
+      user-select: none;
+      -webkit-app-region: drag;
+    }
+
+    #hud-card {
+      position: absolute;
+      inset: 8px;
+      background: rgba(9, 13, 22, 0.94);
+      border: 1.5px solid #00e5ff;
+      border-radius: 18px;
+      box-shadow: 0 0 25px rgba(0, 229, 255, 0.5), inset 0 0 15px rgba(0, 229, 255, 0.2);
+      backdrop-filter: blur(20px);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 12px 18px;
+      color: #e0f2fe;
+      opacity: 0;
+      transform: translateY(-20px);
+      transition: opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1), transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    #hud-card.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Top Bar: Icon, Brand, Status Badge & Timer */
+    .top-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      font-weight: 700;
+      -webkit-app-region: no-drag;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      color: #00e5ff;
+      text-shadow: 0 0 8px rgba(0, 229, 255, 0.8);
+    }
+
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #00e5ff;
+      box-shadow: 0 0 10px #00e5ff;
+      animation: pulseAnim 1.2s infinite alternate ease-in-out;
+    }
+
+    @keyframes pulseAnim {
+      0% { opacity: 0.4; transform: scale(0.85); }
+      100% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .badge-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(0, 229, 255, 0.12);
+      border: 1px solid rgba(0, 229, 255, 0.4);
+      padding: 3px 10px;
+      border-radius: 12px;
+      color: #7dd3fc;
+      transition: all 0.3s ease;
+    }
+
+    .badge-status.processing {
+      background: rgba(251, 191, 36, 0.15);
+      border-color: rgba(251, 191, 36, 0.5);
+      color: #fde047;
+    }
+
+    .badge-status.done {
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(34, 197, 94, 0.5);
+      color: #4ade80;
+    }
+
+    .timer {
+      font-variant-numeric: tabular-nums;
+      color: #94a3b8;
+    }
+
+    /* Content Area: Live Transcript & Loader */
+    .content-area {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 4px;
+      -webkit-app-region: no-drag;
+    }
+
+    .transcript {
+      font-size: 15px;
+      font-weight: 600;
+      color: #f8fafc;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      flex: 1;
+      letter-spacing: 0.3px;
+    }
+
+    .transcript .highlight {
+      color: #fbbf24;
+      text-shadow: 0 0 10px rgba(251, 191, 36, 0.6);
+    }
+
+    /* Rotating Neon Spinner */
+    .spinner {
+      width: 22px;
+      height: 22px;
+      border: 2.5px solid rgba(0, 229, 255, 0.2);
+      border-top-color: #00e5ff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      display: none;
+      flex-shrink: 0;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .checkmark {
+      display: none;
+      color: #22c55e;
+      font-size: 18px;
+      font-weight: 900;
+      text-shadow: 0 0 10px rgba(34, 197, 94, 0.8);
+      flex-shrink: 0;
+    }
+  </style>
+</head>
+<body>
+  <div id="hud-card">
+    <div class="top-bar">
+      <div class="brand">
+        <div class="pulse-dot" id="dot"></div>
+        <span>TRI AI • COMMAND HUD</span>
+      </div>
+      <div class="badge-status" id="badge">
+        <span id="status-text">LISTENING...</span>
+      </div>
+      <div class="timer" id="timer">0.0s</div>
+    </div>
+    <div class="content-area">
+      <div class="transcript" id="transcript">🎙️ মাইক্রোফোনে বলুন...</div>
+      <div class="spinner" id="spinner"></div>
+      <div class="checkmark" id="check">✓</div>
+    </div>
+  </div>
+
+  <script>
+    const card = document.getElementById('hud-card');
+    const statusText = document.getElementById('status-text');
+    const badge = document.getElementById('badge');
+    const transcript = document.getElementById('transcript');
+    const spinner = document.getElementById('spinner');
+    const checkmark = document.getElementById('check');
+    const timer = document.getElementById('timer');
+    const dot = document.getElementById('dot');
+
+    let startTime = null;
+    let timerInterval = null;
+    let autoHideTimer = null;
+
+    function startTimer() {
+      startTime = Date.now();
+      clearInterval(timerInterval);
+      timerInterval = setInterval(() => {
+        const sec = ((Date.now() - startTime) / 1000).toFixed(1);
+        timer.textContent = sec + 's';
+      }, 100);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+    }
+
+    window.updateHUD = function(state) {
+      if (!state) return;
+
+      clearTimeout(autoHideTimer);
+
+      if (state.action === 'hide' || state.phase === 'hide') {
+        card.classList.remove('visible');
+        stopTimer();
+        return;
+      }
+
+      // Show HUD
+      card.classList.add('visible');
+
+      if (state.phase === 'listening') {
+        statusText.textContent = 'LISTENING...';
+        badge.className = 'badge-status';
+        transcript.innerHTML = '🎙️ <span class="highlight">শুনছি...</span>';
+        spinner.style.display = 'none';
+        checkmark.style.display = 'none';
+        dot.style.background = '#00e5ff';
+        startTimer();
+      } else if (state.phase === 'processing') {
+        statusText.textContent = 'PROCESSING...';
+        badge.className = 'badge-status processing';
+        transcript.textContent = state.text || 'প্রসেসিং হচ্ছে...';
+        spinner.style.display = 'block';
+        checkmark.style.display = 'none';
+        dot.style.background = '#fbbf24';
+      } else if (state.phase === 'done') {
+        statusText.textContent = 'COMPLETED';
+        badge.className = 'badge-status done';
+        transcript.innerHTML = '✓ ' + (state.text || 'সম্পন্ন হয়েছে!');
+        spinner.style.display = 'none';
+        checkmark.style.display = 'block';
+        dot.style.background = '#22c55e';
+        stopTimer();
+
+        // Auto fade-out after 3.2 seconds
+        autoHideTimer = setTimeout(() => {
+          card.classList.remove('visible');
+        }, 3200);
+      }
+    };
+
+    // Listen for IPC messages from main process
+    if (window.electronAPI && window.electronAPI.onHudUpdate) {
+      window.electronAPI.onHudUpdate((event, data) => window.updateHUD(data));
+    }
+  </script>
+</body>
+</html>

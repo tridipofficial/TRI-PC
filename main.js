@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell, screen } = require('electron');
 const path = require('path');
 const http = require('http');
 
@@ -7,6 +7,7 @@ app.commandLine.appendSwitch('disable-features', 'SpeechRecognition');
 app.commandLine.appendSwitch('log-level', '3');
 
 let mainWindow = null;
+let hudWindow = null;
 
 // Ensure server.js is running
 function ensureServerRunning() {
@@ -25,6 +26,52 @@ function ensureServerRunning() {
       }
     });
   });
+}
+
+function createHudWindow() {
+  if (hudWindow && !hudWindow.isDestroyed()) return hudWindow;
+
+  const primaryDisplay = screen.getPrimaryDisplay();
+  const { width: screenWidth } = primaryDisplay.workAreaSize;
+
+  const hudW = 440;
+  const hudH = 110;
+  const hudX = Math.round((screenWidth - hudW) / 2);
+  const hudY = 24;
+
+  hudWindow = new BrowserWindow({
+    x: hudX,
+    y: hudY,
+    width: hudW,
+    height: hudH,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    skipTaskbar: true,
+    focusable: false,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
+    }
+  });
+
+  hudWindow.setAlwaysOnTop(true, 'screen-saver');
+  hudWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+
+  hudWindow.loadFile(path.join(__dirname, 'public', 'hud-overlay.html'));
+
+  hudWindow.once('ready-to-show', () => {
+    hudWindow.show();
+  });
+
+  hudWindow.on('closed', () => {
+    hudWindow = null;
+  });
+
+  return hudWindow;
 }
 
 async function createMainWindow() {
@@ -49,7 +96,14 @@ async function createMainWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+    if (hudWindow && !hudWindow.isDestroyed()) {
+      hudWindow.close();
+      hudWindow = null;
+    }
   });
+
+  // Create the floating HUD Overlay
+  createHudWindow();
 }
 
 // Universal System Open Handler (Archer AI Architecture)
@@ -64,6 +118,23 @@ ipcMain.handle('system-open', async (event, targetUrl) => {
     }
   }
   return { success: false, error: 'No URL provided' };
+});
+
+// HUD IPC Relay: Forwards HUD events from MainWindow to Floating HUD Window
+ipcMain.on('hud-update', (event, data) => {
+  if (!hudWindow || hudWindow.isDestroyed()) {
+    createHudWindow();
+  }
+  try {
+    if (hudWindow && !hudWindow.isDestroyed()) {
+      if (!hudWindow.isVisible() && data && data.phase !== 'hide') {
+        hudWindow.show();
+      }
+      hudWindow.webContents.send('hud-update-event', data);
+    }
+  } catch (err) {
+    console.warn('[HUD Relay Error]:', err.message);
+  }
 });
 
 app.whenReady().then(() => {
@@ -88,153 +159,3 @@ app.whenReady().then(() => {
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
-
-// Automated End-to-End Verification Runner for TRI AI
-async function runE2EVerification() {
-  console.log('=== STARTING AUTOMATED E2E VERIFICATION OF TRI AI COMMIT 176f5b4 ===');
-  const results = {};
-
-  try {
-    // 1. Electron Clean Startup
-    results.test1_electron_launch = {
-      status: mainWindow && !mainWindow.isDestroyed() ? 'PASS' : 'FAIL',
-      mainWindowId: mainWindow ? mainWindow.id : null,
-      title: mainWindow ? mainWindow.getTitle() : null,
-      url: mainWindow ? mainWindow.webContents.getURL() : null
-    };
-
-    // 3 & 4. "ইউটুব ওপেন করো" -> IPC -> YouTube Window creation, URL, visibility, focus
-    console.log('[E2E Test] Dispatching "ইউটুব ওপেন করো" via preload openYouTube...');
-    await mainWindow.webContents.executeJavaScript(`
-      window.electronAPI.openYouTube('https://www.youtube.com')
-    `);
-
-    // Give window time to load
-    await new Promise(r => setTimeout(r, 2000));
-
-    const ytExists = !!(youtubeWindow && !youtubeWindow.isDestroyed());
-    const ytUrl = ytExists ? youtubeWindow.webContents.getURL() : null;
-    const ytVisible = ytExists ? youtubeWindow.isVisible() : false;
-    const ytFocused = ytExists ? youtubeWindow.isFocused() : false;
-
-    results.test4_youtube_window_create = {
-      status: (ytExists && ytVisible) ? 'PASS' : 'FAIL',
-      windowCreated: ytExists,
-      url: ytUrl,
-      visible: ytVisible,
-      focused: ytFocused,
-      bounds: ytExists ? youtubeWindow.getBounds() : null
-    };
-
-    // 5. "YouTube-এ নতুন হিন্দি গান সার্চ করো" -> fetch real search from server -> navigate YouTube window
-    console.log('[E2E Test] Querying /api/chat for "YouTube-এ নতুন হিন্দি গান সার্চ করো"...');
-    const searchRes = await fetch('http://127.0.0.1:3456/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'YouTube-এ নতুন হিন্দি গান সার্চ করো', isElectron: true })
-    });
-    const searchData = await searchRes.json();
-    console.log('[E2E Test] Search API Response:', searchData.reply);
-
-    const searchUrl = searchData.action?.url;
-    if (searchUrl && ytExists) {
-      await mainWindow.webContents.executeJavaScript(`
-        window.electronAPI.openYouTube(${JSON.stringify(searchUrl)})
-      `);
-      await new Promise(r => setTimeout(r, 2500));
-    }
-
-    const currentNavUrl = (youtubeWindow && !youtubeWindow.isDestroyed()) ? youtubeWindow.webContents.getURL() : null;
-    const hasSearchQueryInUrl = currentNavUrl ? currentNavUrl.includes('search_query=') : false;
-
-    results.test5_youtube_search = {
-      status: (hasSearchQueryInUrl && searchData.action?.results?.length > 0) ? 'PASS' : 'FAIL',
-      actionType: searchData.action?.type,
-      searchUrl: searchUrl,
-      actualWindowUrl: currentNavUrl,
-      resultsCount: searchData.action?.results?.length || 0,
-      top3Videos: searchData.action?.results?.slice(0, 3) || []
-    };
-
-    // 6. "প্রথম ভিডিও চালাও" -> resolve video 1 -> navigate YouTube window to watch?v=
-    console.log('[E2E Test] Querying /api/chat for "প্রথম ভিডিও চালাও"...');
-    const clickRes = await fetch('http://127.0.0.1:3456/api/chat', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: 'প্রথম ভিডিও চালাও', isElectron: true })
-    });
-    const clickData = await clickRes.json();
-    console.log('[E2E Test] Click API Response:', clickData.reply);
-
-    const videoUrl = clickData.action?.url;
-    if (videoUrl && youtubeWindow && !youtubeWindow.isDestroyed()) {
-      await mainWindow.webContents.executeJavaScript(`
-        window.electronAPI.openYouTube(${JSON.stringify(videoUrl)})
-      `);
-      await new Promise(r => setTimeout(r, 4000));
-    }
-
-    const watchUrl = (youtubeWindow && !youtubeWindow.isDestroyed()) ? youtubeWindow.webContents.getURL() : null;
-    const isWatchUrl = watchUrl ? watchUrl.includes('watch?v=') : false;
-
-    // Check if video element exists inside the loaded YouTube page
-    let videoElementStatus = { found: false };
-    if (youtubeWindow && !youtubeWindow.isDestroyed()) {
-      try {
-        videoElementStatus = await youtubeWindow.webContents.executeJavaScript(`
-          (() => {
-            const v = document.querySelector('video');
-            if (!v) return { found: false };
-            return {
-              found: true,
-              paused: v.paused,
-              currentTime: v.currentTime,
-              readyState: v.readyState
-            };
-          })()
-        `);
-      } catch (e) {
-        videoElementStatus = { found: false, error: e.message };
-      }
-    }
-
-    // Pass criteria: URL successfully navigated to watch?v= with video loaded in DOM
-    const isActuallyPlaying = isWatchUrl && videoElementStatus.found;
-    results.test6_play_first_video = {
-      status: isActuallyPlaying ? 'PASS' : (isWatchUrl ? 'PASS' : 'FAIL'),
-      actionType: clickData.action?.type,
-      videoTitle: clickData.action?.title,
-      targetVideoUrl: videoUrl,
-      actualWindowUrl: watchUrl,
-      videoElement: videoElementStatus
-    };
-
-    // 7. "YouTube বন্ধ করো" -> call closeYouTube -> verify window closed
-    console.log('[E2E Test] Calling closeYouTube via preload...');
-    await mainWindow.webContents.executeJavaScript(`
-      window.electronAPI.closeYouTube()
-    `);
-    await new Promise(r => setTimeout(r, 1200));
-
-    const isYtDestroyed = !youtubeWindow || youtubeWindow.isDestroyed();
-    const isMainFocused = mainWindow && !mainWindow.isDestroyed() ? mainWindow.isFocused() : false;
-
-    results.test7_youtube_close = {
-      status: isYtDestroyed ? 'PASS' : 'FAIL',
-      youtubeWindowClosed: isYtDestroyed,
-      mainWindowFocused: isMainFocused
-    };
-
-  } catch (err) {
-    results.error = err.message;
-  }
-
-  const fs = require('fs');
-  fs.writeFileSync(path.join(__dirname, 'e2e_results.json'), JSON.stringify(results, null, 2), 'utf8');
-  console.log('=== E2E VERIFICATION COMPLETED ===');
-  console.log(JSON.stringify(results, null, 2));
-
-  setTimeout(() => {
-    app.quit();
-  }, 1000);
-}

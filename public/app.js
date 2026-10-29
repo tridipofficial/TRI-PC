@@ -271,6 +271,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show temporary thinking state
     const thinkingNode = appendThinkingCard();
 
+    if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+      window.electronAPI.sendHudUpdate({ phase: 'processing', text: prompt });
+    }
+
     try {
       const isElectronApp = !!(window.electronAPI && window.electronAPI.isElectron);
       const res = await fetch('/api/chat', {
@@ -286,6 +290,11 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await res.json();
         thinkingNode.remove();
         appendAssistantMessage(data);
+
+        const replySummary = (data.action && data.action.message) ? data.action.message : (data.reply ? data.reply.substring(0, 48) : 'সম্পন্ন হয়েছে!');
+        if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+          window.electronAPI.sendHudUpdate({ phase: 'done', text: replySummary });
+        }
 
         // Universal System Action Handler (Archer AI Architecture)
         if (data.action && data.action.url) {
@@ -545,6 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async start(onSpeechDone) {
       if (this.isListening || this.isTranscribing || window.triAIIsSpeaking) return;
+      if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+        window.electronAPI.sendHudUpdate({ phase: 'listening' });
+      }
       try {
         this.audioChunks = [];
         this.speechDetected = false;
@@ -751,6 +763,9 @@ document.addEventListener('DOMContentLoaded', () => {
             const data = await res.json();
             if (data.success && data.text && data.text.trim()) {
               console.log('[Native Voice Transcript]:', data.text);
+              if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+                window.electronAPI.sendHudUpdate({ phase: 'processing', text: data.text.trim() });
+              }
               if (onSpeechDone) onSpeechDone(data.text.trim());
             } else {
               updateHandsFreeUI('idle');
