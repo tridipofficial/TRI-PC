@@ -297,14 +297,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Universal System Action Handler (Archer AI Architecture)
-        if (data.action && data.action.url) {
-          if (window.electronAPI && window.electronAPI.openSystem) {
-            window.electronAPI.openSystem(data.action.url);
-          } else {
-            try {
-              window.open(data.action.url, '_blank');
-            } catch (e) {
-              console.warn('Browser open blocked:', e);
+        if (data.action) {
+          if (data.action.url) {
+            if (window.electronAPI && window.electronAPI.openSystem) {
+              window.electronAPI.openSystem(data.action.url);
+            } else {
+              try {
+                window.open(data.action.url, '_blank');
+              } catch (e) {
+                console.warn('Browser open blocked:', e);
+              }
+            }
+          } else if (data.action.appCmd || data.action.appName) {
+            if (window.electronAPI && window.electronAPI.openApplication) {
+              window.electronAPI.openApplication(data.action.appName, data.action.appCmd);
             }
           }
         }

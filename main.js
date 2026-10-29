@@ -1,6 +1,16 @@
 const { app, BrowserWindow, ipcMain, session, shell, screen } = require('electron');
 const path = require('path');
 const http = require('http');
+const { exec } = require('child_process');
+
+function execPromise(command, options = {}) {
+  return new Promise((resolve, reject) => {
+    exec(command, { shell: 'cmd.exe', timeout: 10000, ...options }, (err, stdout, stderr) => {
+      if (err) return reject(err);
+      resolve({ stdout, stderr });
+    });
+  });
+}
 
 // Suppress Chromium speech upload pipe logs and verbose Chromium errors
 app.commandLine.appendSwitch('disable-features', 'SpeechRecognition');
@@ -110,14 +120,38 @@ async function createMainWindow() {
 ipcMain.handle('system-open', async (event, targetUrl) => {
   if (targetUrl) {
     try {
-      await shell.openExternal(targetUrl);
-      return { success: true, url: targetUrl };
+      // Archer AI method: start chrome -> start msedge -> shell.openExternal fallback
+      try {
+        await execPromise(`start chrome "${targetUrl}"`);
+        return { success: true, url: targetUrl, method: 'chrome' };
+      } catch (e1) {
+        try {
+          await execPromise(`start msedge "${targetUrl}"`);
+          return { success: true, url: targetUrl, method: 'msedge' };
+        } catch (e2) {
+          await shell.openExternal(targetUrl);
+          return { success: true, url: targetUrl, method: 'openExternal' };
+        }
+      }
     } catch (e) {
-      console.error('shell.openExternal failed:', e.message);
+      console.error('system-open failed:', e.message);
       return { success: false, error: e.message };
     }
   }
   return { success: false, error: 'No URL provided' };
+});
+
+// Universal Native Application Launcher (Archer AI Architecture)
+ipcMain.handle('desktop-open-application', async (event, { appName, appCmd }) => {
+  try {
+    const cmd = appCmd || appName;
+    if (!cmd) return { success: false, error: 'No command specified' };
+    await execPromise(cmd);
+    return { success: true, command: cmd };
+  } catch (err) {
+    console.error('[Desktop Manager Error]:', err.message);
+    return { success: false, error: err.message };
+  }
 });
 
 // HUD IPC Relay: Forwards HUD events from MainWindow to Floating HUD Window
