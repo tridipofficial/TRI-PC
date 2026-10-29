@@ -628,9 +628,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         this.pcmChunks = [];
-        this.speechDetected = false;
+        this.speechDetected = !!this.isInteractive;
+        this.speechFramesCount = 0;
         this.startTime = Date.now();
-        this.ambientNoiseRMS = 0.005;
+        this.ambientNoiseRMS = 0.003;
         this.noiseSamples = 0;
         this.noiseSum = 0;
         this.isCalibrated = false;
@@ -686,12 +687,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isCalibrated = true;
           }
 
-          const speechThreshold = Math.max(0.008, this.ambientNoiseRMS * 1.4);
-          const silenceThreshold = Math.max(0.0035, this.ambientNoiseRMS * 1.1);
+          // High-Sensitivity Voice Threshold: Catches soft, quiet, or whispered speech effortlessly
+          const speechThreshold = Math.max(0.0035, this.ambientNoiseRMS * 1.2);
+          const silenceThreshold = Math.max(0.002, this.ambientNoiseRMS * 1.05);
 
           if (rms > speechThreshold) {
             this.speechFramesCount = (this.speechFramesCount || 0) + 1;
-            if (this.speechFramesCount >= 2) {
+            if (this.speechFramesCount >= 1) {
               if (!this.speechDetected) {
                 this.speechDetected = true;
                 if (window.electronAPI && window.electronAPI.sendHudUpdate) {
@@ -813,6 +815,20 @@ document.addEventListener('DOMContentLoaded', () => {
       for (const c of this.pcmChunks) {
         fullBuffer.set(c, offset);
         offset += c.length;
+      }
+
+      // Studio-Quality Peak Normalization & Dynamic Pre-Amp Boost:
+      // Even if TRIDIP Sir speaks in a low, soft, or relaxed voice, scale audio to optimal studio volume!
+      let maxPeak = 0;
+      for (let i = 0; i < fullBuffer.length; i++) {
+        const absVal = Math.abs(fullBuffer[i]);
+        if (absVal > maxPeak) maxPeak = absVal;
+      }
+      if (maxPeak > 0.001) {
+        const gainMultiplier = Math.min(12.0, 0.85 / maxPeak);
+        for (let i = 0; i < fullBuffer.length; i++) {
+          fullBuffer[i] *= gainMultiplier;
+        }
       }
 
       // Downsample to clean 16kHz mono PCM and encode pure WAV

@@ -634,7 +634,25 @@ let sessionContext = {
 // Universal Windows PC App & URL Launcher (Archer AI Architecture)
 function launchUrlInWindows(url) {
   if (!url) return;
-  // Archer AI strategy: start chrome -> start msedge -> start ""
+  const isYouTube = url.includes('youtube.com');
+  const desktopYtLnk = path.join(os.homedir(), 'Desktop', 'YouTube.lnk');
+  const chromeExe = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+
+  // 1. YouTube PWA / Signed-In Desktop App Priority
+  if (isYouTube) {
+    if ((url === 'https://www.youtube.com' || url === 'https://www.youtube.com/') && fs.existsSync(desktopYtLnk)) {
+      exec(`start "" "${desktopYtLnk}"`, { shell: 'cmd.exe' });
+      return;
+    }
+    if (fs.existsSync(chromeExe)) {
+      exec(`start "" "${chromeExe}" --profile-directory="Profile 6" "${url}"`, { shell: 'cmd.exe' }, (err) => {
+        if (err) exec(`start chrome "${url}"`, { shell: 'cmd.exe' });
+      });
+      return;
+    }
+  }
+
+  // 2. Archer AI strategy: start chrome -> start msedge -> start ""
   exec(`start chrome "${url}"`, { shell: 'cmd.exe' }, (err) => {
     if (err) {
       exec(`start msedge "${url}"`, { shell: 'cmd.exe' }, (err2) => {
@@ -710,7 +728,7 @@ function detectIntentAction(prompt) {
       type: 'OPEN_URL',
       appName: 'youtube',
       url: 'https://www.youtube.com',
-      reply: 'TRIDIP স্যার, ব্রাউজারে ইউটিউব ওপেন করা হয়েছে।'
+      reply: 'TRIDIP স্যার, আপনার ডেস্কটপে ইনস্টল করা YouTube অ্যাপটি ওপেন করা হয়েছে।'
     };
   }
 

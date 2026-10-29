@@ -124,7 +124,27 @@ async function createMainWindow() {
 ipcMain.handle('system-open', async (event, targetUrl) => {
   if (targetUrl) {
     try {
-      // Archer AI method: start chrome -> start msedge -> shell.openExternal fallback
+      const fs = require('fs');
+      const os = require('os');
+      const isYouTube = targetUrl.includes('youtube.com');
+      const desktopYtLnk = path.join(os.homedir(), 'Desktop', 'YouTube.lnk');
+      const chromeExe = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+
+      // 1. YouTube PWA / Signed-In Desktop App Priority
+      if (isYouTube) {
+        if ((targetUrl === 'https://www.youtube.com' || targetUrl === 'https://www.youtube.com/') && fs.existsSync(desktopYtLnk)) {
+          await execPromise(`start "" "${desktopYtLnk}"`);
+          return { success: true, url: targetUrl, method: 'desktop_yt_pwa' };
+        }
+        if (fs.existsSync(chromeExe)) {
+          try {
+            await execPromise(`start "" "${chromeExe}" --profile-directory="Profile 6" "${targetUrl}"`);
+            return { success: true, url: targetUrl, method: 'chrome_profile_6' };
+          } catch (eProfile) {}
+        }
+      }
+
+      // 2. Archer AI method: start chrome -> start msedge -> shell.openExternal fallback
       try {
         await execPromise(`start chrome "${targetUrl}"`);
         return { success: true, url: targetUrl, method: 'chrome' };
