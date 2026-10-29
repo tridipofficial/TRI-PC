@@ -328,9 +328,16 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/\b(?:koto|kto)\b/gi, 'কত');
     s = s.replace(/\b(?:boloto|bolo)\b/gi, 'বলো');
 
-    // 7. Bengali Whisper phonetic cleanup
-    s = s.replace(/(^|[\s\p{P}])(উপিন|উপইন|ওপপেন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
-    s = s.replace(/(^|[\s\p{P}])(যুতিউব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|উটিউব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+    // 7. Bengali Whisper & Speech Phonetic Cleanup
+    // Action verbs (open, play, etc.)
+    s = s.replace(/(^|[\s\p{P}])(ওপিন|উপিন|উপইন|ওপপেন|ওপেনিং)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
+    s = s.replace(/(^|[\s\p{P}])(খুল|খুলো|কোলো|কুলো|খোল)(?=[\s\p{P}]|$)/gui, '$1খোলো');
+    // YouTube phonetic variants
+    s = s.replace(/(^|[\s\p{P}])(যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+    // PDF mishearing when followed by song
+    s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
+    // Song phonetic variants
+    s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
     s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
     s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
     s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
@@ -338,12 +345,11 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
     s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
     s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
-    s = s.replace(/(^|[\s\p{P}])(আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+    s = s.replace(/(^|[\s\p{P}])(কুলনার|কুলনা|খোলনার|খোলনা|হুনার)(?=[\s\p{P}]|$)/gui, '$1খুলনার');
+    s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+    s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
     s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
-    s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
-    s = s.replace(/(^|[\s\p{P}])(আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
     s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
-    s = s.replace(/(^|[\s\p{P}])(গানস|গান্স)(?=[\s\p{P}]|$)/gui, '$1গান');
 
     return s.replace(/\s+/g, ' ').trim();
   }
@@ -719,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
       try {
         this.pcmChunks = [];
-        this.speechDetected = !!this.isInteractive;
+        this.speechDetected = false;
         this.speechFramesCount = 0;
         this.startTime = Date.now();
         this.ambientNoiseRMS = 0.003;
@@ -774,13 +780,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.noiseSamples++;
             return;
           } else if (!this.isCalibrated) {
-            this.ambientNoiseRMS = Math.max(0.003, this.noiseSum / (this.noiseSamples || 1));
+            this.ambientNoiseRMS = Math.max(0.002, this.noiseSum / (this.noiseSamples || 1));
             this.isCalibrated = true;
           }
 
           // High-Sensitivity Voice Threshold: Catches soft, quiet, or whispered speech effortlessly
-          const speechThreshold = Math.max(0.0035, this.ambientNoiseRMS * 1.2);
-          const silenceThreshold = Math.max(0.002, this.ambientNoiseRMS * 1.05);
+          const speechThreshold = Math.max(0.0018, this.ambientNoiseRMS * 1.15);
+          const silenceThreshold = Math.max(0.0012, this.ambientNoiseRMS * 1.05);
 
           if (rms > speechThreshold) {
             this.speechFramesCount = (this.speechFramesCount || 0) + 1;
@@ -803,11 +809,11 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (this.speechDetected && rms < silenceThreshold) {
             this.speechFramesCount = 0;
             if (!this.silenceTimer) {
-              // 1400ms natural pause: Patiently waits for TRIDIP Sir to completely finish speaking
+              // 1600ms natural pause: Patiently waits for TRIDIP Sir to completely finish speaking
               // Never cuts off sentences mid-speech or interrupts while speaking!
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone);
-              }, 1400);
+              }, 1600);
             }
           }
         };
@@ -915,8 +921,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const absVal = Math.abs(fullBuffer[i]);
         if (absVal > maxPeak) maxPeak = absVal;
       }
-      if (maxPeak > 0.001) {
-        const gainMultiplier = Math.min(12.0, 0.85 / maxPeak);
+      if (maxPeak > 0.0005) {
+        const gainMultiplier = Math.min(16.0, 0.90 / maxPeak);
         for (let i = 0; i < fullBuffer.length; i++) {
           fullBuffer[i] *= gainMultiplier;
         }
@@ -1022,22 +1028,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isHandsFreeMode || window.triAIIsSpeaking) return;
     if (isListening) return;
 
-    if (isElectronApp || !recognition) {
-      neuralWhisper.start((transcript) => {
-        if (transcript && transcript.trim()) {
-          chatInput.value = transcript;
-          updateHandsFreeUI('processing');
-          sendMessage(transcript);
-        }
-      });
-      return;
-    }
-
-    try {
-      recognition.start();
-    } catch (e) {
-      // Ignored if already started or state transitioning
-    }
+    neuralWhisper.start((transcript) => {
+      if (transcript && transcript.trim()) {
+        chatInput.value = transcript;
+        updateHandsFreeUI('processing');
+        sendMessage(transcript);
+      }
+    });
   }
 
   function scanVoices() {
@@ -1119,40 +1116,26 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   btnMic.addEventListener('click', () => {
-    if (isElectronApp || !recognition) {
-      if (neuralWhisper.isListening) {
-        isHandsFreeMode = false;
-        btnHandsFree?.classList.remove('active');
-        neuralWhisper.stopAndProcess((transcript) => {
-          if (transcript && transcript.trim()) {
-            chatInput.value = transcript;
-            updateHandsFreeUI('processing');
-            sendMessage(transcript);
-          }
-        }, true);
-      } else {
-        isHandsFreeMode = true;
-        btnHandsFree?.classList.add('active');
-        neuralWhisper.start((transcript) => {
-          if (transcript && transcript.trim()) {
-            chatInput.value = transcript;
-            updateHandsFreeUI('processing');
-            sendMessage(transcript);
-          }
-        }, true);
-      }
-      return;
-    }
-
-    if (isListening) {
+    if (neuralWhisper.isListening) {
       isHandsFreeMode = false;
       btnHandsFree?.classList.remove('active');
-      recognition.stop();
-      updateHandsFreeUI('idle');
+      neuralWhisper.stopAndProcess((transcript) => {
+        if (transcript && transcript.trim()) {
+          chatInput.value = transcript;
+          updateHandsFreeUI('processing');
+          sendMessage(transcript);
+        }
+      }, true);
     } else {
       isHandsFreeMode = true;
       btnHandsFree?.classList.add('active');
-      startListeningLoop();
+      neuralWhisper.start((transcript) => {
+        if (transcript && transcript.trim()) {
+          chatInput.value = transcript;
+          updateHandsFreeUI('processing');
+          sendMessage(transcript);
+        }
+      }, true);
     }
   });
 

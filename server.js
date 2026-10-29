@@ -670,9 +670,16 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/\b(?:koto|kto)\b/gi, 'কত');
   s = s.replace(/\b(?:boloto|bolo)\b/gi, 'বলো');
 
-  // 7. Bengali Whisper phonetic cleanup
-  s = s.replace(/(^|[\s\p{P}])(উপিন|উপইন|ওপপেন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
-  s = s.replace(/(^|[\s\p{P}])(যুতিউব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|উটিউব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+  // 7. Bengali Whisper & Speech Phonetic Cleanup
+  // Action verbs (open, play, etc.)
+  s = s.replace(/(^|[\s\p{P}])(ওপিন|উপিন|উপইন|ওপপেন|ওপেনিং)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
+  s = s.replace(/(^|[\s\p{P}])(খুল|খুলো|কোলো|কুলো|খোল)(?=[\s\p{P}]|$)/gui, '$1খোলো');
+  // YouTube phonetic variants
+  s = s.replace(/(^|[\s\p{P}])(যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+  // PDF mishearing when followed by song
+  s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
+  // Song phonetic variants
+  s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
   s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
   s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
   s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
@@ -680,10 +687,11 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
   s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
   s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
-  s = s.replace(/(^|[\s\p{P}])(আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবোয়ার)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(কুলনার|কুলনা|খোলনার|খোলনা|হুনার)(?=[\s\p{P}]|$)/gui, '$1খুলনার');
+  s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
   s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
   s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
-  s = s.replace(/(^|[\s\p{P}])(গানস|গান্স)(?=[\s\p{P}]|$)/gui, '$1গান');
 
   return s.replace(/\s+/g, ' ').trim();
 }
@@ -743,7 +751,7 @@ const openUrlInWindows = launchUrlInWindows;
 function cleanSearchQuery(q) {
   let s = normalizeBn(q);
   const removeWords = [
-    'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
+    'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যোট্যুপ', 'যোটুপ', 'ইয়ায়োটুপ', 'ইয়ায়োটুপ', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
     'গুগলে', 'গুগল', 'google',
     'লিখে সার্চ করো', 'লিখে সারচ করো', 'লিখে সরচ করো', 'লিখে সর্চ করো', 'লিখে সার্চ', 'লিখে সারচ', 'লিখে সর্চ', 'লিখে',
     'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ করো', 'সার্চ কর', 'সার্চ',
@@ -752,7 +760,7 @@ function cleanSearchQuery(q) {
     'সর্চ করে দাও', 'সর্চ করে দিন', 'সর্চ করো', 'সর্চ কর', 'সর্চ',
     'সার্স করে দাও', 'সার্স করে দিন', 'সার্স করো', 'সার্স কর', 'সার্স',
     'খোঁজো', 'খোজো', 'খুঁজে দাও', 'খুজে দাও', 'বের করো', 'search', 'find',
-    'খোলো', 'খুলো', 'খোল', 'কোলো', 'কুলো', 'ওপেন করো', 'ওপেন কর', 'ওপেন',
+    'খোলো', 'খুলো', 'খোল', 'কোলো', 'কুলো', 'ওপেন করো', 'ওপেন কর', 'ওপেন', 'ওপিন', 'উপিন',
     'চালু করো', 'চালু কর', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
     'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run',
     'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন', 'koro', 'kor', 'kore', 'dao', 'din',
@@ -773,13 +781,13 @@ function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
   // Common Action Verbs (Bengali + English + Banglish)
-  const isActionVerb = /খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সারচ|সরচ|সর্চ|সার্স|খোঁজো|খোজো|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search/i.test(norm);
+  const isActionVerb = /খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|ওপিন|উপিন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সারচ|সরচ|সর্চ|সার্স|খোঁজো|খোজো|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search/i.test(norm);
 
   // 1. YouTube & Music Intent
-  const isYt = /ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|youtube|\byt\b/i.test(norm);
-  const isSongOrMusic = /গান|গন|সঙ্গীত|গানবাজনা|মিউজিক|সং|ভিডিও|গীতি|song|music|video/i.test(norm);
+  const isYt = /ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|youtube|\byt\b/i.test(norm);
+  const isSongOrMusic = /গান|গন|সঙ্গীত|সঙ্গিত|সংগীত|গানবাজনা|মিউজিক|সং|সংগ|সাংগ|সাং|ভিডিও|গীতি|song|music|video/i.test(norm);
 
-  if (isYt || (isSongOrMusic && isActionVerb)) {
+  if (isYt || isSongOrMusic || (isSongOrMusic && isActionVerb)) {
     const query = cleanSearchQuery(prompt);
     if (query && query.length > 1) {
       const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
@@ -859,7 +867,7 @@ function detectIntentAction(prompt) {
     norm.includes(weatherNorm) || norm.includes('আবহাওয়া') || norm.includes('আবহাওয়া') ||
     norm.includes('আবহাও') || norm.includes('weather') || norm.includes('তাপমাত্রা') ||
     norm.includes('বৃষ্টি') ||
-    ((norm.includes('রিপোর্ট') || norm.includes('ডিটেইলস') || norm.includes('খবর')) && (norm.includes('খুলনা') || norm.includes('ঢাকা') || norm.includes('আবহাও')))
+    ((norm.includes('রিপোর্ট') || norm.includes('ডিটেইলস') || norm.includes('খবর') || norm.includes('অবস্থা')) && (norm.includes('খুলনা') || norm.includes('ঢাকা') || norm.includes('আবহাও')))
   ) {
     let cityEn = 'Khulna';
     let cityBn = 'খুলনা';
@@ -1294,7 +1302,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'খুলনা, ঢাকা, চট্টগ্রাম, রাজশাহী, সিলেট, বরিশাল, রংপুর, ময়মনসিংহ, আবহাওয়া, তাপমাত্রা, বৃষ্টি, রিপোর্ট, ডিটেইলস, খবর, ইউটিউব, বাংলা গান, হিন্দি গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, YouTube, Google, Facebook.');
+        formData.append('prompt', 'ইউটিউব, YouTube, ওপেন করো, খোলো, চালান, গান, বাংলা গান, হিন্দি গান, সার্চ করো, হিন্দি গান লিখে সার্চ করো, খুলনার আবহাওয়া রিপোর্ট, খুলনা, ঢাকা, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, Facebook, Google.');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
