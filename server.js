@@ -603,19 +603,36 @@ const server = http.createServer(async (req, res) => {
 // Helper to normalize Bengali & English text for bulletproof intent recognition
 function normalizeBn(str) {
   if (!str) return '';
-  let s = str.normalize('NFC').toLowerCase()
-    .replace(/[\u200B-\u200D\uFEFF]/g, '')
-    .trim();
+  // 1. Strip Latin diacritics (í -> i, ó -> o, etc.) and replace Icelandic eth (ð -> d)
+  let s = str.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  // Re-compose back to canonical NFC so Bengali vowels (ো, ৌ, etc.) are 100% unified
+  s = s.normalize('NFC');
+  s = s.replace(/ð/gi, 'd').replace(/Ð/g, 'D');
+  s = s.replace(/[-_]/g, ' ');
+  s = s.toLowerCase().replace(/[\u200B-\u200D\uFEFF]/g, '').trim();
 
-  // Normalize common Whisper Bengali phonetic variations to canonical Bengali terms
-  s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
-  s = s.replace(/(^|[\s\p{P}])(চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|উটিউব)(?=[\s\p{P}]|$)/gui, '$1ইউটিউব');
+  // 2. Transliteration fallback mappings (in case any Latin/Icelandic phonetics slip through)
+  s = s.replace(/(^|[\s\p{P}])(jutid|yutid|youtube|yt|chocub|ychuub)(?=[\s\p{P}]|$)/gui, '$1ইউটিউব');
+  s = s.replace(/(^|[\s\p{P}])(kolo|kholo|open|bapen|apano)(?=[\s\p{P}]|$)/gui, '$1খোলো');
+  s = s.replace(/(^|[\s\p{P}])(evan|ebang|ebom|and)(?=[\s\p{P}]|$)/gui, '$1এবং');
+  s = s.replace(/(^|[\s\p{P}])(salskora|salskor|search|sach)(?=[\s\p{P}]|$)/gui, '$1সার্চ করো');
+  s = s.replace(/(^|[\s\p{P}])(hindi)(?=[\s\p{P}]|$)/gui, '$1হিন্দি');
+  s = s.replace(/(^|[\s\p{P}])(svanglyki|gaan|gan|song)(?=[\s\p{P}]|$)/gui, '$1গান');
+  s = s.replace(/(^|[\s\p{P}])(nogbed|notbed|notepad|notpad)(?=[\s\p{P}]|$)/gui, '$1নোটপ্যাড');
+
+  // 3. Normalize common Whisper Bengali phonetic variations to canonical Bengali terms
+  s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
+  s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি|কাকাজ)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
+  s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
+  s = s.replace(/(^|[\s\p{P}])(আবহাওন|আবোয়ার|আবহাওয়া)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
+  s = s.replace(/(^|[\s\p{P}])(চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|উটিউব|জেচু)(?=[\s\p{P}]|$)/gui, '$1ইউটিউব');
   s = s.replace(/(^|[\s\p{P}])(গন)(?=[\s\p{P}]|$)/gui, '$1গান');
-  s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি)(?=[\s\p{P}]|$)/gui, '$1হিন্দি');
-  s = s.replace(/(^|[\s\p{P}])(এ঵ন|এবম|এবংগ)(?=[\s\p{P}]|$)/gui, '$1এবং');
-  s = s.replace(/(^|[\s\p{P}])(কোলো|কুলো|খুল)(?=[\s\p{P}]|$)/gui, '$1খোলো');
+  s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+  s = s.replace(/(^|[\s\p{P}])(এ঵ন|এবম|এবংগ|এবংং+)(?=[\s\p{P}]|$)/gui, '$1এবং');
+  s = s.replace(/(^|[\s\p{P}])(কোলো|কুলো|খুল|বাপেন)(?=[\s\p{P}]|$)/gui, '$1খোলো');
   s = s.replace(/(^|[\s\p{P}])(বিডিও|ভিডিউ)(?=[\s\p{P}]|$)/gui, '$1ভিডিও');
-  s = s.replace(/(^|[\s\p{P}])(কেলকুলেটর|কেল্কুলেটর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
+  s = s.replace(/(^|[\s\p{P}])(কেলকুলেটর|কেল্কুলেটর|কালকুলেটর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
   s = s.replace(/(^|[\s\p{P}])(নোটপেড)(?=[\s\p{P}]|$)/gui, '$1নোটপ্যাড');
   s = s.replace(/(^|[\s\p{P}])(চালারো|চালাউ)(?=[\s\p{P}]|$)/gui, '$1চালাও');
   s = s.replace(/(^|[\s\p{P}])(নোতুন)(?=[\s\p{P}]|$)/gui, '$1নতুন');
@@ -674,7 +691,7 @@ function launchAppInWindows(cmd) {
 const openUrlInWindows = launchUrlInWindows;
 
 function cleanSearchQuery(q) {
-  let s = q;
+  let s = normalizeBn(q);
   const removeWords = [
     'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
     'গুগলে', 'গুগল', 'google',
@@ -689,7 +706,7 @@ function cleanSearchQuery(q) {
     'চালু করো', 'চালু কর', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
     'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run',
     'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন', 'koro', 'kor', 'kore', 'dao', 'din',
-    'এবং', 'এ঵ন', 'এবম', 'আর', 'এন্ড', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'গিয়ে', 'গিয়া', 'and', 'then'
+    'এবং', 'এবংং', 'এ঵ন', 'এবম', 'আর', 'এন্ড', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'গিয়ে', 'গিয়া', 'and', 'then'
   ];
 
   for (const w of removeWords) {
@@ -908,7 +925,9 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
       const timeStr = new Date().toLocaleString();
       const entry = `\n========================================\n[তারিখ ও সময়: ${timeStr}]\n${noteText}\n========================================\n`;
       fs.appendFileSync(noteFile, entry, 'utf8');
-      launchAppInWindows(`notepad "${noteFile}"`);
+      if (!isElectron) {
+        launchAppInWindows(`notepad "${noteFile}"`);
+      }
       return {
         message: presetReply || `TRIDIP স্যার, আপনার নোটটি ডেস্কটপে 'TRI_AI_Notes.txt' ফাইলে সেভ করে নোটপ্যাডে ওপেন করা হয়েছে!`,
         url: null,
@@ -919,7 +938,9 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
     // 4. Universal Web & URL Opener
     if (actionType === 'OPEN_URL' || actionType === 'OPEN_YOUTUBE' || actionType === 'OPEN_GOOGLE') {
       const targetUrl = intent.url || intentUrl || 'https://www.youtube.com';
-      launchUrlInWindows(targetUrl);
+      if (!isElectron) {
+        launchUrlInWindows(targetUrl);
+      }
       return {
         message: presetReply || intent.reply || `TRIDIP স্যার, ব্রাউজারে ${targetUrl} ওপেন করা হয়েছে!`,
         url: targetUrl
@@ -951,7 +972,9 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         actionType === 'OPEN_CMD' ? 'start cmd' :
         actionType === 'OPEN_SETTINGS' ? 'start ms-settings:' : 'calc'
       );
-      launchAppInWindows(cmdToRun);
+      if (!isElectron) {
+        launchAppInWindows(cmdToRun);
+      }
       return {
         message: presetReply || 'উইন্ডোজ অ্যাপ চালু করা হয়েছে, TRIDIP স্যার।',
         url: null,
@@ -1197,7 +1220,8 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
-        formData.append('prompt', 'ইউটিউব, গুগল, আবহাওয়া, তাপমাত্রা, হিন্দি গান, গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা।');
+        formData.append('language', 'bn');
+        formData.append('prompt', 'ইউটিউব, গুগল, আবহাওয়া, তাপমাত্রা, হিন্দি গান, গান, সার্চ, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, YouTube, Google, Facebook, Notepad.');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
