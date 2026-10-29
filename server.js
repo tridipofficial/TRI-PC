@@ -645,17 +645,19 @@ const openUrlInWindows = launchUrlInWindows;
 function cleanSearchQuery(q) {
   let s = q;
   const removeWords = [
-    'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটিব', 'youtube', 'yt',
+    'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'youtube', 'yt',
     'গুগলে', 'গুগল', 'google',
-    'খোলো', 'খুলো', 'খুল', 'ওপেন', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
+    'খোলো', 'খুলো', 'খোল', 'কোলো', 'কুলো', 'ওপেন', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
     'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run',
-    'সার্চ করো', 'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ কর', 'সার্চ', 'সারচ', 'search',
+    'সার্চ করো', 'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ কর', 'সার্চ', 'সার্স করো', 'সার্স কর', 'সার্স', 'সারচ', 'search',
+    'খোঁজো', 'খোজো', 'খুঁজে দাও', 'খুজে দাও', 'বের করো',
     'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন', 'koro', 'kor', 'kore', 'dao', 'din',
-    'এবং', 'আর', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'and', 'then'
+    'এবং', 'এ঵ন', 'আর', 'এন্ড', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'and', 'then'
   ];
 
   for (const w of removeWords) {
-    const regex = new RegExp('(^|\\s)' + w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?=\\s|$)', 'gi');
+    const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp('(^|[\\s\\p{P}])' + escaped + '(?=[\\s\\p{P}]|$)', 'gui');
     s = s.replace(regex, ' ');
   }
 
@@ -667,11 +669,11 @@ function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
   // Common Action Verbs (Bengali + English + Banglish)
-  const isActionVerb = /খোলো|খুল|খুলো|ওপেন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run/i.test(norm);
+  const isActionVerb = /খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সার্স|খোঁজো|খোজো|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search/i.test(norm);
 
   // 1. YouTube & Music Intent
-  const isYt = /ইউটিউব|ইউটুব|ইউটিব|youtube|\byt\b/i.test(norm);
-  const isSongOrMusic = /গান|সঙ্গীত|গানবাজনা|মিউজিক|সং|ভিডিও|song|music|video/i.test(norm);
+  const isYt = /ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|youtube|\byt\b/i.test(norm);
+  const isSongOrMusic = /গান|সঙ্গীত|গানবাজনা|মিউজিক|সং|ভিডিও|গীতি|song|music|video/i.test(norm);
 
   if (isYt || (isSongOrMusic && isActionVerb)) {
     const query = cleanSearchQuery(prompt);
@@ -753,19 +755,21 @@ function detectIntentAction(prompt) {
     return { type: 'WEATHER' };
   }
 
-  // 6. Save to Notepad on Desktop vs Open Notepad
-  if (/নোটপ্যাড|notepad/i.test(norm) || (/নোট\b|note\b/i.test(norm) && /সেভ|লিখ|রাখ|save|write/i.test(norm))) {
-    if (/সেভ|লিখ|লেখ|রাখো|তুলে রাখো|save|write/i.test(norm)) {
-      let noteText = prompt
-        .replace(/(নোটপ্যাডে|নোটপ্যাড|নোট|এটা|একটি|একটা|সেভ|করো|করে দাও|রেখে দাও|রাখো|লিখো|লেখো|তুলে রাখো|save|note)/gi, '')
-        .replace(/[।?!,.:;'"-]/g, ' ')
-        .trim();
-      return {
-        type: 'SAVE_NOTE',
-        text: noteText || 'TRIDIP স্যারের ব্যক্তিগত ভয়েস নোট',
-        reply: "TRIDIP স্যার, আপনার নোটটি ডেস্কটপে 'TRI_AI_Notes.txt' ফাইলে সেভ করে নোটপ্যাডে ওপেন করা হয়েছে!"
-      };
-    }
+  // 6. Save Note vs Open Notepad
+  const isNoteSave = (/নোট/i.test(norm) && /সেভ|লিখ|লেখ|রাখ|তুলে রাখ|save|write/i.test(norm));
+  if (isNoteSave) {
+    let noteText = prompt
+      .replace(/(নোটপ্যাডে|নোটপ্যাড|নোট|এটা|একটি|একটা|সেভ|করো|করে দাও|রেখে দাও|রাখো|লিখো|লেখো|তুলে রাখো|save|note)/gi, '')
+      .replace(/[।?!,.:;'"-]/g, ' ')
+      .trim();
+    return {
+      type: 'SAVE_NOTE',
+      text: noteText || 'TRIDIP স্যারের ব্যক্তিগত ভয়েস নোট',
+      reply: "TRIDIP স্যার, আপনার নোটটি ডেস্কটপে 'TRI_AI_Notes.txt' ফাইলে সেভ করে নোটপ্যাডে ওপেন করা হয়েছে!"
+    };
+  }
+
+  if (/নোটপ্যাড|notepad/i.test(norm)) {
     return {
       type: 'OPEN_APP',
       appName: 'notepad',
@@ -775,7 +779,7 @@ function detectIntentAction(prompt) {
   }
 
   // 7. Generic Search
-  if (norm.includes('সার্চ') || norm.includes('search')) {
+  if (norm.includes('সার্চ') || norm.includes('সার্স') || norm.includes('search') || norm.includes('খোঁজো') || norm.includes('খোজো')) {
     const q = cleanSearchQuery(prompt);
     if (q && q.length > 1) {
       const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
@@ -799,11 +803,12 @@ function detectIntentAction(prompt) {
   }
 
   // 9. Windows Native Apps
-  if (/ক্যালকুলেটর|calculator|\bcalc\b/i.test(norm)) return { type: 'OPEN_APP', appName: 'calculator', appCmd: 'calc', reply: 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে, TRIDIP স্যার।' };
+  if (/ক্যালকুলেটর|ক্যাল্কুলেটর|calculator|\bcalc\b/i.test(norm)) return { type: 'OPEN_APP', appName: 'calculator', appCmd: 'calc', reply: 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে, TRIDIP স্যার।' };
   if (/ফাইল ম্যানেজার|ফাইল এক্সপ্লোরার|দিস পিসি|মাই কম্পিউটার|explorer/i.test(norm)) return { type: 'OPEN_APP', appName: 'explorer', appCmd: 'explorer', reply: 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে, TRIDIP স্যার।' };
   if (/টাস্ক ম্যানেজার|task manager|taskmgr/i.test(norm)) return { type: 'OPEN_APP', appName: 'task manager', appCmd: 'taskmgr', reply: 'উইন্ডোজ টাস্ক ম্যানেজার ওপেন করা হয়েছে, TRIDIP স্যার।' };
   if (/পেইন্ট|paint|mspaint/i.test(norm)) return { type: 'OPEN_APP', appName: 'paint', appCmd: 'mspaint', reply: 'উইন্ডোজ পেইন্ট ওপেন করা হয়েছে, TRIDIP স্যার।' };
   if (/কমান্ড প্রম্পট|\bcmd\b|টার্মিনাল|terminal/i.test(norm)) return { type: 'OPEN_APP', appName: 'cmd', appCmd: 'start cmd', reply: 'উইন্ডোজ কমান্ড প্রম্পট ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (/ক্যামেরা|camera/i.test(norm)) return { type: 'OPEN_APP', appName: 'camera', appCmd: 'start microsoft.windows.camera:', reply: 'উইন্ডোজ ক্যামেরা ওপেন করা হয়েছে, TRIDIP স্যার।' };
   if (/সেটিংস|settings/i.test(norm)) return { type: 'OPEN_APP', appName: 'settings', appCmd: 'start ms-settings:', reply: 'উইন্ডোজ সেটিংস প্যানেল ওপেন করা হয়েছে, TRIDIP স্যার।' };
 
   // 10. Social & Web Services
@@ -1003,24 +1008,6 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           const groqRes = await callGroqAPI(userMessage);
 
           if (groqRes && groqRes.success) {
-            let groqAction = executedAction;
-            if (!groqAction) {
-              const replyLower = groqRes.text.toLowerCase();
-              if (/ইউটিউব.*(খুল|ওপেন|চালু)|youtube.*(open|launch|started)/i.test(replyLower)) {
-                groqAction = { type: 'OPEN_URL', appName: 'youtube', url: 'https://www.youtube.com' };
-                launchUrlInWindows('https://www.youtube.com');
-              } else if (/গুগল.*(খুল|ওপেন|চালু)|google.*(open|launch)/i.test(replyLower)) {
-                groqAction = { type: 'OPEN_URL', appName: 'google', url: 'https://www.google.com' };
-                launchUrlInWindows('https://www.google.com');
-              } else if (/ক্যালকুলেটর.*(খুল|ওপেন|চালু)|calculator.*(open|launch)/i.test(replyLower)) {
-                groqAction = { type: 'OPEN_APP', appName: 'calculator', appCmd: 'calc' };
-                launchAppInWindows('calc');
-              } else if (/নোটপ্যাড.*(খুল|ওপেন|চালু)|notepad.*(open|launch)/i.test(replyLower)) {
-                groqAction = { type: 'OPEN_APP', appName: 'notepad', appCmd: 'notepad' };
-                launchAppInWindows('notepad');
-              }
-            }
-
             response = {
               mode: 'REAL_GROQ_AI',
               provider: 'Groq',
@@ -1031,7 +1018,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
                 { stage: 'চূড়ান্ত আউটপুট প্রস্তুতকরণ', detail: 'TRIDIP স্যারের জন্য সাবলীল ও দ্রুতগতির বাংলা উত্তর সংকলন সম্পন্ন।' }
               ],
               reply: groqRes.text,
-              action: groqAction
+              action: executedAction
             };
           } else if (groqRes && groqRes.quotaExhausted) {
             response = {
@@ -1150,8 +1137,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
-        // Do not force language: 'bn' so bilingual Bengali+English commands (e.g. "YouTube open koro and search...") are transcribed without distortion
-        formData.append('prompt', 'TRIDIP স্যারের ভয়েস কমান্ড: YouTube ওপেন করো এবং হিন্দি গান সার্চ করো, ইউটিউব খোলো, ক্যালকুলেটর, নোটপ্যাড, ব্রাউজার, গুগল সার্চ, ফেসবুক, গান বাজাও।');
+        formData.append('prompt', 'বাংলা ও ইংরেজি ভয়েস কমান্ড এবং কথোপকথন।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
@@ -1172,8 +1158,13 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
 
         const groqData = await groqRes.json();
         let text = (groqData.text || '').trim();
-        // Remove common silent hallucinations
-        if (text.toLowerCase() === 'thank you.' || text.toLowerCase() === 'you' || text.toLowerCase() === 'bye.') {
+        // Remove common silent/noise hallucinations
+        const lower = text.toLowerCase();
+        if (
+          lower === 'thank you.' || lower === 'thank you' || lower === 'you' ||
+          lower === 'bye.' || lower === 'bye' || lower.includes('amara.org') ||
+          lower.includes('subtitles by') || lower === 'please subscribe'
+        ) {
           text = '';
         }
 

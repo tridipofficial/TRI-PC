@@ -532,30 +532,88 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isElectronApp = !!(window.electronAPI && window.electronAPI.isElectron);
 
-  // --- Professional Adaptive AI Voice Engine (Auto-Noise Baseline VAD + Zero Hallucination) ---
-  class NativeMediaRecorderEngine {
+  // --- Professional Studio PCM WAV AI Voice Engine (Archer AI Architecture) ---
+  // Pure 16kHz mono 16-bit PCM WAV encoding - Zero Container Corruption & Zero Whisper Hallucination
+  function writeWavString(view, offset, string) {
+    for (let i = 0; i < string.length; i++) {
+      view.setUint8(offset + i, string.charCodeAt(i));
+    }
+  }
+
+  function encodeWAV(samples, sampleRate = 16000) {
+    const buffer = new ArrayBuffer(44 + samples.length * 2);
+    const view = new DataView(buffer);
+    writeWavString(view, 0, 'RIFF');
+    view.setUint32(4, 36 + samples.length * 2, true);
+    writeWavString(view, 8, 'WAVE');
+    writeWavString(view, 12, 'fmt ');
+    view.setUint32(16, 16, true);
+    view.setUint16(20, 1, true); // PCM
+    view.setUint16(22, 1, true); // Mono
+    view.setUint32(24, sampleRate, true);
+    view.setUint32(28, sampleRate * 2, true); // ByteRate
+    view.setUint16(32, 2, true); // BlockAlign
+    view.setUint16(34, 16, true); // BitsPerSample
+    writeWavString(view, 36, 'data');
+    view.setUint32(40, samples.length * 2, true);
+
+    let offset = 44;
+    for (let i = 0; i < samples.length; i++, offset += 2) {
+      view.setInt16(offset, samples[i], true);
+    }
+    return new Blob([buffer], { type: 'audio/wav' });
+  }
+
+  function downsampleBuffer(buffer, sampleRate, outSampleRate = 16000) {
+    if (outSampleRate === sampleRate || outSampleRate > sampleRate) return buffer;
+    const sampleRateRatio = sampleRate / outSampleRate;
+    const newLength = Math.round(buffer.length / sampleRateRatio);
+    const result = new Float32Array(newLength);
+    let offsetResult = 0;
+    let offsetBuffer = 0;
+    while (offsetResult < result.length) {
+      const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+      let accum = 0, count = 0;
+      for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+        accum += buffer[i];
+        count++;
+      }
+      result[offsetResult] = count > 0 ? accum / count : 0;
+      offsetResult++;
+      offsetBuffer = nextOffsetBuffer;
+    }
+    return result;
+  }
+
+  function floatTo16BitPCM(float32Array) {
+    const int16Array = new Int16Array(float32Array.length);
+    for (let i = 0; i < float32Array.length; i++) {
+      let s = Math.max(-1, Math.min(1, float32Array[i]));
+      int16Array[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    return int16Array;
+  }
+
+  class StudioPCMAudioEngine {
     constructor() {
       this.isListening = false;
       this.isTranscribing = false;
-      this.mediaRecorder = null;
       this.mediaStream = null;
-      this.audioChunks = [];
       this.audioCtx = null;
-      this.analyser = null;
+      this.sourceNode = null;
+      this.processorNode = null;
+      this.silenceGain = null;
+      this.pcmChunks = [];
       this.silenceTimer = null;
       this.noSpeechTimeout = null;
       this.maxSpeechTimer = null;
       this.speechDetected = false;
-      this.speechFrames = 0;
-      this.maxVolume = 0;
       this.onSpeechDone = null;
-      this.animFrameId = null;
       this.isInteractive = false;
-
-      // Dynamic ambient noise baseline calibration
       this.startTime = 0;
       this.ambientNoiseRMS = 0.005;
-      this.ambientSamples = 0;
+      this.noiseSamples = 0;
+      this.noiseSum = 0;
       this.isCalibrated = false;
     }
 
@@ -563,19 +621,18 @@ document.addEventListener('DOMContentLoaded', () => {
       if (this.isListening || this.isTranscribing || window.triAIIsSpeaking) return;
       this.isInteractive = isInteractive;
 
-      // Only show HUD overlay immediately if user explicitly clicked the mic button
+      // Show HUD immediately if explicitly clicked
       if (this.isInteractive && window.electronAPI && window.electronAPI.sendHudUpdate) {
         window.electronAPI.sendHudUpdate({ phase: 'listening' });
       }
 
       try {
-        this.audioChunks = [];
+        this.pcmChunks = [];
         this.speechDetected = false;
-        this.speechFrames = 0;
-        this.maxVolume = 0;
         this.startTime = Date.now();
         this.ambientNoiseRMS = 0.005;
-        this.ambientSamples = 0;
+        this.noiseSamples = 0;
+        this.noiseSum = 0;
         this.isCalibrated = false;
         this.onSpeechDone = onSpeechDone;
 
@@ -583,95 +640,62 @@ document.addEventListener('DOMContentLoaded', () => {
           audio: {
             echoCancellation: true,
             noiseSuppression: true,
-            autoGainControl: true
+            autoGainControl: true,
+            channelCount: 1
           }
         });
         this.mediaStream = stream;
 
-        // Container setup
-        let mimeType = 'audio/webm;codecs=opus';
-        if (typeof MediaRecorder.isTypeSupported === 'function') {
-          if (!MediaRecorder.isTypeSupported(mimeType)) {
-            mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : '';
-          }
-        }
-
-        const options = mimeType ? { mimeType } : {};
-        this.mediaRecorder = new MediaRecorder(stream, options);
-
-        this.mediaRecorder.ondataavailable = (e) => {
-          if (e.data && e.data.size > 0) {
-            this.audioChunks.push(e.data);
-          }
-        };
-
-        // Emit chunks every 200ms
-        this.mediaRecorder.start(200);
-
-        // VAD Analyser setup
         const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
         this.audioCtx = new AudioCtxClass();
         if (this.audioCtx.state === 'suspended') {
           try { await this.audioCtx.resume(); } catch (e) {}
         }
 
-        const source = this.audioCtx.createMediaStreamSource(stream);
-        this.analyser = this.audioCtx.createAnalyser();
-        this.analyser.fftSize = 512;
-        source.connect(this.analyser);
+        this.sourceNode = this.audioCtx.createMediaStreamSource(stream);
+        // ScriptProcessor captures raw Float32 audio samples continuously
+        this.processorNode = this.audioCtx.createScriptProcessor(4096, 1, 1);
 
-        const timeData = new Uint8Array(this.analyser.fftSize);
-        const freqData = new Uint8Array(this.analyser.frequencyBinCount);
-        let noiseSum = 0;
+        // Mute speaker output to prevent acoustic feedback loop
+        this.silenceGain = this.audioCtx.createGain();
+        this.silenceGain.gain.value = 0;
 
-        const checkVAD = () => {
+        this.sourceNode.connect(this.processorNode);
+        this.processorNode.connect(this.silenceGain);
+        this.silenceGain.connect(this.audioCtx.destination);
+
+        this.processorNode.onaudioprocess = (e) => {
           if (!this.isListening) return;
-          this.analyser.getByteTimeDomainData(timeData);
-          this.analyser.getByteFrequencyData(freqData);
+          const inputData = e.inputBuffer.getChannelData(0);
+          this.pcmChunks.push(new Float32Array(inputData));
 
-          // 1. Time-Domain RMS calculation
-          let rmsSum = 0;
-          for (let i = 0; i < timeData.length; i++) {
-            const v = (timeData[i] - 128) / 128;
-            rmsSum += v * v;
+          // Real-time RMS calculation for Voice Activity Detection
+          let sum = 0;
+          for (let i = 0; i < inputData.length; i++) {
+            sum += inputData[i] * inputData[i];
           }
-          const rms = Math.sqrt(rmsSum / timeData.length);
+          const rms = Math.sqrt(sum / inputData.length);
 
-          // 2. Vocal range energy (100Hz - 3500Hz)
-          const vocalBins = Math.min(32, freqData.length);
-          let vocalSum = 0;
-          for (let i = 1; i < vocalBins; i++) vocalSum += freqData[i];
-          const vocalEnergy = vocalSum / vocalBins;
-
-          // Ambient noise floor calibration during first 250ms
           const elapsed = Date.now() - this.startTime;
-          if (elapsed < 250) {
-            noiseSum += rms;
-            this.ambientSamples++;
-            this.animFrameId = requestAnimationFrame(checkVAD);
+          if (elapsed < 200) {
+            this.noiseSum += rms;
+            this.noiseSamples++;
             return;
           } else if (!this.isCalibrated) {
-            this.ambientNoiseRMS = Math.max(0.003, (noiseSum / (this.ambientSamples || 1)));
+            this.ambientNoiseRMS = Math.max(0.003, this.noiseSum / (this.noiseSamples || 1));
             this.isCalibrated = true;
           }
 
-          const currentLevel = Math.max(rms * 100, vocalEnergy);
-          if (currentLevel > this.maxVolume) this.maxVolume = currentLevel;
-
-          // Realistic Speech Threshold (Never miss quiet or normal speech)
           const speechThreshold = Math.max(0.007, this.ambientNoiseRMS * 1.35);
           const silenceThreshold = Math.max(0.003, this.ambientNoiseRMS * 1.05);
 
-          // User speaking detected
-          if (rms > speechThreshold || (vocalEnergy > 5 && rms > this.ambientNoiseRMS * 1.2)) {
+          if (rms > speechThreshold) {
             if (!this.speechDetected) {
               this.speechDetected = true;
-              // Show HUD popup now that user has actually begun speaking!
               if (window.electronAPI && window.electronAPI.sendHudUpdate) {
                 window.electronAPI.sendHudUpdate({ phase: 'listening' });
               }
             }
-            this.speechFrames++;
             if (this.silenceTimer) {
               clearTimeout(this.silenceTimer);
               this.silenceTimer = null;
@@ -680,16 +704,14 @@ document.addEventListener('DOMContentLoaded', () => {
               clearTimeout(this.noSpeechTimeout);
               this.noSpeechTimeout = null;
             }
-          } else if (this.speechDetected && (rms < silenceThreshold && vocalEnergy < 4)) {
+          } else if (this.speechDetected && rms < silenceThreshold) {
             if (!this.silenceTimer) {
-              // Natural 700ms pause marks end of turn
+              // 650ms natural pause ends utterance
               this.silenceTimer = setTimeout(() => {
-                this.stopAndProcess(this.onSpeechDone, true);
-              }, 700);
+                this.stopAndProcess(this.onSpeechDone);
+              }, 650);
             }
           }
-
-          this.animFrameId = requestAnimationFrame(checkVAD);
         };
 
         this.isListening = true;
@@ -697,13 +719,11 @@ document.addEventListener('DOMContentLoaded', () => {
         updateHandsFreeUI('listening');
         btnMic.classList.add('listening');
 
-        this.animFrameId = requestAnimationFrame(checkVAD);
-
-        // Safety Turn timeout 1: If no speech within 5.5s, process if audio exists, else rest silently
+        // Turn timeout 1: Safety when no speech detected
         this.noSpeechTimeout = setTimeout(() => {
           if (this.isListening) {
-            if (this.speechDetected && this.audioChunks.length > 0) {
-              this.stopAndProcess(this.onSpeechDone, true);
+            if (this.speechDetected && this.pcmChunks.length > 0) {
+              this.stopAndProcess(this.onSpeechDone);
             } else {
               this.stop();
               if (isHandsFreeMode && !window.triAIIsSpeaking) {
@@ -713,15 +733,15 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         }, 5500);
 
-        // Safety Turn timeout 2: Maximum turn duration limit (7.5s)
+        // Turn timeout 2: Maximum utterance length (8.0s)
         this.maxSpeechTimer = setTimeout(() => {
-          if (this.isListening && (this.speechDetected || this.audioChunks.length > 0)) {
-            this.stopAndProcess(this.onSpeechDone, true);
+          if (this.isListening && (this.speechDetected || this.pcmChunks.length > 0)) {
+            this.stopAndProcess(this.onSpeechDone);
           }
-        }, 7500);
+        }, 8000);
 
       } catch (err) {
-        console.error('Native voice recorder start error:', err);
+        console.error('Studio PCM Audio Engine error:', err);
         this.isListening = false;
         isListening = false;
         updateHandsFreeUI('idle');
@@ -732,96 +752,109 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
 
-    async stopAndProcess(onSpeechDone, forceProcess = false) {
+    async stopAndProcess(onSpeechDone) {
       if (!this.isListening) return;
       this.isListening = false;
       isListening = false;
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
       if (this.noSpeechTimeout) clearTimeout(this.noSpeechTimeout);
       if (this.maxSpeechTimer) clearTimeout(this.maxSpeechTimer);
-      if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
 
       updateHandsFreeUI('processing');
       btnMic.classList.remove('listening');
 
-      // Stop AudioContext analyser
+      // Stop mic tracks and audio nodes
+      if (this.sourceNode) {
+        try { this.sourceNode.disconnect(); } catch (e) {}
+        this.sourceNode = null;
+      }
+      if (this.processorNode) {
+        try { this.processorNode.disconnect(); } catch (e) {}
+        this.processorNode = null;
+      }
+      if (this.silenceGain) {
+        try { this.silenceGain.disconnect(); } catch (e) {}
+        this.silenceGain = null;
+      }
+      if (this.mediaStream) {
+        this.mediaStream.getTracks().forEach(t => t.stop());
+        this.mediaStream = null;
+      }
+
+      const inputSampleRate = this.audioCtx ? this.audioCtx.sampleRate : 16000;
       if (this.audioCtx && this.audioCtx.state !== 'closed') {
         try { await this.audioCtx.close(); } catch (e) {}
         this.audioCtx = null;
       }
 
-      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-        this.mediaRecorder.onstop = async () => {
-          if (this.mediaStream) {
-            this.mediaStream.getTracks().forEach(t => t.stop());
-            this.mediaStream = null;
-          }
+      // Merge Float32 chunks
+      let totalSamples = 0;
+      for (const c of this.pcmChunks) totalSamples += c.length;
 
-          const blobType = this.mediaRecorder.mimeType || 'audio/webm';
-          const audioBlob = new Blob(this.audioChunks, { type: blobType });
-
-          // If blob is too small, silently restart loop without hanging the HUD
-          if (audioBlob.size < 800) {
-            updateHandsFreeUI('idle');
-            if (window.electronAPI && window.electronAPI.sendHudUpdate) {
-              window.electronAPI.sendHudUpdate({ phase: 'hide' });
-            }
-            if (isHandsFreeMode && !window.triAIIsSpeaking) {
-              setTimeout(() => startListeningLoop(), 400);
-            }
-            return;
-          }
-
-          const base64Audio = await this.blobToBase64(audioBlob);
-
-          this.isTranscribing = true;
-          if (window.electronAPI && window.electronAPI.sendHudUpdate) {
-            window.electronAPI.sendHudUpdate({ phase: 'processing', text: 'প্রসেসিং হচ্ছে...' });
-          }
-
-          try {
-            const res = await fetch('/api/transcribe', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ audio: base64Audio, format: 'webm' })
-            });
-            const data = await res.json();
-            if (data.success && data.text && data.text.trim()) {
-              console.log('[Native Voice Transcript]:', data.text);
-              if (window.electronAPI && window.electronAPI.sendHudUpdate) {
-                window.electronAPI.sendHudUpdate({ phase: 'processing', text: data.text.trim() });
-              }
-              if (onSpeechDone) onSpeechDone(data.text.trim());
-            } else {
-              updateHandsFreeUI('idle');
-              if (window.electronAPI && window.electronAPI.sendHudUpdate) {
-                window.electronAPI.sendHudUpdate({ phase: 'hide' });
-              }
-              if (isHandsFreeMode && !window.triAIIsSpeaking) {
-                setTimeout(() => startListeningLoop(), 400);
-              }
-            }
-          } catch (e) {
-            console.error('Transcribe error:', e);
-            updateHandsFreeUI('idle');
-            if (window.electronAPI && window.electronAPI.sendHudUpdate) {
-              window.electronAPI.sendHudUpdate({ phase: 'hide' });
-            }
-            if (isHandsFreeMode && !window.triAIIsSpeaking) {
-              setTimeout(() => startListeningLoop(), 400);
-            }
-          } finally {
-            this.isTranscribing = false;
-          }
-        };
-
-        try {
-          this.mediaRecorder.stop();
-        } catch (e) {
-          this.stop();
+      // Ignore accidental micro-clicks (< 350ms) or silence
+      if (totalSamples < inputSampleRate * 0.35 || !this.speechDetected) {
+        updateHandsFreeUI('idle');
+        if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+          window.electronAPI.sendHudUpdate({ phase: 'hide' });
         }
-      } else {
-        this.stop();
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => startListeningLoop(), 400);
+        }
+        return;
+      }
+
+      const fullBuffer = new Float32Array(totalSamples);
+      let offset = 0;
+      for (const c of this.pcmChunks) {
+        fullBuffer.set(c, offset);
+        offset += c.length;
+      }
+
+      // Downsample to clean 16kHz mono PCM and encode pure WAV
+      const downsampled = downsampleBuffer(fullBuffer, inputSampleRate, 16000);
+      const pcm16 = floatTo16BitPCM(downsampled);
+      const wavBlob = encodeWAV(pcm16, 16000);
+
+      const base64Audio = await this.blobToBase64(wavBlob);
+
+      this.isTranscribing = true;
+      if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+        window.electronAPI.sendHudUpdate({ phase: 'processing', text: 'প্রসেসিং হচ্ছে...' });
+      }
+
+      try {
+        const res = await fetch('/api/transcribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ audio: base64Audio, format: 'wav' })
+        });
+        const data = await res.json();
+        if (data.success && data.text && data.text.trim()) {
+          console.log('[PCM Studio Voice Transcript]:', data.text);
+          if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+            window.electronAPI.sendHudUpdate({ phase: 'processing', text: data.text.trim() });
+          }
+          if (onSpeechDone) onSpeechDone(data.text.trim());
+        } else {
+          updateHandsFreeUI('idle');
+          if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+            window.electronAPI.sendHudUpdate({ phase: 'hide' });
+          }
+          if (isHandsFreeMode && !window.triAIIsSpeaking) {
+            setTimeout(() => startListeningLoop(), 400);
+          }
+        }
+      } catch (e) {
+        console.error('PCM Transcribe error:', e);
+        updateHandsFreeUI('idle');
+        if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+          window.electronAPI.sendHudUpdate({ phase: 'hide' });
+        }
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => startListeningLoop(), 400);
+        }
+      } finally {
+        this.isTranscribing = false;
       }
     }
 
@@ -844,9 +877,17 @@ document.addEventListener('DOMContentLoaded', () => {
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
       if (this.noSpeechTimeout) clearTimeout(this.noSpeechTimeout);
       if (this.maxSpeechTimer) clearTimeout(this.maxSpeechTimer);
-      if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
-      if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
-        try { this.mediaRecorder.stop(); } catch (e) {}
+      if (this.sourceNode) {
+        try { this.sourceNode.disconnect(); } catch (e) {}
+        this.sourceNode = null;
+      }
+      if (this.processorNode) {
+        try { this.processorNode.disconnect(); } catch (e) {}
+        this.processorNode = null;
+      }
+      if (this.silenceGain) {
+        try { this.silenceGain.disconnect(); } catch (e) {}
+        this.silenceGain = null;
       }
       if (this.mediaStream) {
         this.mediaStream.getTracks().forEach(t => t.stop());
@@ -863,7 +904,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     }
   }
-  const neuralWhisper = new NativeMediaRecorderEngine();
+  const neuralWhisper = new StudioPCMAudioEngine();
 
   function startListeningLoop() {
     if (!isHandsFreeMode || window.triAIIsSpeaking) return;
