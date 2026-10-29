@@ -613,7 +613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const isElectronApp = !!(window.electronAPI && window.electronAPI.isElectron);
 
-  // --- Native MediaRecorder Voice Engine (Electron Native & Desktop Zero-Error STT) ---
+  // --- Professional Adaptive AI Voice Engine (Auto-Noise Baseline VAD + Zero Hallucination) ---
   class NativeMediaRecorderEngine {
     constructor() {
       this.isListening = false;
@@ -624,11 +624,19 @@ document.addEventListener('DOMContentLoaded', () => {
       this.audioCtx = null;
       this.analyser = null;
       this.silenceTimer = null;
-      this.safetyTimer = null;
+      this.noSpeechTimeout = null;
+      this.maxSpeechTimer = null;
       this.speechDetected = false;
+      this.speechFrames = 0;
       this.maxVolume = 0;
       this.onSpeechDone = null;
       this.animFrameId = null;
+
+      // Dynamic ambient noise baseline calibration
+      this.startTime = 0;
+      this.ambientNoiseRMS = 0.008;
+      this.ambientSamples = 0;
+      this.isCalibrated = false;
     }
 
     async start(onSpeechDone) {
@@ -636,7 +644,12 @@ document.addEventListener('DOMContentLoaded', () => {
       try {
         this.audioChunks = [];
         this.speechDetected = false;
+        this.speechFrames = 0;
         this.maxVolume = 0;
+        this.startTime = Date.now();
+        this.ambientNoiseRMS = 0.008;
+        this.ambientSamples = 0;
+        this.isCalibrated = false;
         this.onSpeechDone = onSpeechDone;
 
         const stream = await navigator.mediaDevices.getUserMedia({
@@ -648,7 +661,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         this.mediaStream = stream;
 
-        // Choose best container supported by Chromium
+        // Container setup
         let mimeType = 'audio/webm;codecs=opus';
         if (typeof MediaRecorder.isTypeSupported === 'function') {
           if (!MediaRecorder.isTypeSupported(mimeType)) {
@@ -665,10 +678,10 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         };
 
-        // Record chunks every 100ms
-        this.mediaRecorder.start(100);
+        // Emit chunks every 250ms
+        this.mediaRecorder.start(250);
 
-        // Parallel Analyser for precise dual-mode VAD (Time Domain RMS + Vocal Energy)
+        // VAD Analyser setup
         const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
         this.audioCtx = new AudioCtxClass();
         const source = this.audioCtx.createMediaStreamSource(stream);
@@ -678,13 +691,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const timeData = new Uint8Array(this.analyser.fftSize);
         const freqData = new Uint8Array(this.analyser.frequencyBinCount);
+        let noiseSum = 0;
 
         const checkVAD = () => {
           if (!this.isListening) return;
           this.analyser.getByteTimeDomainData(timeData);
           this.analyser.getByteFrequencyData(freqData);
 
-          // 1. Time-Domain RMS (Volume amplitude)
+          // 1. Time-Domain RMS calculation
           let rmsSum = 0;
           for (let i = 0; i < timeData.length; i++) {
             const v = (timeData[i] - 128) / 128;
@@ -693,29 +707,48 @@ document.addEventListener('DOMContentLoaded', () => {
           const rms = Math.sqrt(rmsSum / timeData.length);
 
           // 2. Vocal range energy (100Hz - 3500Hz)
-          const vocalBins = Math.min(35, freqData.length);
+          const vocalBins = Math.min(32, freqData.length);
           let vocalSum = 0;
-          for (let i = 1; i < vocalBins; i++) {
-            vocalSum += freqData[i];
-          }
+          for (let i = 1; i < vocalBins; i++) vocalSum += freqData[i];
           const vocalEnergy = vocalSum / vocalBins;
+
+          // Ambient noise floor calibration during first 280ms
+          const elapsed = Date.now() - this.startTime;
+          if (elapsed < 280) {
+            noiseSum += rms;
+            this.ambientSamples++;
+            this.animFrameId = requestAnimationFrame(checkVAD);
+            return;
+          } else if (!this.isCalibrated) {
+            this.ambientNoiseRMS = Math.max(0.005, (noiseSum / (this.ambientSamples || 1)));
+            this.isCalibrated = true;
+          }
 
           const currentLevel = Math.max(rms * 100, vocalEnergy);
           if (currentLevel > this.maxVolume) this.maxVolume = currentLevel;
 
-          // Sensitive human speech detection threshold
-          if (rms > 0.012 || vocalEnergy > 5) {
+          // Adaptive Thresholds relative to ambient noise floor
+          const speechThreshold = Math.max(0.022, this.ambientNoiseRMS * 2.8);
+          const silenceThreshold = Math.max(0.010, this.ambientNoiseRMS * 1.35);
+
+          // User speaking detected
+          if (rms > speechThreshold || (vocalEnergy > 8 && rms > this.ambientNoiseRMS * 1.5)) {
             this.speechDetected = true;
+            this.speechFrames++;
             if (this.silenceTimer) {
               clearTimeout(this.silenceTimer);
               this.silenceTimer = null;
             }
-          } else if (this.speechDetected && (rms < 0.007 && vocalEnergy < 3.5)) {
+            if (this.noSpeechTimeout) {
+              clearTimeout(this.noSpeechTimeout);
+              this.noSpeechTimeout = null;
+            }
+          } else if (this.speechDetected && (rms < silenceThreshold && vocalEnergy < 5)) {
             if (!this.silenceTimer) {
-              // Natural 1100ms pause marks end of speech command
+              // Natural 850ms human pause marks end of turn
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone, true);
-              }, 1100);
+              }, 850);
             }
           }
 
@@ -729,12 +762,23 @@ document.addEventListener('DOMContentLoaded', () => {
 
         this.animFrameId = requestAnimationFrame(checkVAD);
 
-        // Turn timeout: 12 seconds
-        this.safetyTimer = setTimeout(() => {
-          if (this.isListening) {
+        // Turn timeout 1: If NO speech at all within 4.5 seconds, cancel cleanly (never send silence to Whisper!)
+        this.noSpeechTimeout = setTimeout(() => {
+          if (this.isListening && !this.speechDetected) {
+            console.log('[Voice Engine] No speech detected within 4.5s timeout. Restarting clean cycle.');
+            this.stop();
+            if (isHandsFreeMode && !window.triAIIsSpeaking) {
+              setTimeout(() => startListeningLoop(), 300);
+            }
+          }
+        }, 4500);
+
+        // Turn timeout 2: Maximum turn duration safety limit (6.5s) if user was speaking
+        this.maxSpeechTimer = setTimeout(() => {
+          if (this.isListening && this.speechDetected) {
             this.stopAndProcess(this.onSpeechDone, true);
           }
-        }, 12000);
+        }, 6500);
 
       } catch (err) {
         console.error('Native voice recorder start error:', err);
@@ -750,7 +794,8 @@ document.addEventListener('DOMContentLoaded', () => {
       this.isListening = false;
       isListening = false;
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
-      if (this.safetyTimer) clearTimeout(this.safetyTimer);
+      if (this.noSpeechTimeout) clearTimeout(this.noSpeechTimeout);
+      if (this.maxSpeechTimer) clearTimeout(this.maxSpeechTimer);
       if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
 
       updateHandsFreeUI('processing');
@@ -762,9 +807,9 @@ document.addEventListener('DOMContentLoaded', () => {
         this.audioCtx = null;
       }
 
-      // Check if actual speech occurred (or forced by manual click)
-      if (!forceProcess && !this.speechDetected && this.maxVolume < 3) {
-        console.log('No speech detected in audio stream.');
+      // Pre-validation: reject transient clicks or silence
+      if (!forceProcess && (!this.speechDetected || this.speechFrames < 5)) {
+        console.log('[Voice Engine] Only transient noise detected. Ignoring.');
         this.stop();
         if (isHandsFreeMode && !window.triAIIsSpeaking) {
           setTimeout(() => startListeningLoop(), 400);
@@ -782,7 +827,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const blobType = this.mediaRecorder.mimeType || 'audio/webm';
           const audioBlob = new Blob(this.audioChunks, { type: blobType });
 
-          if (audioBlob.size < 800) {
+          if (audioBlob.size < 1200) {
             updateHandsFreeUI('idle');
             if (isHandsFreeMode && !window.triAIIsSpeaking) {
               setTimeout(() => startListeningLoop(), 400);
@@ -847,7 +892,8 @@ document.addEventListener('DOMContentLoaded', () => {
       this.isListening = false;
       isListening = false;
       if (this.silenceTimer) clearTimeout(this.silenceTimer);
-      if (this.safetyTimer) clearTimeout(this.safetyTimer);
+      if (this.noSpeechTimeout) clearTimeout(this.noSpeechTimeout);
+      if (this.maxSpeechTimer) clearTimeout(this.maxSpeechTimer);
       if (this.animFrameId) cancelAnimationFrame(this.animFrameId);
       if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
         try { this.mediaRecorder.stop(); } catch (e) {}

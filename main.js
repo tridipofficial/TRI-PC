@@ -80,13 +80,17 @@ ipcMain.handle('youtube-open', async (event, url) => {
       }
     });
     youtubeWindow.loadURL(targetUrl);
+    youtubeWindow.setAlwaysOnTop(true);
     youtubeWindow.show();
     youtubeWindow.focus();
+    youtubeWindow.setAlwaysOnTop(false);
     console.log(`[Electron Main IPC] Created new YouTube BrowserWindow. visible: ${youtubeWindow.isVisible()}, focused: ${youtubeWindow.isFocused()}`);
   } else {
     youtubeWindow.loadURL(targetUrl);
+    youtubeWindow.setAlwaysOnTop(true);
     youtubeWindow.show();
     youtubeWindow.focus();
+    youtubeWindow.setAlwaysOnTop(false);
     console.log(`[Electron Main IPC] Navigated existing YouTube BrowserWindow. visible: ${youtubeWindow.isVisible()}, focused: ${youtubeWindow.isFocused()}`);
   }
   return {

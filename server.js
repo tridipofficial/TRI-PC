@@ -604,6 +604,13 @@ function normalizeBn(str) {
   // Normalize YouTube phonetic variants in Bengali & English
   s = s.replace(/(ইউটিউব|ইউটুব|ইউটিব|ইউটুভ|ইউটিউপ|উটিউব|ইউটউব|উটিউপ|ইউটিউপ|ইউ\s*টুব|ইউ\s*টিউব|you\s*tube)/gi, 'youtube');
   s = s.replace(/\byt\b/gi, 'youtube');
+  // Common phonetic misspellings produced by speech-to-text
+  s = s.replace(/\bনোতুন\b/gi, 'নতুন');
+  s = s.replace(/[\u09F0\u09F1]িডেও/gi, 'ভিডিও');
+  s = s.replace(/\bবিডিও\b/gi, 'ভিডিও');
+  s = s.replace(/\bসারচ\b/gi, 'সার্চ');
+  s = s.replace(/\bচালারো\b/gi, 'চালাও');
+  s = s.replace(/\bচালাউ\b/gi, 'চালাও');
   return s.replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
@@ -666,33 +673,38 @@ function detectIntentAction(prompt) {
     };
   }
 
-  // 1. YouTube Video Click / Play (Step 3) - "প্রথমটা ক্লিক করো", "দ্বিতীয়টা চালাও", "[Song Title] ক্লিক করো"
-  const isClickVerb = norm.includes('ক্লিক') || norm.includes('চালাও') || norm.includes('বাজাও') || norm.includes('প্লে') || norm.includes('play') || norm.includes('click') || norm.includes('চালিয়ে দাও');
-  const hasOrdinal = norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('এক নাম্বার') || norm.includes('1st') || norm.includes('first') ||
-                    norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') ||
-                    norm.includes('তৃতীয়') || norm.includes('৩য়') || norm.includes('৩ নাম্বার') || norm.includes('তিন নাম্বার') || norm.includes('3rd') || norm.includes('third') ||
-                    norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') ||
-                    norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') ||
+  // 1. YouTube Video Click / Play (Step 3) - "প্রথমটা ক্লিক করো", "দ্বিতীয়টা চালাও", "ভিডিওটা চালু করো", "[Song Title] ক্লিক করো"
+  const isClickVerb = norm.includes('ক্লিক') || norm.includes('চালাও') || norm.includes('বাজাও') || norm.includes('প্লে') || norm.includes('play') || norm.includes('click') || norm.includes('চালিয়ে দাও') ||
+                      norm.includes('চালু করো') || norm.includes('চালু কর') || norm.includes('চালু') ||
+                      norm.includes('অন করো') || norm.includes('অন কর') || norm.includes('অন করে দাও') || norm.includes('অন') ||
+                      norm.includes('শুরু করো') || norm.includes('start');
+
+  const hasOrdinal = norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('১ নম্বর') || norm.includes('এক নাম্বার') || norm.includes('এক নম্বর') || norm.includes('1st') || norm.includes('first') ||
+                    norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('২ নম্বর') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') ||
+                    norm.includes('তৃতীয়') || norm.includes('৩য়') || norm.includes('৩ নাম্বার') || norm.includes('৩ নম্বর') || norm.includes('তিন নাম্বার') || norm.includes('3rd') || norm.includes('third') ||
+                    norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') || norm.includes('৪ নম্বর') ||
+                    norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') || norm.includes('৫ নম্বর') ||
                     norm.includes('পরেরটা') || norm.includes('লাস্ট');
 
-  if (hasOrdinal || (isClickVerb && (sessionContext.activeApp === 'YOUTUBE' || norm.includes('গান') || norm.includes('সং') || norm.includes('ভিডিও')))) {
+  if (hasOrdinal || (isClickVerb && (sessionContext.activeApp === 'YOUTUBE' || sessionContext.searchResults.length > 0 || norm.includes('গান') || norm.includes('সং') || norm.includes('ভিডিও')))) {
     let identifier = 1;
-    if (norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('এক নাম্বার') || norm.includes('1st') || norm.includes('first') || (norm.includes('১') && isClickVerb)) {
+    if (norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('১ নম্বর') || norm.includes('এক নাম্বার') || norm.includes('এক নম্বর') || norm.includes('1st') || norm.includes('first') || (norm.includes('১') && isClickVerb)) {
       identifier = 1;
-    } else if (norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') || (norm.includes('২') && isClickVerb)) {
+    } else if (norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('২ নম্বর') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') || (norm.includes('২') && isClickVerb)) {
       identifier = 2;
-    } else if (norm.includes('তৃতীয়') || norm.includes('৩য়') || norm.includes('৩ নাম্বার') || norm.includes('তিন নাম্বার') || norm.includes('3rd') || norm.includes('third') || (norm.includes('৩') && isClickVerb)) {
+    } else if (norm.includes('তৃতীয়') || norm.includes('৩য়') || norm.includes('৩ নাম্বার') || norm.includes('৩ নম্বর') || norm.includes('তিন নাম্বার') || norm.includes('3rd') || norm.includes('third') || (norm.includes('৩') && isClickVerb)) {
       identifier = 3;
-    } else if (norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') || (norm.includes('৪') && isClickVerb)) {
+    } else if (norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') || norm.includes('৪ নম্বর') || (norm.includes('৪') && isClickVerb)) {
       identifier = 4;
-    } else if (norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') || (norm.includes('৫') && isClickVerb)) {
+    } else if (norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') || norm.includes('৫ নম্বর') || (norm.includes('৫') && isClickVerb)) {
       identifier = 5;
     } else {
-      identifier = prompt
+      const stripped = prompt
         .replace(/(youtube|ইউটিউব|ইউটুব|ইউটিব)\s*(এ|ে)?/gi, '')
-        .replace(/(ক্লিক করো|ক্লিক কর|ক্লিক|চালাও|বাজাও|প্লে করো|প্লে কর|প্লে|চালিয়ে দাও|অন করো|করে দাও|দাও|গানটা|গানটি|গান|ভিডিওটা|ভিডিওটি|ভিডিও|সেটা|ওটা|ওইটা|যেটা|song|video|play|click)/gi, '')
+        .replace(/(ক্লিক করো|ক্লিক কর|ক্লিক|চালাও|বাজাও|প্লে করো|প্লে কর|প্লে|চালিয়ে দাও|চালু করে দাও|চালু করো|চালু কর|চালু|অন করে দাও|অন করো|অন কর|অন|করে দাও|দাও|গানটা|গানটি|গান|ভিডিওটা|ভিডিওটি|ভিডিও|সেটা|ওটা|ওইটা|যেটা|song|video|play|click)/gi, '')
         .replace(/[।?!,.:;'"-]/g, ' ')
-        .trim() || 1;
+        .trim();
+      identifier = stripped.length > 1 ? stripped : 1;
     }
     return {
       type: 'YOUTUBE_CLICK',
@@ -1310,7 +1322,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
         formData.append('language', 'bn');
-        formData.append('prompt', 'YouTube, ইউটিউব, ওপেন করো, খোলো, গান, হিন্দি গান, বাংলা গান, সার্চ করো, চালাও, বন্ধ করো, TRIDIP');
+        formData.append('prompt', 'TRIDIP স্যারের বাংলা ভয়েস কমান্ড: ইউটিউব ওপেন করো, গান সার্চ করো, ভিডিও চালাও।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
@@ -1333,6 +1345,25 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         let text = (groqData.text || '').trim();
         // Remove common silent hallucinations
         if (text.toLowerCase() === 'thank you.' || text.toLowerCase() === 'you' || text.toLowerCase() === 'bye.') {
+          text = '';
+        }
+
+        // Detect and reject repeating token hallucinations on background noise
+        const words = text.split(/\s+/);
+        const wordCounts = {};
+        let isHallucination = false;
+        for (const w of words) {
+          const cleanW = w.replace(/[.,/#!$%^&*;:{}=\-_`~()।?!]/g, '');
+          if (cleanW.length > 2) {
+            wordCounts[cleanW] = (wordCounts[cleanW] || 0) + 1;
+            if (wordCounts[cleanW] >= 4) {
+              isHallucination = true;
+              break;
+            }
+          }
+        }
+        if (isHallucination) {
+          console.warn(`[Whisper STT] Rejected repetitive hallucination: "${text}"`);
           text = '';
         }
         console.log(`[Whisper STT] Transcribed in ${Date.now() - t0}ms: "${text}"`);
