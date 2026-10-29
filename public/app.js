@@ -258,9 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 3. Conversational Assistant & Reasoning (with Synchronized YouTube PWA Window)
-  let triYouTubeWindow = null;
-
+  // 3. Conversational Assistant & Reasoning (Archer AI Universal Action Dispatcher)
   async function sendMessage(text) {
     const prompt = text || chatInput.value.trim();
     if (!prompt) return;
@@ -272,39 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Show temporary thinking state
     const thinkingNode = appendThinkingCard();
-
-    // Immediate synchronous window handling for Web Browser fallback (only if not Electron)
-    if (!window.electronAPI?.isElectron) {
-      const normText = prompt.toLowerCase();
-      const hasYT = normText.includes('youtube') || normText.includes('ইউটিউব') || normText.includes('yt');
-      const hasOpen = normText.includes('open') || normText.includes('ওপেন') || normText.includes('খোলো') || normText.includes('চালু') || normText.includes('খোল');
-      const hasClose = normText.includes('close') || normText.includes('বন্ধ') || normText.includes('কেটে') || normText.includes('ক্লোজ') || normText.includes('exit') || normText.includes('destroy') || normText.includes('হোম');
-
-      if (hasYT && hasOpen && !hasClose) {
-        try {
-          if (!triYouTubeWindow || triYouTubeWindow.closed) {
-            const w = 1200;
-            const h = 750;
-            const left = Math.max(0, (window.screen.width - w) / 2);
-            const top = Math.max(0, (window.screen.height - h) / 2);
-            triYouTubeWindow = window.open('https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-          }
-          if (triYouTubeWindow) {
-            triYouTubeWindow.focus();
-          }
-        } catch (e) {
-          console.warn('Sync open YouTube error:', e);
-        }
-      } else if (hasClose && (hasYT || (triYouTubeWindow && !triYouTubeWindow.closed))) {
-        try {
-          if (triYouTubeWindow && !triYouTubeWindow.closed) {
-            triYouTubeWindow.close();
-            triYouTubeWindow = null;
-          }
-          window.focus();
-        } catch (e) {}
-      }
-    }
 
     try {
       const isElectronApp = !!(window.electronAPI && window.electronAPI.isElectron);
@@ -322,77 +287,16 @@ document.addEventListener('DOMContentLoaded', () => {
         thinkingNode.remove();
         appendAssistantMessage(data);
 
-        // Synchronize Visible YouTube App Window on TRIDIP Sir's Screen (Native Electron & Web Fallback)
-        if (data.action) {
-          const actType = data.action.type;
-          const actUrl = data.action.url;
-
-          if (window.electronAPI?.isElectron) {
-            if (actType === 'YOUTUBE_OPEN') {
-              window.electronAPI.openYouTube(actUrl || 'https://www.youtube.com');
-            } else if (actType === 'YOUTUBE_SEARCH' && actUrl) {
-              window.electronAPI.openYouTube(actUrl);
-            } else if (actType === 'YOUTUBE_CLICK' && actUrl) {
-              window.electronAPI.openYouTube(actUrl);
-            } else if (actType === 'YOUTUBE_CLOSE') {
-              window.electronAPI.closeYouTube();
-            }
+        // Universal System Action Handler (Archer AI Architecture)
+        if (data.action && data.action.url) {
+          if (window.electronAPI && window.electronAPI.openSystem) {
+            window.electronAPI.openSystem(data.action.url);
           } else {
-            if (actType === 'YOUTUBE_OPEN') {
-              try {
-                if (!triYouTubeWindow || triYouTubeWindow.closed) {
-                  const w = 1200;
-                  const h = 750;
-                  const left = Math.max(0, (window.screen.width - w) / 2);
-                  const top = Math.max(0, (window.screen.height - h) / 2);
-                  triYouTubeWindow = window.open(actUrl || 'https://www.youtube.com', 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-                }
-                if (triYouTubeWindow) triYouTubeWindow.focus();
-              } catch (e) {}
-            } else if (actType === 'YOUTUBE_SEARCH' && actUrl) {
-              try {
-                if (!triYouTubeWindow || triYouTubeWindow.closed) {
-                  const w = 1200;
-                  const h = 750;
-                  const left = Math.max(0, (window.screen.width - w) / 2);
-                  const top = Math.max(0, (window.screen.height - h) / 2);
-                  triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-                } else {
-                  triYouTubeWindow.location.href = actUrl;
-                  triYouTubeWindow.focus();
-                }
-              } catch (e) {}
-            } else if (actType === 'YOUTUBE_CLICK' && actUrl) {
-              try {
-                if (!triYouTubeWindow || triYouTubeWindow.closed) {
-                  const w = 1200;
-                  const h = 750;
-                  const left = Math.max(0, (window.screen.width - w) / 2);
-                  const top = Math.max(0, (window.screen.height - h) / 2);
-                  triYouTubeWindow = window.open(actUrl, 'TRI_YOUTUBE_PWA', `width=${w},height=${h},top=${top},left=${left},status=no,menubar=no,toolbar=no,location=no,resizable=yes,scrollbars=yes`);
-                } else {
-                  triYouTubeWindow.location.href = actUrl;
-                  triYouTubeWindow.focus();
-                }
-              } catch (e) {}
-            } else if (actType === 'YOUTUBE_CLOSE') {
-              try {
-                if (triYouTubeWindow && !triYouTubeWindow.closed) {
-                  triYouTubeWindow.close();
-                  triYouTubeWindow = null;
-                }
-                window.focus();
-              } catch (e) {}
+            try {
+              window.open(data.action.url, '_blank');
+            } catch (e) {
+              console.warn('Browser open blocked:', e);
             }
-          }
-        }
-
-        // Standard links for generic queries (Google, etc.)
-        if (data.action?.url && !data.action?.type?.startsWith('YOUTUBE_') && data.action?.type !== 'OPEN_YOUTUBE') {
-          try {
-            window.open(data.action.url, '_blank');
-          } catch (e) {
-            console.warn('Browser open blocked:', e);
           }
         }
 

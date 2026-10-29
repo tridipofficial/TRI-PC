@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, session } = require('electron');
+const { app, BrowserWindow, ipcMain, session, shell } = require('electron');
 const path = require('path');
 const http = require('http');
 
@@ -7,7 +7,6 @@ app.commandLine.appendSwitch('disable-features', 'SpeechRecognition');
 app.commandLine.appendSwitch('log-level', '3');
 
 let mainWindow = null;
-let youtubeWindow = null;
 
 // Ensure server.js is running
 function ensureServerRunning() {
@@ -48,74 +47,23 @@ async function createMainWindow() {
 
   mainWindow.loadURL('http://127.0.0.1:3456');
 
-  mainWindow.webContents.once('did-finish-load', () => {
-    if (process.argv.includes('--test-e2e')) {
-      setTimeout(runE2EVerification, 1500);
-    }
-  });
-
   mainWindow.on('closed', () => {
     mainWindow = null;
-    if (youtubeWindow && !youtubeWindow.isDestroyed()) {
-      youtubeWindow.close();
-    }
   });
 }
 
-// IPC Handlers for Native Desktop YouTube Automation
-ipcMain.handle('youtube-open', async (event, url) => {
-  const targetUrl = url || 'https://www.youtube.com';
-  console.log(`[Electron Main IPC] 'youtube-open' received with URL: ${targetUrl}`);
-  if (!youtubeWindow || youtubeWindow.isDestroyed()) {
-    youtubeWindow = new BrowserWindow({
-      width: 1240,
-      height: 780,
-      title: 'YouTube',
-      backgroundColor: '#0f0f0f',
-      autoHideMenuBar: true,
-      show: true,
-      webPreferences: {
-        nodeIntegration: false,
-        contextIsolation: true
-      }
-    });
-    youtubeWindow.loadURL(targetUrl);
-    youtubeWindow.setAlwaysOnTop(true);
-    youtubeWindow.show();
-    youtubeWindow.focus();
-    youtubeWindow.setAlwaysOnTop(false);
-    console.log(`[Electron Main IPC] Created new YouTube BrowserWindow. visible: ${youtubeWindow.isVisible()}, focused: ${youtubeWindow.isFocused()}`);
-  } else {
-    youtubeWindow.loadURL(targetUrl);
-    youtubeWindow.setAlwaysOnTop(true);
-    youtubeWindow.show();
-    youtubeWindow.focus();
-    youtubeWindow.setAlwaysOnTop(false);
-    console.log(`[Electron Main IPC] Navigated existing YouTube BrowserWindow. visible: ${youtubeWindow.isVisible()}, focused: ${youtubeWindow.isFocused()}`);
+// Universal System Open Handler (Archer AI Architecture)
+ipcMain.handle('system-open', async (event, targetUrl) => {
+  if (targetUrl) {
+    try {
+      await shell.openExternal(targetUrl);
+      return { success: true, url: targetUrl };
+    } catch (e) {
+      console.error('shell.openExternal failed:', e.message);
+      return { success: false, error: e.message };
+    }
   }
-  return {
-    success: true,
-    url: targetUrl,
-    isVisible: youtubeWindow ? youtubeWindow.isVisible() : false,
-    isFocused: youtubeWindow ? youtubeWindow.isFocused() : false
-  };
-});
-
-ipcMain.handle('youtube-close', async () => {
-  console.log(`[Electron Main IPC] 'youtube-close' received`);
-  let wasClosed = false;
-  if (youtubeWindow && !youtubeWindow.isDestroyed()) {
-    youtubeWindow.close();
-    youtubeWindow = null;
-    wasClosed = true;
-    console.log(`[Electron Main IPC] Closed YouTube BrowserWindow successfully.`);
-  }
-  if (mainWindow && !mainWindow.isDestroyed()) {
-    mainWindow.show();
-    mainWindow.focus();
-    console.log(`[Electron Main IPC] Refocused TRI AI mainWindow.`);
-  }
-  return { success: true, closed: wasClosed };
+  return { success: false, error: 'No URL provided' };
 });
 
 app.whenReady().then(() => {

@@ -5,7 +5,6 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { spawn } = require('child_process');
-const youtubeController = require('./youtube_controller.js');
 
 // Load environment variables from .env if present (Zero external dependencies)
 function loadEnv() {
@@ -601,9 +600,6 @@ const server = http.createServer(async (req, res) => {
 function normalizeBn(str) {
   if (!str) return '';
   let s = str.normalize('NFC').toLowerCase();
-  // Normalize YouTube phonetic variants in Bengali & English
-  s = s.replace(/(ইউটিউব|ইউটুব|ইউটিব|ইউটুভ|ইউটিউপ|উটিউব|ইউটউব|উটিউপ|ইউটিউপ|ইউ\s*টুব|ইউ\s*টিউব|you\s*tube)/gi, 'youtube');
-  s = s.replace(/\byt\b/gi, 'youtube');
   // Common phonetic misspellings produced by speech-to-text
   s = s.replace(/\bনোতুন\b/gi, 'নতুন');
   s = s.replace(/[\u09F0\u09F1]িডেও/gi, 'ভিডিও');
@@ -614,10 +610,10 @@ function normalizeBn(str) {
   return s.replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-// Global Session Context for Step-by-Step Interactive Workflow
+// Global Session Context
 let sessionContext = {
-  activeApp: null, // 'YOUTUBE' | 'GOOGLE' | null
-  lastQuery: 'latest hindi songs',
+  activeApp: null,
+  lastQuery: '',
   searchResults: [],
   lastPlayed: null
 };
@@ -631,117 +627,33 @@ function openUrlInWindows(url) {
   }
 }
 
-function extractYouTubeQuery(prompt) {
-  let q = prompt;
-  q = q.replace(/পুনরায়\s*(ইউটিউব|ইউটুব|ইউটিব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
-  q = q.replace(/আবার\s*(ইউটিউব|ইউটুব|ইউটিব|youtube)?\s*(ওপেন|খোলো|চালু)?\s*(করো|কর)?\s*(এবং|আর|তারপর|দিয়ে)?/gi, ' ');
-  q = q.replace(/(ইউটিউব|ইউটুব|ইউটিব|youtube)\s*[-–—]?\s*(এ|ে|টা|টি)?\s*(গিয়ে|যাও|ওপেন করে|খুলে|খোলো|ওপেন করো|ওপেন কর|চালু করো)?/gi, ' ');
-  q = q.replace(/^\s*[-–—]?\s*(এ|ে)\s+/gi, ' ');
-  q = q.replace(/(ওপেন করে|খুলে নিয়ে|চালু করে|ওপেন করো|ওপেন কর|খোলো|চালু করো|ওপেন|চালু)/gi, ' ');
-  q = q.replace(/(সার্চ করে দাও|সার্চ করে দিন|সার্চ করে|সার্চ করো|সার্চ কর|সার্চ|search)/gi, ' ');
-  q = q.replace(/(খুঁজে বের করো|খুঁজে দাও|খোঁজো|খুঁজে|বের করো)/gi, ' ');
-  q = q.replace(/(লিখে দাও|লিখে দিন|লিখে|টাইপ করো)/gi, ' ');
-  q = q.replace(/(আমাকে|আমাদের|দয়া করে|দয়া করে|প্লিজ|please)/gi, ' ');
-  q = q.replace(/(দেখাও|দেখান|দেখতে চাই|দেখবো|শুনবো|শুনব)/gi, ' ');
-  q = q.replace(/(চালিয়ে দাও|চালাও|বাজিয়ে দাও|বাজাও|প্লে করো|প্লে কর|প্লে|play)/gi, ' ');
-  q = q.replace(/(করতে বলছি|করতে বললাম|বলছি|বললাম|করতে চাই|করতে চাচ্ছি|করতে হবে|করতে)/gi, ' ');
-  q = q.replace(/(বাংলায়|বাংলা তে|বাংলাতে|ইংলিশে|ইংরেজিতে)/gi, ' ');
-  q = q.replace(/(করে দাও|করে দিন|করে|দাও|দিন|করো|কর)/gi, ' ');
-  q = q.replace(/(লিস্ট|তালিকা|লিস্টটা)/gi, ' ');
-  q = q.replace(/(পুনরায়|আবার|নতুন করে|একবার)/gi, ' ');
-  q = q.replace(/(আমি|তুমি|আপনি|ভাই)/gi, ' ');
-  q = q.replace(/[।?!,.:;'"-]/g, ' ');
-  q = q.replace(/\s+/g, ' ').trim();
-  return q;
-}
-
 // Safe Windows PC Action Controller (Desktop Superpowers)
 function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
-  // 0. YouTube Close / Return to Home Screen (Strict Rule: Works Every Single Time)
-  const isCloseVerb = norm.includes('বন্ধ করো') || norm.includes('বন্ধ কর') || norm.includes('বন্ধ') ||
-                      norm.includes('কেটে দাও') || norm.includes('কেটে দিন') || norm.includes('কেটে ফেলো') || norm.includes('কেটে') ||
-                      norm.includes('ক্লোজ করো') || norm.includes('ক্লোজ কর') || norm.includes('ক্লোজ') ||
-                      norm.includes('ডেস্ট্রয়') || norm.includes('destroy') || norm.includes('close') || norm.includes('exit');
-  const isHomeScreen = norm.includes('হোম স্ক্রিন') || norm.includes('হোমস্ক্রিন') || norm.includes('হোমে আসো') || norm.includes('হোম এ আসো') || norm.includes('হোমে যাও') || norm.includes('হোম স্ক্রিনে');
-
-  if ((norm.includes('youtube') || sessionContext.activeApp === 'YOUTUBE' || isHomeScreen) && (isCloseVerb || isHomeScreen)) {
+  // Quick Web & Browser Actions
+  if ((norm.includes('ইউটিউব') || norm.includes('youtube')) && (norm.includes('ওপেন') || norm.includes('খোলো') || norm.includes('খুল') || norm.includes('চালু') || norm.includes('যাও'))) {
     return {
-      type: 'YOUTUBE_CLOSE',
-      reply: 'TRIDIP স্যার, ইউটিউব উইন্ডো সম্পূর্ণ বন্ধ করে দেওয়া হয়েছে এবং আমরা আবার হোম স্ক্রিনে ফিরে এসেছি!'
+      type: 'OPEN_URL',
+      url: 'https://www.youtube.com',
+      reply: 'TRIDIP স্যার, ব্রাউজারে ইউটিউব ওপেন করা হয়েছে।'
     };
   }
 
-  // 1. YouTube Video Click / Play (Step 3) - "প্রথমটা ক্লিক করো", "দ্বিতীয়টা চালাও", "ভিডিওটা চালু করো", "[Song Title] ক্লিক করো"
-  const isClickVerb = norm.includes('ক্লিক') || norm.includes('চালাও') || norm.includes('বাজাও') || norm.includes('প্লে') || norm.includes('play') || norm.includes('click') || norm.includes('চালিয়ে দাও') ||
-                      norm.includes('চালু করো') || norm.includes('চালু কর') || norm.includes('চালু') ||
-                      norm.includes('অন করো') || norm.includes('অন কর') || norm.includes('অন করে দাও') || norm.includes('অন') ||
-                      norm.includes('শুরু করো') || norm.includes('start');
-
-  const hasOrdinal = norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('১ নম্বর') || norm.includes('এক নাম্বার') || norm.includes('এক নম্বর') || norm.includes('1st') || norm.includes('first') ||
-                    norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('২ নম্বর') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') ||
-                    norm.includes('তৃতীয়') || norm.includes('৩য়') || norm.includes('৩ নাম্বার') || norm.includes('৩ নম্বর') || norm.includes('তিন নাম্বার') || norm.includes('3rd') || norm.includes('third') ||
-                    norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') || norm.includes('৪ নম্বর') ||
-                    norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') || norm.includes('৫ নম্বর') ||
-                    norm.includes('পরেরটা') || norm.includes('লাস্ট');
-
-  if (hasOrdinal || (isClickVerb && (sessionContext.activeApp === 'YOUTUBE' || sessionContext.searchResults.length > 0 || norm.includes('গান') || norm.includes('সং') || norm.includes('ভিডিও')))) {
-    let identifier = 1;
-    if (norm.includes('প্রথম') || norm.includes('১ম') || norm.includes('১ নাম্বার') || norm.includes('১ নম্বর') || norm.includes('এক নাম্বার') || norm.includes('এক নম্বর') || norm.includes('1st') || norm.includes('first') || (norm.includes('১') && isClickVerb)) {
-      identifier = 1;
-    } else if (norm.includes('দ্বিতীয়') || norm.includes('২য়') || norm.includes('২ নাম্বার') || norm.includes('২ নম্বর') || norm.includes('দুই নাম্বার') || norm.includes('2nd') || norm.includes('second') || (norm.includes('২') && isClickVerb)) {
-      identifier = 2;
-    } else if (norm.includes('তৃতীয়') || norm.includes('৩য়') || norm.includes('৩ নাম্বার') || norm.includes('৩ নম্বর') || norm.includes('তিন নাম্বার') || norm.includes('3rd') || norm.includes('third') || (norm.includes('৩') && isClickVerb)) {
-      identifier = 3;
-    } else if (norm.includes('চতুর্থ') || norm.includes('৪র্থ') || norm.includes('৪ নাম্বার') || norm.includes('৪ নম্বর') || (norm.includes('৪') && isClickVerb)) {
-      identifier = 4;
-    } else if (norm.includes('পঞ্চম') || norm.includes('৫ম') || norm.includes('৫ নাম্বার') || norm.includes('৫ নম্বর') || (norm.includes('৫') && isClickVerb)) {
-      identifier = 5;
-    } else {
-      const stripped = prompt
-        .replace(/(youtube|ইউটিউব|ইউটুব|ইউটিব)\s*(এ|ে)?/gi, '')
-        .replace(/(ক্লিক করো|ক্লিক কর|ক্লিক|চালাও|বাজাও|প্লে করো|প্লে কর|প্লে|চালিয়ে দাও|চালু করে দাও|চালু করো|চালু কর|চালু|অন করে দাও|অন করো|অন কর|অন|করে দাও|দাও|গানটা|গানটি|গান|ভিডিওটা|ভিডিওটি|ভিডিও|সেটা|ওটা|ওইটা|যেটা|song|video|play|click)/gi, '')
-        .replace(/[।?!,.:;'"-]/g, ' ')
-        .trim();
-      identifier = stripped.length > 1 ? stripped : 1;
-    }
+  if ((norm.includes('ফেসবুক') || norm.includes('facebook')) && (norm.includes('ওপেন') || norm.includes('খোলো') || norm.includes('খুল') || norm.includes('চালু'))) {
     return {
-      type: 'YOUTUBE_CLICK',
-      identifier: identifier
+      type: 'OPEN_URL',
+      url: 'https://www.facebook.com',
+      reply: 'TRIDIP স্যার, ব্রাউজারে ফেসবুক ওপেন করা হয়েছে।'
     };
   }
 
-  // 2. YouTube Open vs YouTube Search (Unified Intent Engine)
-  const isYouTube = norm.includes('youtube');
-  const isOpenVerb = norm.includes('ওপেন') || norm.includes('খোলো') || norm.includes('খুল') || norm.includes('চালু') || norm.includes('শুরু') || norm.includes('open') || norm.includes('launch') || norm.includes('start');
-  const isSearchVerb = norm.includes('সার্চ') || norm.includes('search') || norm.includes('খুঁজে বের') || norm.includes('খুঁজে') || norm.includes('খোঁজো') || norm.includes('লিখে');
-  const isMusic = norm.includes('গান') || norm.includes('সং') || norm.includes('song') || norm.includes('মিউজিক') || norm.includes('music') || norm.includes('ভিডিও') || norm.includes('video') || norm.includes('হিন্দি') || norm.includes('hindi') || norm.includes('বাংলা') || norm.includes('bangla');
-
-  // Explicit YouTube Open Command takes 100% immediate priority if no search/music payload
-  if (isYouTube && isOpenVerb && !isSearchVerb && !isMusic) {
+  if (norm.includes('ব্রাউজার') && (norm.includes('ওপেন') || norm.includes('খোলো') || norm.includes('খুল') || norm.includes('চালু'))) {
     return {
-      type: 'YOUTUBE_OPEN'
+      type: 'OPEN_URL',
+      url: 'https://www.google.com',
+      reply: 'TRIDIP স্যার, ব্রাউজার ওপেন করা হয়েছে।'
     };
-  }
-
-  if (isYouTube || isMusic || (sessionContext.activeApp === 'YOUTUBE' && isSearchVerb)) {
-    let cleanQ = extractYouTubeQuery(prompt);
-
-    if (cleanQ === 'গান' || cleanQ === 'সং' || cleanQ === 'song') {
-      cleanQ = 'popular trending hit songs';
-    }
-
-    if (cleanQ.length >= 2 && (isSearchVerb || isMusic || !isYouTube)) {
-      return {
-        type: 'YOUTUBE_SEARCH',
-        query: cleanQ
-      };
-    } else if (isYouTube) {
-      return {
-        type: 'YOUTUBE_OPEN'
-      };
-    }
   }
 
   // 2. Capabilities / "তুমি কী কী কাজ করতে পারো?"
@@ -940,118 +852,14 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
       };
     }
 
-    // 4. YouTube Close / Destroy & Return to TRI AI Home Screen
-    if (actionType === 'YOUTUBE_CLOSE') {
-      sessionContext.activeApp = null;
-      sessionContext.lastQuery = '';
-      sessionContext.searchResults = [];
-      if (!isElectron) {
-        await youtubeController.close();
-      }
+    // 4. Universal Web & URL Opener
+    if (actionType === 'OPEN_URL' || actionType === 'OPEN_YOUTUBE') {
+      const targetUrl = intent.url || intentUrl || 'https://www.youtube.com';
+      openUrlInWindows(targetUrl);
       return {
-        message: 'TRIDIP স্যার, ইউটিউব উইন্ডো সম্পূর্ণ বন্ধ করে দেওয়া হয়েছে এবং আমরা আবার হোম স্ক্রিনে ফিরে এসেছি!',
-        url: null
+        message: presetReply || intent.reply || `TRIDIP স্যার, ব্রাউজারে ${targetUrl} ওপেন করা হয়েছে!`,
+        url: targetUrl
       };
-    }
-
-    // 4.1 YouTube Real Desktop Automation (Step 1: Open, Step 2: Search, Step 3: Click)
-    if (actionType === 'YOUTUBE_OPEN') {
-      sessionContext.activeApp = 'YOUTUBE';
-      if (!isElectron) {
-        await youtubeController.open();
-      }
-      return {
-        message: 'TRIDIP স্যার, ইউটিউব উইন্ডো সরাসরি ওপেন করা হয়েছে! কী গান বা ভিডিও সার্চ করবো বলুন।',
-        url: 'https://www.youtube.com'
-      };
-    }
-
-    if (actionType === 'YOUTUBE_SEARCH') {
-      sessionContext.activeApp = 'YOUTUBE';
-      const searchTarget = intent.query || 'latest hindi songs';
-      sessionContext.lastQuery = searchTarget;
-
-      let results = [];
-      if (!isElectron) {
-        const res = await youtubeController.search(searchTarget);
-        results = res.results || [];
-      } else {
-        // Fast in-process fetch without spawning duplicate Chrome
-        results = await youtubeController.fetchSearchResults(searchTarget);
-      }
-      sessionContext.searchResults = results;
-
-      let msg = `TRIDIP স্যার, ইউটিউবে '${searchTarget}' সার্চ করা হয়েছে!`;
-      if (results.length > 0) {
-        msg += ` শীর্ষ ৩টি ভিডিও:\n` +
-          `১. ${results[0].title}\n` +
-          (results[1] ? `২. ${results[1].title}\n` : '') +
-          (results[2] ? `৩. ${results[2].title}\n` : '') +
-          `\nবলুন কোনটি চালাবো (প্রথমটা, দ্বিতীয়টা বা যেকোনো গানের নাম বলুন)?`;
-      } else {
-        msg += ` রেজাল্ট স্ক্রিনে দেখানো হয়েছে। আপনি কি প্রথম ভিডিওটি প্লে করতে চান?`;
-      }
-
-      return {
-        message: msg,
-        url: `https://www.youtube.com/results?search_query=${encodeURIComponent(searchTarget)}`,
-        results: results
-      };
-    }
-
-    if (actionType === 'YOUTUBE_CLICK') {
-      sessionContext.activeApp = 'YOUTUBE';
-      const id = intent.identifier || 1;
-      let res = null;
-      if (!isElectron) {
-        res = await youtubeController.clickVideo(id);
-      } else {
-        let target = null;
-        let index = -1;
-        if (typeof id === 'number') index = id - 1;
-        else if (typeof id === 'string') {
-          const lower = id.toLowerCase().trim();
-          if (lower.includes('প্রথম') || lower.includes('১ম') || lower.includes('1') || lower.includes('first')) index = 0;
-          else if (lower.includes('দ্বিতীয়') || lower.includes('২য়') || lower.includes('2') || lower.includes('second')) index = 1;
-          else if (lower.includes('তৃতীয়') || lower.includes('৩য়') || lower.includes('3') || lower.includes('third')) index = 2;
-        }
-
-        if (index >= 0 && sessionContext.searchResults && sessionContext.searchResults[index]) {
-          target = sessionContext.searchResults[index];
-        } else if (sessionContext.searchResults && sessionContext.searchResults.length > 0) {
-          target = sessionContext.searchResults[0];
-        } else {
-          const fresh = await youtubeController.fetchSearchResults(id || 'latest hindi songs');
-          target = fresh[0] || null;
-        }
-
-        res = target ? { success: true, title: target.title, url: target.url } : { success: false, url: 'https://www.youtube.com' };
-      }
-      const playedTitle = res?.title || 'ভিডিও';
-      sessionContext.lastPlayed = res;
-      return {
-        message: `TRIDIP স্যার, '${playedTitle}' ভিডিওটি আপনার স্ক্রিনে প্লে করা হয়েছে!`,
-        url: res?.url || 'https://www.youtube.com',
-        title: playedTitle
-      };
-    }
-
-    if (actionType === 'OPEN_YOUTUBE') {
-      sessionContext.activeApp = 'YOUTUBE';
-      if (query) {
-        const res = await youtubeController.search(query);
-        return {
-          message: `TRIDIP স্যার, ইউটিউবে "${query}" সার্চ করা হয়েছে!`,
-          url: `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`,
-          results: res.results || []
-        };
-      } else {
-        await youtubeController.open();
-        return {
-          message: 'TRIDIP স্যার, ব্রাউজারে ইউটিউব ওপেন করা হয়েছে!',
-          url: 'https://www.youtube.com'
-        };
-      }
     }
 
     // 5. Google Search
@@ -1178,8 +986,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           intent.type === 'WEATHER' ||
           intent.type === 'SAVE_NOTE' ||
           intent.type.startsWith('VOLUME_') ||
-          intent.type.startsWith('OPEN_') ||
-          intent.type.startsWith('YOUTUBE_')
+          intent.type.startsWith('OPEN_')
         )) {
           response = {
             mode: 'ACTION_EXECUTED',
@@ -1322,7 +1129,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3-turbo');
         formData.append('language', 'bn');
-        formData.append('prompt', 'TRIDIP স্যারের বাংলা ভয়েস কমান্ড: ইউটিউব ওপেন করো, গান সার্চ করো, ভিডিও চালাও।');
+        formData.append('prompt', 'TRIDIP স্যারের বাংলা এবং ইংরেজি ভয়েস কমান্ড: কথা বলো, সাহায্য করো, ব্রাউজার খোলো, গান শোনাও, সার্চ করো, ফাইল ওপেন করো, নোট সেভ করো।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
