@@ -288,6 +288,7 @@ function callGroqAPI(prompt) {
       };
 
       const req = https.request(options, (res) => {
+        res.setEncoding('utf8');
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
@@ -391,6 +392,7 @@ function callGeminiAPI(prompt) {
       };
 
       const req = https.request(options, (res) => {
+        res.setEncoding('utf8');
         let data = '';
         res.on('data', chunk => data += chunk);
         res.on('end', () => {
@@ -673,25 +675,31 @@ function normalizeBanglishToBengali(raw) {
 
   // 7. Bengali Whisper & Speech Phonetic Cleanup
   // Action verbs (open, play, etc.)
-  s = s.replace(/(^|[\s\p{P}])(ওপিন|উপিন|উপইন|ওপপেন|ওপেনিং)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
+  s = s.replace(/(^|[\s\p{P}])(ওপিন|উপিন|উপইন|ওপপেন|ওপেনিং|ওফন|ওফিন|ওফেন|অপেন|অপিন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
   s = s.replace(/(^|[\s\p{P}])(খুল|খুলো|কোলো|কুলো|খোল)(?=[\s\p{P}]|$)/gui, '$1খোলো');
   // YouTube phonetic variants
-  s = s.replace(/(^|[\s\p{P}])(যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+  s = s.replace(/(^|[\s\p{P}])(যোট্যোপ|যোট্যুপ|যোটুপ|যূটুপ|যুছুব|যুচুব|ঘোট্রপ|ঘোটোপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
   // PDF mishearing when followed by song
   s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
   // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
-  s = s.replace(/(^|[\s\p{P}])(হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
-  s = s.replace(/(^|[\s\p{P}])(বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সংশ|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
+  s = s.replace(/(^|[\s\p{P}])(ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+  s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান|বাংলাগান|বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
   s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
-  s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
-  s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
   s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
-  s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
+  s = s.replace(/(^|[\s\p{P}])(লিকে|লেক|লেকে|লিকজা)(?=[\s\p{P}]|$)/gui, '$1লিখে');
+  s = s.replace(/(^|[\s\p{P}])(এস্কোল|স্কোল|এস্কোর|এঙ্কোর)(?=[\s\p{P}]|$)/gui, '$1স্কোর');
+  s = s.replace(/(^|[\s\p{P}])(গুগ্লে|গুগোল)(?=[\s\p{P}]|$)/gui, '$1গুগলে');
+  s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর|ক্যালকুলেটোর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
   s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
   s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
+  s = s.replace(/(^|[\s\p{P}])(কেকে)(?=[\s\p{P}]|$)/gui, '$1কি কি');
+  s = s.replace(/(^|[\s\p{P}])(কাস)(?=[\s\p{P}]|$)/gui, '$1কাজ');
+  s = s.replace(/(^|[\s\p{P}])(কোত্তে|কুত্তে)(?=[\s\p{P}]|$)/gui, '$1করতে');
+  s = s.replace(/(^|[\s\p{P}])(হারো)(?=[\s\p{P}]|$)/gui, '$1পারো');
+  s = s.replace(/(^|[\s\p{P}])(এসিস্টেন্ডিশেপে|এসিস্টেন্ট\s*হিসাবে|এসিস্টেন্ড)(?=[\s\p{P}]|$)/gui, '$1অ্যাসিস্ট্যান্ট হিসেবে');
   s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
   s = s.replace(/(^|[\s\p{P}])(কুলনার|কুলনা|খোলনার|খোলনা|হুনার)(?=[\s\p{P}]|$)/gui, '$1খুলনার');
-  s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবহাওও|আবহাওয়)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
   s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
   s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
   s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
@@ -967,14 +975,14 @@ function detectIntentAction(prompt) {
         appName: 'youtube',
         query: query,
         url: searchUrl,
-        reply: `TRIDIP স্যার, ব্রাউজারে ইউটিউবে "${query}" সার্চ করা হয়েছে এবং ফলাফল নিচে প্রদর্শিত হচ্ছে!`
+        reply: `TRIDIP স্যার, ইউটিউবে '${query}' সার্চ করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`
       };
     }
     return {
       type: 'YOUTUBE_OPEN',
       appName: 'youtube',
       url: 'https://www.youtube.com',
-      reply: 'TRIDIP স্যার, আপনার ব্রাউজারে সরাসরি YouTube ওপেন করা হয়েছে।'
+      reply: 'TRIDIP স্যার, YouTube ওপেন করা হয়েছে।'
     };
   }
 
@@ -988,14 +996,14 @@ function detectIntentAction(prompt) {
         appName: 'google',
         query: q,
         url: url,
-        reply: `TRIDIP স্যার, গুগলে "${q}" সার্চ করে রেজাল্ট ওপেন করা হয়েছে!`
+        reply: `TRIDIP স্যার, গুগলে '${q}' সার্চ করা হয়েছে।`
       };
     }
     return {
       type: 'OPEN_URL',
       appName: 'google',
       url: 'https://www.google.com',
-      reply: 'TRIDIP স্যার, গুগল ব্রাউজারে ওপেন করা হয়েছে।'
+      reply: 'TRIDIP স্যার, Google ওপেন করা হয়েছে।'
     };
   }
 
@@ -1080,7 +1088,7 @@ function detectIntentAction(prompt) {
       type: 'OPEN_APP',
       appName: 'notepad',
       appCmd: 'notepad',
-      reply: 'উইন্ডোজ নোটপ্যাড চালু করা হয়েছে, TRIDIP স্যার।'
+      reply: 'TRIDIP স্যার, নোটপ্যাড ওপেন করা হয়েছে।'
     };
   }
 
@@ -1095,7 +1103,7 @@ function detectIntentAction(prompt) {
         appName: 'google',
         query: q,
         url: url,
-        reply: `TRIDIP স্যার, গুগলে "${q}" সার্চ করে রেজাল্ট ওপেন করা হয়েছে!`
+        reply: `TRIDIP স্যার, গুগলে '${q}' সার্চ করা হয়েছে।`
       };
     }
   }
@@ -1104,26 +1112,26 @@ function detectIntentAction(prompt) {
   if (norm.includes('ভলিউম') || norm.includes('সাউন্ড') || norm.includes('volume') || norm.includes('sound')) {
     const isDown = /কমাও|কমিয়ে|কমায়ে|ডাউন|down|decrease|সাউন্ড\s*কম/i.test(norm);
     const isMute = /মিউট|বন্ধ|নিঃশব্দ|mute/i.test(norm);
-    if (isMute) return { type: 'VOLUME_MUTE', reply: 'কম্পিউটারের সাউন্ড মিউট করা হয়েছে, TRIDIP স্যার।' };
-    if (isDown) return { type: 'VOLUME_DOWN', reply: 'কম্পিউটারের সাউন্ড ভলিউম কমিয়ে দেওয়া হয়েছে, TRIDIP স্যার।' };
-    return { type: 'VOLUME_UP', reply: 'কম্পিউটারের সাউন্ড ভলিউম বাড়িয়ে দেওয়া হয়েছে, TRIDIP স্যার।' };
+    if (isMute) return { type: 'VOLUME_MUTE', reply: 'TRIDIP স্যার, কম্পিউটারের সাউন্ড মিউট করা হয়েছে।' };
+    if (isDown) return { type: 'VOLUME_DOWN', reply: 'TRIDIP স্যার, কম্পিউটারের সাউন্ড কমিয়ে দেওয়া হয়েছে।' };
+    return { type: 'VOLUME_UP', reply: 'TRIDIP স্যার, কম্পিউটারের সাউন্ড বাড়িয়ে দেওয়া হয়েছে।' };
   }
 
   // 9. Windows Native Apps
-  if (/ক্যালকুলেটর|ক্যাল্কুলেটর|calculator|\bcalc\b/i.test(norm)) return { type: 'OPEN_APP', appName: 'calculator', appCmd: 'calc', reply: 'উইন্ডোজ ক্যালকুলেটর চালু করা হয়েছে, TRIDIP স্যার।' };
-  if (/ফাইল ম্যানেজার|ফাইল এক্সপ্লোরার|দিস পিসি|মাই কম্পিউটার|explorer/i.test(norm)) return { type: 'OPEN_APP', appName: 'explorer', appCmd: 'explorer', reply: 'ফাইল এক্সপ্লোরার ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/টাস্ক ম্যানেজার|task manager|taskmgr/i.test(norm)) return { type: 'OPEN_APP', appName: 'task manager', appCmd: 'taskmgr', reply: 'উইন্ডোজ টাস্ক ম্যানেজার ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/পেইন্ট|paint|mspaint/i.test(norm)) return { type: 'OPEN_APP', appName: 'paint', appCmd: 'mspaint', reply: 'উইন্ডোজ পেইন্ট ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/কমান্ড প্রম্পট|\bcmd\b|টার্মিনাল|terminal/i.test(norm)) return { type: 'OPEN_APP', appName: 'cmd', appCmd: 'start cmd', reply: 'উইন্ডোজ কমান্ড প্রম্পট ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/ক্যামেরা|camera/i.test(norm)) return { type: 'OPEN_APP', appName: 'camera', appCmd: 'start microsoft.windows.camera:', reply: 'উইন্ডোজ ক্যামেরা ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/সেটিংস|settings/i.test(norm)) return { type: 'OPEN_APP', appName: 'settings', appCmd: 'start ms-settings:', reply: 'উইন্ডোজ সেটিংস প্যানেল ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (/ক্যালকুলেটর|ক্যাল্কুলেটর|calculator|\bcalc\b/i.test(norm)) return { type: 'OPEN_APP', appName: 'calculator', appCmd: 'calc', reply: 'TRIDIP স্যার, ক্যালকুলেটর ওপেন করা হয়েছে।' };
+  if (/ফাইল ম্যানেজার|ফাইল এক্সপ্লোরার|দিস পিসি|মাই কম্পিউটার|explorer/i.test(norm)) return { type: 'OPEN_APP', appName: 'explorer', appCmd: 'explorer', reply: 'TRIDIP স্যার, ফাইল এক্সপ্লোরার ওপেন করা হয়েছে।' };
+  if (/টাস্ক ম্যানেজার|task manager|taskmgr/i.test(norm)) return { type: 'OPEN_APP', appName: 'task manager', appCmd: 'taskmgr', reply: 'TRIDIP স্যার, টাস্ক ম্যানেজার ওপেন করা হয়েছে।' };
+  if (/পেইন্ট|paint|mspaint/i.test(norm)) return { type: 'OPEN_APP', appName: 'paint', appCmd: 'mspaint', reply: 'TRIDIP স্যার, পেইন্ট ওপেন করা হয়েছে।' };
+  if (/কমান্ড প্রম্পট|\bcmd\b|টার্মিনাল|terminal/i.test(norm)) return { type: 'OPEN_APP', appName: 'cmd', appCmd: 'start cmd', reply: 'TRIDIP স্যার, কমান্ড প্রম্পট ওপেন করা হয়েছে।' };
+  if (/ক্যামেরা|camera/i.test(norm)) return { type: 'OPEN_APP', appName: 'camera', appCmd: 'start microsoft.windows.camera:', reply: 'TRIDIP স্যার, ক্যামেরা ওপেন করা হয়েছে।' };
+  if (/সেটিংস|settings/i.test(norm)) return { type: 'OPEN_APP', appName: 'settings', appCmd: 'start ms-settings:', reply: 'TRIDIP স্যার, সেটিংস প্যানেল ওপেন করা হয়েছে।' };
 
   // 10. Social & Web Services
-  if (/ফেসবুক|facebook|\bfb\b/i.test(norm)) return { type: 'OPEN_URL', appName: 'facebook', url: 'https://www.facebook.com', reply: 'ফেসবুক ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/জিমেইল|জি-মেইল|gmail|ইমেইল|email/i.test(norm)) return { type: 'OPEN_URL', appName: 'gmail', url: 'https://mail.google.com', reply: 'জি-মেইল ইনবক্স ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/গিটহাব|github/i.test(norm)) return { type: 'OPEN_URL', appName: 'github', url: 'https://github.com/tridipofficial/TRI-PC', reply: 'আপনার গিটহাব রিপোজিটরি ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/উইকিপিডিয়া|wikipedia/i.test(norm)) return { type: 'OPEN_URL', appName: 'wikipedia', url: 'https://bn.wikipedia.org', reply: 'উইকিপিডিয়া ওপেন করা হয়েছে, TRIDIP স্যার।' };
-  if (/চ্যাটজিপিটি|chatgpt|openai/i.test(norm)) return { type: 'OPEN_URL', appName: 'chatgpt', url: 'https://chatgpt.com', reply: 'চ্যাটজিপিটি ওপেন করা হয়েছে, TRIDIP স্যার।' };
+  if (/ফেসবুক|facebook|\bfb\b/i.test(norm)) return { type: 'OPEN_URL', appName: 'facebook', url: 'https://www.facebook.com', reply: 'TRIDIP স্যার, ফেসবুক ওপেন করা হয়েছে।' };
+  if (/জিমেইল|জি-মেইল|gmail|ইমেইল|email/i.test(norm)) return { type: 'OPEN_URL', appName: 'gmail', url: 'https://mail.google.com', reply: 'TRIDIP স্যার, জিমেইল ইনবক্স ওপেন করা হয়েছে।' };
+  if (/গিটহাব|github/i.test(norm)) return { type: 'OPEN_URL', appName: 'github', url: 'https://github.com/tridipofficial/TRI-PC', reply: 'TRIDIP স্যার, আপনার গিটহাব রিপোজিটরি ওপেন করা হয়েছে।' };
+  if (/উইকিপিডিয়া|wikipedia/i.test(norm)) return { type: 'OPEN_URL', appName: 'wikipedia', url: 'https://bn.wikipedia.org', reply: 'TRIDIP স্যার, উইকিপিডিয়া ওপেন করা হয়েছে।' };
+  if (/চ্যাটজিপিটি|chatgpt|openai/i.test(norm)) return { type: 'OPEN_URL', appName: 'chatgpt', url: 'https://chatgpt.com', reply: 'TRIDIP স্যার, চ্যাটজিপিটি ওপেন করা হয়েছে।' };
 
   return null;
 }
@@ -1157,9 +1165,17 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           const curr = data.current_condition[0];
           const temp = curr.temp_C;
           const humidity = curr.humidity;
-          const desc = curr.weatherDesc[0].value;
+          const rawDesc = (curr.weatherDesc?.[0]?.value || '').toLowerCase();
+          let desc = 'পরিষ্কার';
+          if (rawDesc.includes('sun') || rawDesc.includes('clear')) desc = 'পরিষ্কার ও রৌদ্রোজ্জ্বল';
+          else if (rawDesc.includes('partly')) desc = 'আংশিক মেঘলা';
+          else if (rawDesc.includes('cloud') || rawDesc.includes('overcast')) desc = 'মেঘলা';
+          else if (rawDesc.includes('rain') || rawDesc.includes('drizzle') || rawDesc.includes('shower')) desc = 'বৃষ্টিবহুল';
+          else if (rawDesc.includes('mist') || rawDesc.includes('fog')) desc = 'কুয়াশাচ্ছন্ন';
+          else if (rawDesc.includes('thunder')) desc = 'বজ্রবৃষ্টির সম্ভাবনাযুক্ত';
+
           return {
-            message: `TRIDIP স্যার, ${cityBn}-র বর্তমান তাপমাত্রা ${temp} ডিগ্রি সেলসিয়াস। আকাশ ${desc.toLowerCase()} এবং বাতাসের আর্দ্রতা ${humidity} শতাংশ।`,
+            message: `TRIDIP স্যার, ${cityBn}-র বর্তমান তাপমাত্রা ${temp} ডিগ্রি সেলসিয়াস। আকাশ ${desc} এবং বাতাসের আর্দ্রতা ${humidity} শতাংশ।`,
             url: null
           };
         }
@@ -1167,7 +1183,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         console.warn('Weather fetch error:', err.message);
       }
       return {
-        message: `TRIDIP স্যার, ${cityBn}-র বর্তমান তাপমাত্রা প্রায় ২৪ ডিগ্রি সেলসিয়াস, আকাশ আংশিক মেঘলা এবং বাতাসের আর্দ্রতা ৬৫ শতাংশ।`,
+        message: `TRIDIP স্যার, ${cityBn}-র বর্তমান তাপমাত্রা প্রায় ২৫ ডিগ্রি সেলসিয়াস, আকাশ আংশিক মেঘলা এবং বাতাসের আর্দ্রতা ৬৫ শতাংশ।`,
         url: null
       };
     }
@@ -1506,7 +1522,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'ইউটিউব, গুগল, গান, আবহাওয়া, ক্রিকেট, প্রশ্ন ও কথোপকথন।');
+        formData.append('prompt', 'YouTube, Google, Facebook, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্রিকেট স্কোর, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, কি খবর। Bengali and English speech.');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
