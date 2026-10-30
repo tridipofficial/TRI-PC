@@ -942,8 +942,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
 
       // Studio-Quality Native PCM: Retains 100% crispness & high-frequency acoustic clarity
-      const pcm16 = floatTo16BitPCM(fullBuffer);
-      const wavBlob = encodeWAV(pcm16, inputSampleRate);
+      const downsampled = downsampleBuffer(fullBuffer, inputSampleRate, 16000);
+      const pcm16 = floatTo16BitPCM(downsampled);
+      const wavBlob = encodeWAV(pcm16, 16000);
 
       const base64Audio = await this.blobToBase64(wavBlob);
 
@@ -1041,6 +1042,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!isHandsFreeMode || window.triAIIsSpeaking) return;
     if (isListening) return;
 
+    if (recognition) {
+      try {
+        recognition.start();
+        return;
+      } catch (err) {
+        // Recognition already running or state error
+      }
+    }
+
     neuralWhisper.start((transcript) => {
       if (transcript && transcript.trim()) {
         chatInput.value = transcript;
@@ -1078,70 +1088,128 @@ document.addEventListener('DOMContentLoaded', () => {
     window.speechSynthesis.onvoiceschanged = scanVoices;
   }
 
-  // Only initialize webkitSpeechRecognition in regular Web Browsers (NOT in Electron to prevent ERR_FAILED pipes)
-  if (!isElectronApp && ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window)) {
-    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-    recognition = new SpeechRec();
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = 'bn-BD'; // Bangladeshi Bengali Speech Recognition
+  // --- Antigravity-Grade Google Bengali Voice Engine (Real-Time Live Typing) ---
+  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRec) {
+    try {
+      recognition = new SpeechRec();
+      recognition.continuous = false;
+      recognition.interimResults = true; // Stream words live to input box just like Antigravity!
+      recognition.lang = 'bn-BD'; // Pure Bangladeshi Bengali
+      recognition.maxAlternatives = 1;
 
-    recognition.onstart = () => {
-      isListening = true;
-      updateHandsFreeUI('listening');
-    };
+      recognition.onstart = () => {
+        isListening = true;
+        updateHandsFreeUI('listening');
+        btnMic.classList.add('listening');
+        if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+          window.electronAPI.sendHudUpdate({ phase: 'listening', text: 'শুনছি...' });
+        }
+      };
 
-    recognition.onresult = (e) => {
-      const transcript = e.results[0][0].transcript;
-      if (transcript && transcript.trim()) {
-        chatInput.value = transcript;
-        updateHandsFreeUI('processing');
-        sendMessage(transcript);
-      }
-    };
-
-    recognition.onerror = (e) => {
-      console.warn('Voice recognition event:', e.error);
-      isListening = false;
-      btnMic.classList.remove('listening');
-      if (isHandsFreeMode && !window.triAIIsSpeaking) {
-        setTimeout(() => {
-          if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
-            startListeningLoop();
+      recognition.onresult = (e) => {
+        let interim = '';
+        let finalStr = '';
+        for (let i = e.resultIndex; i < e.results.length; ++i) {
+          if (e.results[i].isFinal) {
+            finalStr += e.results[i][0].transcript;
+          } else {
+            interim += e.results[i][0].transcript;
           }
-        }, 350);
-      }
-    };
-
-    recognition.onend = () => {
-      isListening = false;
-      btnMic.classList.remove('listening');
-      if (isHandsFreeMode && !window.triAIIsSpeaking) {
-        setTimeout(() => {
-          if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
-            startListeningLoop();
+        }
+        const liveText = (finalStr || interim).trim();
+        if (liveText) {
+          chatInput.value = liveText;
+          if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+            window.electronAPI.sendHudUpdate({ phase: 'listening', text: liveText });
           }
-        }, 250);
-      } else if (!window.triAIIsSpeaking) {
-        updateHandsFreeUI('idle');
-      }
-    };
+        }
+        if (finalStr && finalStr.trim()) {
+          const cleanText = normalizeBanglishToBengali(finalStr.trim());
+          chatInput.value = cleanText;
+          updateHandsFreeUI('processing');
+          if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+            window.electronAPI.sendHudUpdate({ phase: 'processing', text: cleanText });
+          }
+          sendMessage(cleanText);
+        }
+      };
+
+      recognition.onerror = (e) => {
+        console.warn('SpeechRecognition event:', e.error);
+        isListening = false;
+        btnMic.classList.remove('listening');
+        if (e.error === 'network' || e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          console.warn('SpeechRecognition service unavailable, seamlessly falling back to Neural Whisper...');
+          recognition = null; // Disable and use neuralWhisper
+          if (isHandsFreeMode && !window.triAIIsSpeaking) {
+            neuralWhisper.start((transcript) => {
+              if (transcript && transcript.trim()) {
+                chatInput.value = transcript;
+                updateHandsFreeUI('processing');
+                sendMessage(transcript);
+              }
+            });
+          }
+          return;
+        }
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => {
+            if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+              startListeningLoop();
+            }
+          }, 800);
+        }
+      };
+
+      recognition.onend = () => {
+        isListening = false;
+        btnMic.classList.remove('listening');
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => {
+            if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+              startListeningLoop();
+            }
+          }, 800);
+        } else if (!window.triAIIsSpeaking) {
+          updateHandsFreeUI('idle');
+          if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+            window.electronAPI.sendHudUpdate({ phase: 'hide' });
+          }
+        }
+      };
+    } catch (errRec) {
+      console.warn('SpeechRecognition init error:', errRec.message);
+      recognition = null;
+    }
   }
 
+  // High-Tech Central Mic Button Listener
   btnMic.addEventListener('click', () => {
-    if (neuralWhisper.isListening) {
+    if (isListening) {
       isHandsFreeMode = false;
       btnHandsFree?.classList.remove('active');
-      neuralWhisper.stopAndProcess((transcript) => {
-        if (transcript && transcript.trim()) {
-          chatInput.value = transcript;
-          updateHandsFreeUI('processing');
-          sendMessage(transcript);
-        }
-      }, true);
+      if (recognition) {
+        try { recognition.stop(); } catch (e) {}
+      }
+      if (neuralWhisper.isListening) {
+        neuralWhisper.stop();
+      }
+      updateHandsFreeUI('idle');
+      if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+        window.electronAPI.sendHudUpdate({ phase: 'hide' });
+      }
     } else {
       isHandsFreeMode = true;
       btnHandsFree?.classList.add('active');
+      if (recognition) {
+        try {
+          recognition.start();
+          return;
+        } catch (e) {
+          console.warn('recognition.start failed, falling back to neuralWhisper:', e);
+        }
+      }
       neuralWhisper.start((transcript) => {
         if (transcript && transcript.trim()) {
           chatInput.value = transcript;

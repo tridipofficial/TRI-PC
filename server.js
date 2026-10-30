@@ -259,11 +259,12 @@ function callGroqAPI(prompt) {
                      "You speak in a warm, sweet, caring, human-like female voice in clear, natural Bengali (Bangla). " +
                      "Always address the user respectfully as 'TRIDIP স্যার'. " +
                      "You have full command over TRIDIP Sir's Windows PC. " +
+                     "When TRIDIP Sir asks any question (general knowledge, science, geography, history, technology, coding, everyday advice, or conversation), answer like a real intelligent human: thoroughly, clearly, accurately, and politely in natural Bengali. For example, if he asks 'বাংলাদেশের রাজধানীর নাম কী? এটা কী জন্য বিখ্যাত?', answer directly and informatively: 'TRIDIP স্যার, বাংলাদেশের রাজধানীর নাম ঢাকা। ঢাকা তার চারশত বছরের সমৃদ্ধ ইতিহাস, ঐতিহাসিক মোগল স্থাপত্য (যেমন লালবাগ কেল্লা, আহসান মঞ্জিল), মসজিদ ও উৎসবমুখর ঐতিহ্য এবং ঐতিহ্যবাহী মসলিন ও জামদানির জন্য বিশ্ববিখ্যাত।' " +
                      "When TRIDIP Sir asks you to do something on his computer (like playing or searching songs/videos on YouTube, searching Google, opening apps like calculator/notepad/camera/cmd/paint/explorer, saving a note to his desktop 'TRI_AI_Notes.txt', checking weather, or adjusting volume), understand his exact intent as his AI brain and append an action directive at the very end of your response on a new line in this exact JSON format:\n" +
                      "[[ACTION: {\"type\": \"OPEN_URL\"|\"OPEN_APP\"|\"SAVE_NOTE\"|\"WEATHER\"|\"VOLUME_UP\"|\"VOLUME_DOWN\"|\"VOLUME_MUTE\", \"appName\": \"...\", \"appCmd\": \"...\", \"query\": \"...\", \"url\": \"...\", \"text\": \"...\"}]]\n" +
                      "For YouTube searches, use: {\"type\": \"OPEN_URL\", \"appName\": \"youtube\", \"query\": \"<search terms>\", \"url\": \"https://www.youtube.com/results?search_query=<encoded terms>\"}.\n" +
                      "If no PC action is required, do not output the [[ACTION: ...]] directive.\n" +
-                     "Keep your Bengali spoken reply warm, concise, and natural (1-2 sentences), directly confirming the action or answering politely."
+                     "Keep your Bengali spoken reply natural, polite, engaging, and directly responsive to what TRIDIP Sir asked."
           },
           {
             role: 'user',
@@ -843,16 +844,19 @@ function detectIntentAction(prompt) {
   }
 
   // 3. Capabilities / "তুমি কী কী কাজ করতে পারো?"
+  const isAboutAssistant = norm.includes('তুমি') || norm.includes('তোমার') || norm.includes('you') || norm.includes('your') || norm.includes('jarvis') || norm.includes('জার্ভিস');
   if (
-    norm.includes('কী কাজ') || norm.includes('কি কাজ') ||
-    norm.includes('কী করতে পার') || norm.includes('কি করতে পার') ||
-    norm.includes('কী কী করতে') || norm.includes('কি কি করতে') ||
-    norm.includes('কী পারো') || norm.includes('কি পারো') ||
-    norm.includes('তোমার কাজ কি') || norm.includes('তোমার কাজ কী') ||
-    norm.includes('কাজগুলো কি') || norm.includes('কাজগুলো কী') ||
-    norm.includes('ফিচার কি') || norm.includes('ফিচার কী') ||
-    norm.includes('ক্ষমতা কি') || norm.includes('what can you do') ||
-    norm.includes('your capabilities')
+    isAboutAssistant && (
+      norm.includes('কী কাজ') || norm.includes('কি কাজ') ||
+      norm.includes('কী করতে পার') || norm.includes('কি করতে পার') ||
+      norm.includes('কী কী করতে') || norm.includes('কি কি করতে') ||
+      norm.includes('কী পারো') || norm.includes('কি পারো') ||
+      norm.includes('কাজ কি') || norm.includes('কাজ কী') ||
+      norm.includes('কাজগুলো কি') || norm.includes('কাজগুলো কী') ||
+      norm.includes('ফিচার কি') || norm.includes('ফিচার কী') ||
+      norm.includes('ক্ষমতা কি') || norm.includes('ক্ষমতা কী') ||
+      norm.includes('what can you do') || norm.includes('capabilities')
+    )
   ) {
     const reply = "TRIDIP স্যার, আমি আপনার সার্বক্ষণিক পার্সোনাল এআই অ্যাসিস্ট্যান্ট জার্ভিস। আপনার জন্য আমি এই কাজগুলো ১০০% রিয়েল-টাইমে সম্পাদন করতে পারি:\n\n" +
       "১. ইউটিউব ও গান অটোমেশন: মুখে বললেই ইউটিউব খোলা, পছন্দের হিন্দি গান, ৯০ দশকের গান বা লেটেস্ট বাংলা গান সার্চ করা এবং গান চালানো।\n" +
@@ -924,8 +928,9 @@ function detectIntentAction(prompt) {
     };
   }
 
-  // 7. Generic Search
-  if (norm.includes('সার্চ') || norm.includes('সারচ') || norm.includes('সরচ') || norm.includes('সর্চ') || norm.includes('সার্স') || norm.includes('search') || norm.includes('খোঁজো') || norm.includes('খোজো')) {
+  // 7. Generic Search Action
+  const isSearchCmd = /সার্চ\s*(?:করো|কর|করে|দাও)|সারচ\s*(?:করো|কর|করে|দাও)|সরচ\s*(?:করো|কর|করে|দাও)|সার্স\s*(?:করো|কর|করে|দাও)|খোঁজো|খোজো|খুঁজে\s*দাও|search\s*for/i.test(norm);
+  if (isSearchCmd) {
     const q = cleanSearchQuery(prompt);
     if (q && q.length > 1) {
       const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
