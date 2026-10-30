@@ -751,23 +751,84 @@ function launchAppInWindows(cmd) {
 
 const openUrlInWindows = launchUrlInWindows;
 
+// Real-time YouTube Search Scraper (Fast sub-1.5s scraper for top 5 videos)
+async function fetchYouTubeSearchResults(query) {
+  if (!query) return [];
+  try {
+    const url = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept-Language': 'bn,en-US;q=0.9,en;q=0.8'
+      },
+      signal: AbortSignal.timeout(3500)
+    });
+    if (!res.ok) return [];
+    const html = await res.text();
+    const match = html.match(/var ytInitialData = ({[\s\S]*?});<\/script>/);
+    if (!match) return [];
+    const data = JSON.parse(match[1]);
+    const items = [];
+    const contents = data.contents?.twoColumnSearchResultsRenderer?.primaryContents?.sectionListRenderer?.contents?.[0]?.itemSectionRenderer?.contents || [];
+    for (const c of contents) {
+      const v = c.videoRenderer;
+      if (v && v.videoId && v.title?.runs?.[0]?.text) {
+        items.push({
+          title: v.title.runs[0].text,
+          videoId: v.videoId,
+          url: `https://www.youtube.com/watch?v=${v.videoId}`,
+          duration: v.lengthText?.simpleText || '',
+          channel: v.ownerText?.runs?.[0]?.text || ''
+        });
+        if (items.length >= 5) break;
+      }
+    }
+    return items;
+  } catch (err) {
+    console.warn('[YouTube Scrape Error]:', err.message);
+    return [];
+  }
+}
+
 function cleanSearchQuery(q) {
   let s = normalizeBn(q);
   const removeWords = [
+    // Conversational preambles & meta-phrases
+    'যেমন আমি যদি বলি', 'যদি আমি বলি', 'আমি যদি বলি', 'যদি বলি', 'যেমন বলি', 'যেমন',
+    'তোমাকে বলছি', 'আমি বলছি', 'আমি বলেছি', 'বলছি', 'বলেছি', 'তোমাকে বলছিলাম',
+    'সার্চ আইকনে ক্লিক করো', 'সার্চ আইকনে ক্লিক কর', 'সার্চ আইকনে ক্লিক হবে', 'সার্চ আইকনে ক্লিক', 'সার্চ আইকন আছে', 'সার্চ আইকন',
+    'সার্চ বক্সে', 'সার্চ বক্স', 'সার্চে', 'ক্লিক করো', 'ক্লিক কর', 'ক্লিক হবে', 'ক্লিক', 'আইকন আছে', 'আইকন',
+    'রেজাল্ট দেখাবে', 'রেজাল্ট দেখান', 'রেজাল্ট দেখাও', 'রেজাল্টগুলো দেখাও', 'রেজাল্টগুলো', 'রেজাল্ট দেখানো হবে', 'রেজাল্ট দেখানো হোক', 'রেজাল্ট',
+    'দেখানো হবে', 'দেখানো হোক', 'দেখানো', 'হবে', 'হোক', 'আছে',
+    'তারপরে', 'তারপর',
+    'আমাকে জাস্ট', 'আমাকে একটু', 'আমাকে দেখাও', 'আমাকে', 'জাস্ট', 'দয়া করে', 'প্লিজ', 'please',
+    'নিচে এসে', 'নিচে দেখাও', 'নিচে',
+    'নাকি কি', 'নাকি', 'কিনা',
+
+    // Brands / Services
     'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যোট্যুপ', 'যোটুপ', 'ইয়ায়োটুপ', 'ইয়ায়োটুপ', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
     'গুগলে', 'গুগল', 'google', 'ফেসবুক', 'facebook', 'ক্যামেরা', 'camera', 'নোটপ্যাড', 'notepad',
-    'লিখে সার্চ করো', 'লিখে সারচ করো', 'লিখে সরচ করো', 'লিখে সর্চ করো', 'লিখে সার্চ', 'লিখে সারচ', 'লিখে সর্চ', 'লিখে',
-    'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ করো', 'সার্চ কর', 'সার্চ',
-    'সারচ করে দাও', 'সারচ করে দিন', 'সারচ করো', 'সারচ কর', 'সারচ',
-    'সরচ করে দাও', 'সরচ করে দিন', 'সরচ করো', 'সরচ কর', 'সরচ',
-    'সর্চ করে দাও', 'সর্চ করে দিন', 'সর্চ করো', 'সর্চ কর', 'সর্চ',
-    'সার্স করে দাও', 'সার্স করে দিন', 'সার্স করো', 'সার্স কর', 'সার্স',
+
+    // Search verbs & variations
+    'লিখে সার্চ করো', 'লিখে সারচ করো', 'লিখে সরচ করো', 'লিখে সর্চ করো', 'লিখে সার্চ কর', 'লিখে সার্চ', 'লিখে সারচ', 'লিখে সর্চ', 'লিখে',
+    'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ করো', 'সার্চ কর', 'সার্চ করে', 'সার্চ',
+    'সারচ করে দাও', 'সারচ করে দিন', 'সারচ করো', 'সারচ কর', 'সারচ করে', 'সারচ',
+    'সরচ করে দাও', 'সরচ করে দিন', 'সরচ করো', 'সরচ কর', 'সরচ করে', 'সরচ',
+    'সর্চ করে দাও', 'সর্চ করে দিন', 'সর্চ করো', 'সর্চ কর', 'সর্চ করে', 'সর্চ',
+    'সার্স করে দাও', 'সার্স করে দিন', 'সার্স করো', 'সার্স কর', 'সার্স করে', 'সার্স',
     'খোঁজো', 'খোজো', 'খুঁজে দাও', 'খুজে দাও', 'বের করো', 'search', 'find',
-    'খোলো', 'খুলো', 'খোল', 'কোলো', 'কুলো', 'ওপেন করো', 'ওপেন কর', 'ওপেন', 'ওপিন', 'উপিন',
-    'চালু করো', 'চালু কর', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
+
+    // Launch & action verbs
+    'ওপেন করবা', 'ওপেন করবেন', 'ওপেন করবে', 'ওপেন করো', 'ওপেন কর', 'ওপেন করে', 'ওপেন', 'ওপিন', 'উপিন',
+    'খুলবা', 'খুলবেন', 'খুলবে', 'খোলো', 'খুলো', 'খোল', 'কোলো', 'কুলো',
+    'চালু করবা', 'চালু করবেন', 'চালু করবে', 'চালু করো', 'চালু কর', 'চালু করে', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
+    'করবা', 'করবেন', 'করবে', 'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন',
+    'বলবা', 'বলবেন', 'বলবে', 'বলো', 'বল',
     'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run',
-    'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন', 'koro', 'kor', 'kore', 'dao', 'din',
-    'এবং', 'এবংং', 'এ঵ন', 'এবম', 'আর', 'এন্ড', 'ও', 'দয়া করে', 'প্লিজ', 'please', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'গিয়ে', 'গিয়া', 'and', 'then'
+    'koro', 'kor', 'kore', 'dao', 'din',
+
+    // Connectors & articles
+    'এবং', 'এবংং', 'এ঵ন', 'এবম', 'আর', 'এন্ড', 'ও', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'গিয়ে', 'গিয়া', 'and', 'then'
   ];
 
   for (const w of removeWords) {
@@ -796,29 +857,30 @@ function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
   // Common Action Verbs (Bengali + English + Banglish)
-  const isActionVerb = /খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|ওপিন|উপিন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সারচ|সরচ|সর্চ|সার্স|খোঁজো|খোজো|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search/i.test(norm);
+  const isActionVerb = /(?:খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|ওপিন|উপিন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সারচ|সরচ|সর্চ|সার্স|খোঁজো|খোজো|খুঁজে\s*দাও|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search)/ui.test(norm);
 
-  // 1. YouTube & Music Intent
-  const isYt = /ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|youtube|\byt\b/i.test(norm);
-  const isSongOrMusic = /গান|গন|সঙ্গীত|সঙ্গিত|সংগীত|গানবাজনা|মিউজিক|সং|সংগ|সাংগ|সাং|ভিডিও|গীতি|song|music|video/i.test(norm);
+  // 1. YouTube & Music Intent (Excludes pure informational questions)
+  const isYt = /(?:^|[\s\p{P}])(?:ইউটিউবে|ইউটিউবটা|ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|youtube|\byt\b)(?=[\s\p{P}]|$)/ui.test(norm);
+  const isSongOrMusic = /(?:^|[\s\p{P}])(?:গান|গানস|সঙ্গীত|সংগীত|ভিডিও|মিউজিক|গজল|সুর|নজরুলগীতি|রবীন্দ্রসঙ্গীত|রবীন্দ্রসংগীত|song|songs|music|video)(?=[\s\p{P}]|$)/ui.test(norm);
+  const isQuestion = /(?:\?|কীভাবে|কিভাবে|কেন|কী\s*জন্য|কি\s*জন্য|কে|কারা|কাকে|কোথায়|কখন|রচিয়তা|রচিয়তা|ইতিহাস|ব্যাখ্যা\s*করো|who|why|where|when)/ui.test(norm);
 
-  if (isYt || isSongOrMusic || (isSongOrMusic && isActionVerb)) {
+  if ((isYt || (isSongOrMusic && isActionVerb)) && !isQuestion) {
     const query = cleanSearchQuery(prompt);
     if (query && query.length > 1) {
       const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
       return {
-        type: 'OPEN_URL',
+        type: 'YOUTUBE_SEARCH',
         appName: 'youtube',
         query: query,
         url: searchUrl,
-        reply: `TRIDIP স্যার, ব্রাউজারে ইউটিউবে "${query}" সার্চ করে ওপেন করা হয়েছে!`
+        reply: `TRIDIP স্যার, ব্রাউজারে ইউটিউবে "${query}" সার্চ করা হয়েছে এবং ফলাফল নিচে প্রদর্শিত হচ্ছে!`
       };
     }
     return {
-      type: 'OPEN_URL',
+      type: 'YOUTUBE_OPEN',
       appName: 'youtube',
       url: 'https://www.youtube.com',
-      reply: 'TRIDIP স্যার, আপনার ডেস্কটপে ইনস্টল করা YouTube অ্যাপটি ওপেন করা হয়েছে।'
+      reply: 'TRIDIP স্যার, আপনার ব্রাউজারে সরাসরি YouTube ওপেন করা হয়েছে।'
     };
   }
 
@@ -1034,15 +1096,25 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
       };
     }
 
-    // 4. Universal Web & URL Opener
-    if (actionType === 'OPEN_URL' || actionType === 'OPEN_YOUTUBE' || actionType === 'OPEN_GOOGLE') {
+    // 4. Universal Web & URL Opener & YouTube Search
+    if (actionType === 'YOUTUBE_SEARCH' || actionType === 'OPEN_URL' || actionType === 'OPEN_YOUTUBE' || actionType === 'OPEN_GOOGLE') {
       const targetUrl = intent.url || intentUrl || 'https://www.youtube.com';
       if (!isElectron) {
         launchUrlInWindows(targetUrl);
       }
+      let results = (typeof intent === 'object' && intent.results) ? intent.results : null;
+      if (!results && query && (actionType === 'YOUTUBE_SEARCH' || (typeof intent === 'object' && intent.appName === 'youtube') || targetUrl.includes('youtube.com'))) {
+        try {
+          results = await fetchYouTubeSearchResults(query);
+        } catch (err) {
+          console.warn('[YouTube Search Scrape Failed]:', err.message);
+        }
+      }
       return {
         message: presetReply || intent.reply || `TRIDIP স্যার, ব্রাউজারে ${targetUrl} ওপেন করা হয়েছে!`,
-        url: targetUrl
+        url: targetUrl,
+        results: results || null,
+        query: query
       };
     }
 
@@ -1155,7 +1227,8 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           intent.type === 'WEATHER' ||
           intent.type === 'SAVE_NOTE' ||
           intent.type.startsWith('VOLUME_') ||
-          intent.type.startsWith('OPEN_')
+          intent.type.startsWith('OPEN_') ||
+          intent.type.startsWith('YOUTUBE_')
         )) {
           response = {
             mode: 'ACTION_EXECUTED',
@@ -1184,7 +1257,8 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
                   url: actRes?.url || parsedBrainAct.url || null,
                   appName: actRes?.appName || parsedBrainAct.appName || null,
                   appCmd: actRes?.appCmd || parsedBrainAct.appCmd || null,
-                  query: parsedBrainAct.query || null
+                  query: parsedBrainAct.query || null,
+                  results: actRes?.results || null
                 };
               } catch (e) {
                 console.warn('[AI Brain Action Parse Error]:', e.message);
@@ -1336,9 +1410,9 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const formData = new FormData();
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
-        formData.append('model', 'whisper-large-v3');
+        formData.append('model', 'whisper-large-v3-turbo');
         formData.append('language', 'bn');
-        formData.append('prompt', 'ইউটিউব, গান, আবহাওয়া।');
+        formData.append('prompt', 'ইউটিউব, গুগল, গান, আবহাওয়া, ক্রিকেট, প্রশ্ন ও কথোপকথন।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();

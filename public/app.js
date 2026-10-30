@@ -499,15 +499,24 @@ document.addEventListener('DOMContentLoaded', () => {
       `;
     } else if (data.action?.type === 'YOUTUBE_SEARCH' && Array.isArray(data.action?.results) && data.action.results.length > 0) {
       ytAutomationHtml = `
-        <div class="yt-results-grid" style="margin-top: 12px; display: flex; flex-direction: column; gap: 7px;">
-          <div style="font-size: 11px; color: #00f2ff; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 600;">▶ রেজাল্ট থেকে প্লে করতে বলুন বা ক্লিক করুন:</div>
+        <div class="yt-results-grid" style="margin-top: 12px; display: flex; flex-direction: column; gap: 8px;">
+          <div style="font-size: 11px; color: #00f2ff; text-transform: uppercase; letter-spacing: 0.8px; font-weight: 700; display: flex; align-items: center; justify-content: space-between;">
+            <span>▶ ইউটিউব ফলাফল: "${escapeHtml(data.action.query || 'ভিডিও')}"</span>
+            <span style="font-size: 10px; color: #a5f3fc; background: rgba(0,242,255,0.15); padding: 2px 8px; border-radius: 12px;">টপ ৫ ভিডিও</span>
+          </div>
           ${data.action.results.map((item, idx) => `
-            <button class="yt-item-btn" data-video-title="${escapeHtml(item.title)}" data-video-url="${escapeHtml(item.url)}" style="text-align: left; background: rgba(0, 242, 255, 0.06); border: 1px solid rgba(0, 242, 255, 0.25); color: #e2e8f0; padding: 8px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; width: 100%;">
+            <button class="yt-item-btn" data-video-title="${escapeHtml(item.title)}" data-video-url="${escapeHtml(item.url)}" style="text-align: left; background: rgba(0, 242, 255, 0.05); border: 1px solid rgba(0, 242, 255, 0.25); color: #e2e8f0; padding: 9px 12px; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 10px; transition: all 0.2s; width: 100%;">
               <span style="color: #ff0055; font-size: 13px; flex-shrink: 0;">▶</span>
               <span style="color: #00f2ff; font-weight: 700; font-size: 12px; flex-shrink: 0;">${idx + 1}.</span>
               <span style="font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;">${escapeHtml(item.title)}</span>
+              ${item.duration ? `<span style="font-size: 11px; color: #a5f3fc; background: rgba(0,242,255,0.12); padding: 2px 6px; border-radius: 4px; flex-shrink: 0;">${escapeHtml(item.duration)}</span>` : ''}
             </button>
           `).join('')}
+          <div style="margin-top: 4px; display: flex; justify-content: flex-end;">
+            <a href="${escapeHtml(data.action.url)}" target="_blank" style="color: #00f2ff; font-size: 11px; text-decoration: none; display: inline-flex; align-items: center; gap: 4px;">
+              <span>ইউটিউবে সম্পূর্ণ পেজ দেখুন</span> <span>↗</span>
+            </a>
+          </div>
         </div>
       `;
     } else if ((data.action?.type === 'YOUTUBE_CLICK' || data.action?.type === 'YOUTUBE_PLAY') && data.action.title) {
@@ -815,7 +824,7 @@ document.addEventListener('DOMContentLoaded', () => {
               // 1400ms natural pause: Patiently waits for TRIDIP Sir to completely finish speaking
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone);
-              }, 1400);
+              }, 900);
             }
           }
         };
@@ -939,6 +948,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const gainMultiplier = Math.min(6.0, 0.85 / maxPeak);
       for (let i = 0; i < fullBuffer.length; i++) {
         fullBuffer[i] *= gainMultiplier;
+      }
+
+      // Studio Pre-Emphasis Filter: Crisp Bengali Consonants (Boosts clarity of 'cricket', 'গান', 'ঢাকা')
+      for (let i = fullBuffer.length - 1; i > 0; i--) {
+        fullBuffer[i] -= 0.95 * fullBuffer[i - 1];
       }
 
       // Studio-Quality Native PCM: Retains 100% crispness & high-frequency acoustic clarity
