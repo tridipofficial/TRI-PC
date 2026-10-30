@@ -901,12 +901,11 @@ document.addEventListener('DOMContentLoaded', () => {
         this.audioCtx = null;
       }
 
-      // Merge Float32 chunks
+      // Merge Float32 chunks & calculate maxPeak safely
       let totalSamples = 0;
       for (const c of this.pcmChunks) totalSamples += c.length;
 
-      // Never drop user audio if manual click or sustained audio (>350ms)
-      if (totalSamples < inputSampleRate * 0.35 || (!this.speechDetected && maxPeak < 0.005)) {
+      if (totalSamples < inputSampleRate * 0.30) {
         updateHandsFreeUI('idle');
         if (window.electronAPI && window.electronAPI.sendHudUpdate) {
           window.electronAPI.sendHudUpdate({ phase: 'hide' });
@@ -919,26 +918,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const fullBuffer = new Float32Array(totalSamples);
       let offset = 0;
+      let maxPeak = 0;
       for (const c of this.pcmChunks) {
         fullBuffer.set(c, offset);
         offset += c.length;
       }
-
-      // Studio-Quality Peak Normalization & Dynamic Pre-Amp Boost:
-      // Even if TRIDIP Sir speaks in a low, soft, or relaxed voice, scale audio to optimal studio volume!
-      let maxPeak = 0;
       for (let i = 0; i < fullBuffer.length; i++) {
         const absVal = Math.abs(fullBuffer[i]);
         if (absVal > maxPeak) maxPeak = absVal;
       }
-      // Reject faint room hum, fan hiss, or background noise (< 0.012 peak)
-      if (maxPeak < 0.012) {
+
+      // Reject only pure silent air / background mic hum (< 0.0035 peak)
+      if (maxPeak < 0.0035) {
         updateHandsFreeUI('idle');
         if (window.electronAPI && window.electronAPI.sendHudUpdate) {
           window.electronAPI.sendHudUpdate({ phase: 'hide' });
         }
         if (isHandsFreeMode && !window.triAIIsSpeaking) {
-          setTimeout(() => startListeningLoop(), 600);
+          setTimeout(() => startListeningLoop(), 500);
         }
         return;
       }
