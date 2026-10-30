@@ -723,7 +723,7 @@ function launchUrlInWindows(url) {
       return;
     }
     if (fs.existsSync(chromeExe)) {
-      exec(`start "" "${chromeExe}" --profile-directory="Profile 6" "${url}"`, { shell: 'cmd.exe' }, (err) => {
+      exec(`start "" "${chromeExe}" "${url}"`, { shell: 'cmd.exe' }, (err) => {
         if (err) exec(`start chrome "${url}"`, { shell: 'cmd.exe' });
       });
       return;
@@ -1400,7 +1400,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
             const val = Math.abs(audioBuffer.readInt16LE(i));
             if (val > maxSample) maxSample = val;
           }
-          if (maxSample < 400) {
+          if (maxSample < 150) {
             console.log(`[Whisper STT] Rejected faint background noise (peak=${maxSample}/32767)`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ success: false, text: '', message: 'Faint background noise discarded' }));
@@ -1410,7 +1410,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         const formData = new FormData();
         const blob = new Blob([audioBuffer], { type: mimeType });
         formData.append('file', blob, fileName);
-        formData.append('model', 'whisper-large-v3-turbo');
+        formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
         formData.append('prompt', 'ইউটিউব, গুগল, গান, আবহাওয়া, ক্রিকেট, প্রশ্ন ও কথোপকথন।');
         formData.append('temperature', '0.0');

@@ -566,7 +566,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const url = btn.getAttribute('data-video-url');
         if (url) {
           if (window.electronAPI?.isElectron) {
-            window.electronAPI.openYouTube(url);
+            if (window.electronAPI.openSystem) { window.electronAPI.openSystem(url); } else if (window.electronAPI.openYouTube) { window.electronAPI.openYouTube(url); }
           } else {
             try {
               if (!triYouTubeWindow || triYouTubeWindow.closed) {
@@ -795,14 +795,13 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isCalibrated = true;
           }
 
-          // Robust Speech Threshold: Distinguish real human voice from room hum, AC, and fan noise
-          const speechThreshold = Math.max(0.012, this.ambientNoiseRMS * 2.8);
-          const silenceThreshold = Math.max(0.005, this.ambientNoiseRMS * 1.4);
+          // Ultra-Sensitive Adaptive Speech Threshold: Captures gentle, soft, or distant voice effortlessly
+          const speechThreshold = Math.max(0.0035, this.ambientNoiseRMS * 1.35);
+          const silenceThreshold = Math.max(0.0018, this.ambientNoiseRMS * 1.05);
 
           if (rms > speechThreshold) {
             this.speechFramesCount = (this.speechFramesCount || 0) + 1;
-            // Require sustained vocal energy (at least 3 consecutive frames = ~280ms)
-            if (this.speechFramesCount >= 3) {
+            if (this.speechFramesCount >= 1) {
               if (!this.speechDetected) {
                 this.speechDetected = true;
                 if (window.electronAPI && window.electronAPI.sendHudUpdate) {
@@ -906,8 +905,8 @@ document.addEventListener('DOMContentLoaded', () => {
       let totalSamples = 0;
       for (const c of this.pcmChunks) totalSamples += c.length;
 
-      // Ignore accidental micro-clicks (< 350ms) or silence
-      if (totalSamples < inputSampleRate * 0.35 || !this.speechDetected) {
+      // Never drop user audio if manual click or sustained audio (>350ms)
+      if (totalSamples < inputSampleRate * 0.35 || (!this.speechDetected && maxPeak < 0.005)) {
         updateHandsFreeUI('idle');
         if (window.electronAPI && window.electronAPI.sendHudUpdate) {
           window.electronAPI.sendHudUpdate({ phase: 'hide' });
@@ -950,10 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
         fullBuffer[i] *= gainMultiplier;
       }
 
-      // Studio Pre-Emphasis Filter: Crisp Bengali Consonants (Boosts clarity of 'cricket', 'গান', 'ঢাকা')
-      for (let i = fullBuffer.length - 1; i > 0; i--) {
-        fullBuffer[i] -= 0.95 * fullBuffer[i - 1];
-      }
+// Pure unadulterated acoustic PCM for Whisper neural processing
 
       // Studio-Quality Native PCM: Retains 100% crispness & high-frequency acoustic clarity
       const downsampled = downsampleBuffer(fullBuffer, inputSampleRate, 16000);
@@ -1102,8 +1098,8 @@ document.addEventListener('DOMContentLoaded', () => {
     window.speechSynthesis.onvoiceschanged = scanVoices;
   }
 
-  // --- Antigravity-Grade Google Bengali Voice Engine (Real-Time Live Typing) ---
-  const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+  // --- Antigravity-Grade Google Bengali Voice Engine (Real-Time Live Typing in Web; Pure Studio Whisper in Electron) ---
+  const SpeechRec = (!isElectronApp && (window.SpeechRecognition || window.webkitSpeechRecognition)) ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
   if (SpeechRec) {
     try {
       recognition = new SpeechRec();

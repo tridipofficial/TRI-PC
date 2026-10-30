@@ -138,7 +138,7 @@ ipcMain.handle('system-open', async (event, targetUrl) => {
         }
         if (fs.existsSync(chromeExe)) {
           try {
-            await execPromise(`start "" "${chromeExe}" --profile-directory="Profile 6" "${targetUrl}"`);
+            await execPromise(`start "" "${chromeExe}" "${targetUrl}"`);
             return { success: true, url: targetUrl, method: 'chrome_profile_6' };
           } catch (eProfile) {}
         }
