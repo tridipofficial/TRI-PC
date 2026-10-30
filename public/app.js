@@ -336,7 +336,9 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/(^|[\s\p{P}])(যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
     // PDF mishearing when followed by song
     s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
-    // Song phonetic variants
+    // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
+    s = s.replace(/(^|[\s\p{P}])(হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+    s = s.replace(/(^|[\s\p{P}])(বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সংশ|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
     s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
     s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
     s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
@@ -784,13 +786,14 @@ document.addEventListener('DOMContentLoaded', () => {
             this.isCalibrated = true;
           }
 
-          // High-Sensitivity Voice Threshold: Catches soft, quiet, or whispered speech effortlessly
-          const speechThreshold = Math.max(0.0018, this.ambientNoiseRMS * 1.15);
-          const silenceThreshold = Math.max(0.0012, this.ambientNoiseRMS * 1.05);
+          // Robust Speech Threshold: Distinguish real human voice from room hum, AC, and fan noise
+          const speechThreshold = Math.max(0.012, this.ambientNoiseRMS * 2.8);
+          const silenceThreshold = Math.max(0.005, this.ambientNoiseRMS * 1.4);
 
           if (rms > speechThreshold) {
             this.speechFramesCount = (this.speechFramesCount || 0) + 1;
-            if (this.speechFramesCount >= 1) {
+            // Require sustained vocal energy (at least 3 consecutive frames = ~280ms)
+            if (this.speechFramesCount >= 3) {
               if (!this.speechDetected) {
                 this.speechDetected = true;
                 if (window.electronAPI && window.electronAPI.sendHudUpdate) {
@@ -809,11 +812,10 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (this.speechDetected && rms < silenceThreshold) {
             this.speechFramesCount = 0;
             if (!this.silenceTimer) {
-              // 1600ms natural pause: Patiently waits for TRIDIP Sir to completely finish speaking
-              // Never cuts off sentences mid-speech or interrupts while speaking!
+              // 1400ms natural pause: Patiently waits for TRIDIP Sir to completely finish speaking
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone);
-              }, 1600);
+              }, 1400);
             }
           }
         };
@@ -831,11 +833,11 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
               this.stop();
               if (isHandsFreeMode && !window.triAIIsSpeaking) {
-                setTimeout(() => startListeningLoop(), 400);
+                setTimeout(() => startListeningLoop(), 800);
               }
             }
           }
-        }, 6500);
+        }, 8000);
 
         // Turn timeout 2: Maximum utterance length (18.0s)
         this.maxSpeechTimer = setTimeout(() => {
@@ -921,11 +923,22 @@ document.addEventListener('DOMContentLoaded', () => {
         const absVal = Math.abs(fullBuffer[i]);
         if (absVal > maxPeak) maxPeak = absVal;
       }
-      if (maxPeak > 0.0005) {
-        const gainMultiplier = Math.min(16.0, 0.90 / maxPeak);
-        for (let i = 0; i < fullBuffer.length; i++) {
-          fullBuffer[i] *= gainMultiplier;
+      // Reject faint room hum, fan hiss, or background noise (< 0.012 peak)
+      if (maxPeak < 0.012) {
+        updateHandsFreeUI('idle');
+        if (window.electronAPI && window.electronAPI.sendHudUpdate) {
+          window.electronAPI.sendHudUpdate({ phase: 'hide' });
         }
+        if (isHandsFreeMode && !window.triAIIsSpeaking) {
+          setTimeout(() => startListeningLoop(), 600);
+        }
+        return;
+      }
+
+      // Safe studio boost (up to 6.0x) so audio is clear without amplifying noise
+      const gainMultiplier = Math.min(6.0, 0.85 / maxPeak);
+      for (let i = 0; i < fullBuffer.length; i++) {
+        fullBuffer[i] *= gainMultiplier;
       }
 
       // Studio-Quality Native PCM: Retains 100% crispness & high-frequency acoustic clarity
@@ -1260,12 +1273,12 @@ document.addEventListener('DOMContentLoaded', () => {
               btnStopVoice.style.display = 'none';
             }
             if (isHandsFreeMode) {
-              setTimeout(() => {
-                if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
-                  startListeningLoop();
-                }
-              }, 400);
-            }
+        setTimeout(() => {
+          if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+            startListeningLoop();
+          }
+        }, 1000);
+      }
           };
           globalAudio.onerror = () => {
             window.triAIIsSpeaking = false;
@@ -1344,7 +1357,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (sessionId === currentAudioSession && btnStopVoice) {
         btnStopVoice.style.display = 'none';
       }
-      if (isHandsFreeMode) setTimeout(startListeningLoop, 400);
+      if (isHandsFreeMode) setTimeout(startListeningLoop, 1000);
     };
 
     window.speechSynthesis.speak(utter);

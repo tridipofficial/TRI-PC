@@ -678,7 +678,9 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/(^|[\s\p{P}])(যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
   // PDF mishearing when followed by song
   s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
-  // Song phonetic variants
+  // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
+  s = s.replace(/(^|[\s\p{P}])(হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+  s = s.replace(/(^|[\s\p{P}])(বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সংশ|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
   s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
   s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
   s = s.replace(/(^|[\s\p{P}])(হিনদি|হিন্ড|হিনডি|হিন্দিগান|হিন্দি\s*গানস|হিন্দিগানস)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
@@ -752,7 +754,7 @@ function cleanSearchQuery(q) {
   let s = normalizeBn(q);
   const removeWords = [
     'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যোট্যুপ', 'যোটুপ', 'ইয়ায়োটুপ', 'ইয়ায়োটুপ', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
-    'গুগলে', 'গুগল', 'google',
+    'গুগলে', 'গুগল', 'google', 'ফেসবুক', 'facebook', 'ক্যামেরা', 'camera', 'নোটপ্যাড', 'notepad',
     'লিখে সার্চ করো', 'লিখে সারচ করো', 'লিখে সরচ করো', 'লিখে সর্চ করো', 'লিখে সার্চ', 'লিখে সারচ', 'লিখে সর্চ', 'লিখে',
     'সার্চ করে দাও', 'সার্চ করে দিন', 'সার্চ করো', 'সার্চ কর', 'সার্চ',
     'সারচ করে দাও', 'সারচ করে দিন', 'সারচ করো', 'সারচ কর', 'সারচ',
@@ -771,6 +773,18 @@ function cleanSearchQuery(q) {
     const escaped = w.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const regex = new RegExp('(^|[\\s\\p{P}])' + escaped + '(?=[\\s\\p{P}]|$)', 'gui');
     s = s.replace(regex, ' ');
+  }
+
+  // Deduplicate repeated multi-word phrases and words
+  s = s.replace(/(হিন্দি\s*গান)(?:\s+\1)+/gui, '$1');
+  s = s.replace(/(বাংলা\s*গান)(?:\s+\1)+/gui, '$1');
+  s = s.replace(/\b(\S+)(?:\s+\1\b)+/gui, '$1');
+
+  // If query starts with "হিন্দি গান" or "বাংলা গান" and contains hallucinated noise or excess repetition, isolate cleanly
+  if (/^হিন্দি\s*গান/i.test(s) && (s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 25)) {
+    s = "হিন্দি গান";
+  } else if (/^বাংলা\s*গান/i.test(s) && (s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 25)) {
+    s = "বাংলা গান";
   }
 
   return s.replace(/[।?!,.:;'"-]/g, ' ').replace(/\s+/g, ' ').trim();
@@ -1285,6 +1299,11 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         }
 
         const audioBuffer = Buffer.from(audio, 'base64');
+        if (audioBuffer.length < 1600) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          return res.end(JSON.stringify({ success: false, text: '', message: 'Audio buffer too short' }));
+        }
+
         const isWebm = (format === 'webm') || (audioBuffer[0] === 0x1A && audioBuffer[1] === 0x45 && audioBuffer[2] === 0xDF && audioBuffer[3] === 0xA3);
         const isMp3 = (format === 'mp3') || (audioBuffer[0] === 0x49 && audioBuffer[1] === 0x44 && audioBuffer[2] === 0x33) || (audioBuffer[0] === 0xFF && (audioBuffer[1] & 0xE0) === 0xE0);
         let mimeType = 'audio/wav';
@@ -1295,6 +1314,18 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         } else if (isMp3) {
           mimeType = 'audio/mp3';
           fileName = 'audio.mp3';
+        } else if (audioBuffer.length > 44) {
+          // Check WAV peak to reject faint background mic hiss (fan, room hum)
+          let maxSample = 0;
+          for (let i = 44; i < audioBuffer.length - 1; i += 2) {
+            const val = Math.abs(audioBuffer.readInt16LE(i));
+            if (val > maxSample) maxSample = val;
+          }
+          if (maxSample < 400) {
+            console.log(`[Whisper STT] Rejected faint background noise (peak=${maxSample}/32767)`);
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ success: false, text: '', message: 'Faint background noise discarded' }));
+          }
         }
 
         const formData = new FormData();
@@ -1302,7 +1333,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'ইউটিউব, YouTube, ওপেন করো, খোলো, চালান, গান, বাংলা গান, হিন্দি গান, সার্চ করো, হিন্দি গান লিখে সার্চ করো, খুলনার আবহাওয়া রিপোর্ট, খুলনা, ঢাকা, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, Facebook, Google.');
+        formData.append('prompt', 'ইউটিউব, গান, আবহাওয়া।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();

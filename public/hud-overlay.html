@@ -237,13 +237,13 @@
         dot.style.background = '#22c55e';
         stopTimer();
 
-        // Auto fade-out after 3.2 seconds
+        // Auto fade-out after 1.6 seconds
         autoHideTimer = setTimeout(() => {
           card.classList.remove('visible');
           if (window.electronAPI && window.electronAPI.sendHudUpdate) {
             window.electronAPI.sendHudUpdate({ phase: 'hide' });
           }
-        }, 3200);
+        }, 1600);
       }
     };
 
