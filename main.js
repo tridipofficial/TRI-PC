@@ -38,53 +38,9 @@ function ensureServerRunning() {
   });
 }
 
+// Floating HUD Window Disabled per TRIDIP Sir's instruction (clean, unobstructed workspace)
 function createHudWindow() {
-  if (hudWindow && !hudWindow.isDestroyed()) return hudWindow;
-
-  const primaryDisplay = screen.getPrimaryDisplay();
-  const { width: screenWidth } = primaryDisplay.workAreaSize;
-
-  const hudW = 440;
-  const hudH = 110;
-  const hudX = Math.round((screenWidth - hudW) / 2);
-  const hudY = 24;
-
-  hudWindow = new BrowserWindow({
-    x: hudX,
-    y: hudY,
-    width: hudW,
-    height: hudH,
-    frame: false,
-    transparent: true,
-    alwaysOnTop: true,
-    skipTaskbar: true,
-    focusable: false,
-    hasShadow: false,
-    show: false,
-    webPreferences: {
-      nodeIntegration: false,
-      contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js'),
-      backgroundThrottling: false
-    }
-  });
-
-  hudWindow.setAlwaysOnTop(true, 'screen-saver');
-  hudWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
-  hudWindow.setIgnoreMouseEvents(true, { forward: true });
-
-  hudWindow.loadFile(path.join(__dirname, 'public', 'hud-overlay.html'));
-
-  // HUD starts completely hidden until a live voice command is detected or action occurs
-  hudWindow.once('ready-to-show', () => {
-    // Keep hidden by default
-  });
-
-  hudWindow.on('closed', () => {
-    hudWindow = null;
-  });
-
-  return hudWindow;
+  return null;
 }
 
 async function createMainWindow() {
@@ -116,8 +72,7 @@ async function createMainWindow() {
     }
   });
 
-  // Create the floating HUD Overlay
-  createHudWindow();
+  // Floating HUD Overlay permanently disabled per TRIDIP Sir's instruction
 }
 
 // Universal System Open Handler (Archer AI Architecture)
@@ -178,23 +133,9 @@ ipcMain.handle('desktop-open-application', async (event, { appName, appCmd }) =>
   }
 });
 
-// HUD IPC Relay: Forwards HUD events from MainWindow to Floating HUD Window
-ipcMain.on('hud-update', (event, data) => {
-  if (!hudWindow || hudWindow.isDestroyed()) {
-    createHudWindow();
-  }
-  try {
-    if (hudWindow && !hudWindow.isDestroyed()) {
-      if (data && (data.phase === 'hide' || data.action === 'hide')) {
-        hudWindow.hide();
-      } else if (!hudWindow.isVisible() && data && data.phase !== 'hide') {
-        hudWindow.show();
-      }
-      hudWindow.webContents.send('hud-update-event', data);
-    }
-  } catch (err) {
-    console.warn('[HUD Relay Error]:', err.message);
-  }
+// HUD IPC Relay disabled per user request
+ipcMain.on('hud-update', () => {
+  // No-op: HUD window is completely deactivated
 });
 
 app.whenReady().then(() => {

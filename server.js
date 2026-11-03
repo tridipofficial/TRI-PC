@@ -259,6 +259,7 @@ function callGroqAPI(prompt) {
                      "You speak in a warm, sweet, caring, human-like female voice in clear, natural Bengali (Bangla). " +
                      "Always address the user respectfully as 'TRIDIP স্যার'. " +
                      "You have full command over TRIDIP Sir's Windows PC. " +
+                     "TRIDIP Sir frequently speaks in Bengali, English, or Banglish (e.g. 'youtube e hindi gaan chalao', 'weather kemon', 'amake ekta jokes shonao', 'cricket score dekhao', 'calculator kholo', 'tumi kemon acho'). You must effortlessly and accurately understand his true intent regardless of whether he speaks in pure Bengali, pure English, or mixed Banglish, and always reply warmly, helpfully, and respectfully in natural Bengali as his faithful personal AI assistant JARVIS! " +
                      "When TRIDIP Sir asks any question (general knowledge, science, geography, history, technology, coding, everyday advice, or conversation), answer like a real intelligent human: thoroughly, clearly, accurately, and politely in natural Bengali. For example, if he asks 'বাংলাদেশের রাজধানীর নাম কী? এটা কী জন্য বিখ্যাত?', answer directly and informatively: 'TRIDIP স্যার, বাংলাদেশের রাজধানীর নাম ঢাকা। ঢাকা তার চারশত বছরের সমৃদ্ধ ইতিহাস, ঐতিহাসিক মোগল স্থাপত্য (যেমন লালবাগ কেল্লা, আহসান মঞ্জিল), মসজিদ ও উৎসবমুখর ঐতিহ্য এবং ঐতিহ্যবাহী মসলিন ও জামদানির জন্য বিশ্ববিখ্যাত।' " +
                      "When TRIDIP Sir asks you to do something on his computer (like playing or searching songs/videos on YouTube, searching Google, opening apps like calculator/notepad/camera/cmd/paint/explorer, saving a note to his desktop 'TRI_AI_Notes.txt', checking weather, or adjusting volume), understand his exact intent as his AI brain and append an action directive at the very end of your response on a new line in this exact JSON format:\n" +
                      "[[ACTION: {\"type\": \"OPEN_URL\"|\"OPEN_APP\"|\"SAVE_NOTE\"|\"WEATHER\"|\"VOLUME_UP\"|\"VOLUME_DOWN\"|\"VOLUME_MUTE\", \"appName\": \"...\", \"appCmd\": \"...\", \"query\": \"...\", \"url\": \"...\", \"text\": \"...\"}]]\n" +
@@ -616,8 +617,10 @@ function normalizeBanglishToBengali(raw) {
 
   // 1. Compound Transliterated & Banglish Phrases
   s = s.replace(/\b(?:jutid|yutid)\s*(?:kolo|kholo|open|opin)\s*(?:evan|ebong|and|r|ar)\s*(?:salskora|sars|search)\s*(?:hindi|hindí)\s*(?:svanglyki|gaan|gan|song)\b/gi, 'YouTube খোলো এবং সার্চ করো হিন্দি গান');
-  s = s.replace(/\byoutube\s*(?:opin|open|oppen|kolo|kholo|chalu)\s*(?:koro|kor)?\b/gi, 'YouTube ওপেন করো');
-  s = s.replace(/\bgoogle\s*(?:opin|open|oppen|kolo|kholo|chalu)\s*(?:koro|kor)?\b/gi, 'Google ওপেন করো');
+  s = s.replace(/\b(?:youtube|yt)\s*(?:e|te|-e)\b/gi, 'YouTube-এ');
+  s = s.replace(/\b(?:google)\s*(?:e|te|-e)\b/gi, 'Google-এ');
+  s = s.replace(/\byoutube\s*(?:opin|open|oppen|kolo|kholo|chalu)\s*(?:kore|kora|koro|kor)?\b/gi, 'YouTube ওপেন করো');
+  s = s.replace(/\bgoogle\s*(?:opin|open|oppen|kolo|kholo|chalu)\s*(?:kore|kora|koro|kor)?\b/gi, 'Google ওপেন করো');
   s = s.replace(/\b(?:indigan|hindi\s*gaan|hindi\s*gan|hindi\s*song|hindi\s*songs|hindisongs|hindi\s*গানস)\b/gi, 'হিন্দি গান');
   s = s.replace(/\b(?:banglagan|bangla\s*gaan|bangla\s*gan|bangla\s*song|bangla\s*songs|bangla\s*গানস)\b/gi, 'বাংলা গান');
   s = s.replace(/\b(?:likja|likhe|likhi|lekho|likh)\b/gi, 'লিখে');
@@ -627,6 +630,9 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/\b(?:kholo|khol|kolo|kul|khul|khulo)\s*(?:koro|kor)?\b/gi, 'খোলো');
   s = s.replace(/\b(?:open|opin|oppen)\s*(?:koro|kor)?\b/gi, 'ওপেন করো');
   s = s.replace(/\b(?:chalu|start|launch)\s*(?:koro|kor)?\b/gi, 'চালু করো');
+  s = s.replace(/\b(?:play\s*koro|play|chalao|chalaw|chala|bajao|bajaw)\b/gi, 'চালাও');
+  s = s.replace(/\b(?:shonao|shonaw)\b/gi, 'শোনাও');
+  s = s.replace(/\b(?:dekhao|dekhaw|dekha)\b/gi, 'দেখাও');
   s = s.replace(/\b(?:koro|kor|kora)\b/gi, 'করো');
   s = s.replace(/\b(?:ar|aar|r)\b/gi, 'আর');
   s = s.replace(/\b(?:ebong|evan|ebom|and)\b/gi, 'এবং');
@@ -665,6 +671,12 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/\b(?:sound|volume|shound)\b/gi, 'সাউন্ড');
   s = s.replace(/\b(?:barao|baraw|up|increase)\b/gi, 'বাড়িয়ে দাও');
   s = s.replace(/\b(?:komao|komaw|down|decrease)\b/gi, 'কমিয়ে দাও');
+  s = s.replace(/\b(?:amake|amk)\b/gi, 'আমাকে');
+  s = s.replace(/\b(?:ekta|ekti)\b/gi, 'একটি');
+  s = s.replace(/\b(?:nam|naam)\b/gi, 'নাম');
+  s = s.replace(/\b(?:koutuk|koutuker|jokes|joke|hasir\s*kotha)\b/gi, 'কৌতুক');
+  s = s.replace(/\b(?:dhonnobad|dhonnobaad|thanks|thank\s*you)\b/gi, 'ধন্যবাদ');
+  s = s.replace(/\b(?:bhalo|valo)\b/gi, 'ভালো');
   s = s.replace(/\b(?:tomar|tumar)\b/gi, 'তোমার');
   s = s.replace(/\b(?:kaj|kaaj|kaach)\b/gi, 'কাজ');
   s = s.replace(/\b(?:ki|kee|kya)\b/gi, 'কি');
@@ -908,8 +920,8 @@ function cleanSearchQuery(q) {
     'গিয়ে', 'গিয়ে', 'গিয়া', 'গিয়া', 'যেয়ে', 'যেয়ে', 'যাইয়া', 'যাইয়া', 'যাইয়ে', 'যাইয়ে',
 
     // Brands / Services
-    'ইউটিউবে', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যোট্যুপ', 'যোটুপ', 'ইয়ায়োটুপ', 'ইয়ায়োটুপ', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
-    'গুগলে', 'গুগল', 'google', 'ফেসবুক', 'facebook', 'ক্যামেরা', 'camera', 'নোটপ্যাড', 'notepad',
+    'ইউটিউবে', 'ইউটিউব-এ', 'YouTube-এ', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যোট্যুপ', 'যোটুপ', 'ইয়ায়োটুপ', 'ইয়ায়োটুপ', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
+    'গুগলে', 'গুগল-এ', 'Google-এ', 'গুগল', 'google', 'ফেসবুক', 'facebook', 'ক্যামেরা', 'camera', 'নোটপ্যাড', 'notepad',
 
     // Search verbs & variations
     'লিখে সার্চ করো', 'লিখে সারচ করো', 'লিখে সরচ করো', 'লিখে সর্চ করো', 'লিখে সার্চ কর', 'লিখে সার্চ', 'লিখে সারচ', 'লিখে সর্চ', 'লিখে',
@@ -926,11 +938,11 @@ function cleanSearchQuery(q) {
     'চালু করবা', 'চালু করবেন', 'চালু করবে', 'চালু করো', 'চালু কর', 'চালু করে', 'চালু', 'চালাও', 'চালা', 'বাজাও', 'বাজা', 'শোনাও', 'শোনা', 'ছাড়ো', 'দেখান', 'দেখাও', 'যাও', 'অন',
     'করবা', 'করবেন', 'করবে', 'করে দাও', 'করে দিন', 'করে', 'করো', 'কর', 'দাও', 'দিন',
     'বলবা', 'বলবেন', 'বলবে', 'বলো', 'বল',
-    'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run',
+    'open', 'launch', 'start', 'play', 'kholo', 'chalu', 'khol', 'bajao', 'shonao', 'run', 'chalao', 'chalaw', 'chala', 'bajaw', 'dekhao', 'dekhaw',
     'koro', 'kor', 'kore', 'dao', 'din',
 
     // Connectors & articles
-    'এবং', 'এবংং', 'এ঵ন', 'এবম', 'আর', 'এন্ড', 'ও', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'গিয়ে', 'গিয়া', 'and', 'then'
+    'এবং', 'এবংং', 'এ঵ন', 'এবম', 'আর', 'এন্ড', 'ও', 'একটি', 'একটা', 'আমার জন্য', 'নিয়ে', 'সম্পর্কে', 'একটু', 'টা', 'গিয়ে', 'গিয়া', 'and', 'then', 'e', 'te', '-এ', 'এ', 'তে'
   ];
 
   for (const w of removeWords) {
@@ -1569,8 +1581,8 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           }
         }
 
-        // Reject known gibberish patterns
-        if (/টিউডিকিটেল|আজিতাদির|পারেশি|স্ক্বালা|আচ্ছানিত|আছ্ছানিত|কেছালিকি|বিড্যাতি|বিডাতি|ছিন্দের|পারিশি/i.test(text)) {
+        // Reject known gibberish & noise hallucination patterns
+        if (/টিউডিক|আজিতাদি|পারেশি|স্ফালা|স্ক্বালা|আচ্ছানিত|আছ্ছানিত|কেহালিকি|কেছালিকি|বিভাতি|বিড্যাতি|বিডাতি|ছিন্দের|পারিশি|আছেরে\s*পারিশিয়ে/i.test(text)) {
           isHallucination = true;
         }
 
