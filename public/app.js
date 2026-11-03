@@ -301,9 +301,11 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
 
     // Home Screen & Navigation Banglish Phrases
-    s = s.replace(/\b(?:back\s*to\s*home|return\s*(?:to\s*)?home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে আসো');
+    s = s.replace(/\b(?:back\s*to\s*(?:home|dashboard)|return\s*(?:to\s*)?(?:home|dashboard)|go\s*(?:to\s*)?(?:home|dashboard))\b/gi, 'হোম স্ক্রিনে ফিরে আসো');
     s = s.replace(/\b(?:main\s*screen|mainscreen|মেইন\s*স্ক্রিন|মেইনস্ক্রিন)\b/gi, 'হোম স্ক্রিন');
     s = s.replace(/\b(?:home\s*screen|homescreen)\b/gi, 'হোম স্ক্রিন');
+    s = s.replace(/\b(?:dashboard|deshboard|dashbord)\b/gi, 'ড্যাশবোর্ড');
+    s = s.replace(/\b(?:dashboard\s*e|deshboard\s*e)\b/gi, 'ড্যাশবোর্ডে');
     s = s.replace(/\b(?:fire\s*asho|fire\s*esho|fire\s*jao|phire\s*asho|phire\s*jao)\b/gi, 'ফিরে আসো');
 
     // 1. Compound Transliterated & Banglish Phrases

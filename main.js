@@ -136,25 +136,73 @@ ipcMain.handle('desktop-open-application', async (event, { appName, appCmd }) =>
 // Return to Assistant Home Screen Handler (Closes opened browser/tab & Brings TRI AI to Foreground)
 ipcMain.handle('desktop-focus-home', async () => {
   try {
-    // 1. Close the active browser tab that was opened for YouTube / Google search
+    let hwndVal = '0';
     try {
-      await execPromise(`powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys('^w')"`);
-    } catch (eSend) {
-      console.warn('[desktop-focus-home sendkeys warn]:', eSend.message);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        const hwndBuf = mainWindow.getNativeWindowHandle();
+        hwndVal = (process.arch === 'x64' ? hwndBuf.readBigInt64LE(0) : hwndBuf.readInt32LE(0)).toString();
+      }
+    } catch (eHwnd) {}
+
+    const psScript = `
+Add-Type @"
+  using System;
+  using System.Runtime.InteropServices;
+  public class WinSwitcher {
+    [DllImport("user32.dll")]
+    public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+    [DllImport("user32.dll")]
+    public static extern void SwitchToThisWindow(IntPtr hWnd, bool fAltTab);
+    [DllImport("user32.dll")]
+    public static extern bool SetForegroundWindow(IntPtr hWnd);
+    [DllImport("user32.dll")]
+    public static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    public const int VK_CONTROL = 0x11;
+    public const int VK_W = 0x57;
+    public const uint KEYEVENTF_KEYUP = 0x0002;
+    public const int SW_RESTORE = 9;
+
+    public static void CloseActiveTab() {
+      keybd_event((byte)VK_CONTROL, 0, 0, 0);
+      keybd_event((byte)VK_W, 0, 0, 0);
+      keybd_event((byte)VK_W, 0, KEYEVENTF_KEYUP, 0);
+      keybd_event((byte)VK_CONTROL, 0, KEYEVENTF_KEYUP, 0);
     }
 
-    // 2. Gracefully close any YouTube or Google Search window opened by the assistant
-    try {
-      await execPromise(`powershell -NoProfile -Command "Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match 'YouTube|Google|Search|ক্রিকেট|গান' } | ForEach-Object { $_.CloseMainWindow() }"`);
-    } catch (eWin) {}
+    public static void BringToFront(long hwndVal) {
+      IntPtr handle = new IntPtr(hwndVal);
+      ShowWindow(handle, SW_RESTORE);
+      SwitchToThisWindow(handle, true);
+      SetForegroundWindow(handle);
+    }
+  }
+"@
+[WinSwitcher]::CloseActiveTab()
+Start-Sleep -Milliseconds 200
+Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match 'YouTube|Google|Search|ক্রিকেট|গান' } | ForEach-Object { $_.CloseMainWindow() }
+${hwndVal !== '0' ? `[WinSwitcher]::BringToFront(${hwndVal})` : ''}
+(New-Object -ComObject WScript.Shell).AppActivate('TRI AI - Iron Man / JARVIS Holographic Command Center')
+`;
 
-    // 3. Bring TRI AI MainWindow to Foreground and Focus
+    try {
+      await execPromise(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${psScript.replace(/"/g, '\\"')}"`);
+    } catch (ePs) {
+      console.warn('[desktop-focus-home powershell warn]:', ePs.message);
+    }
+
+    // Electron level restore, bring to front, and focus
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();
-      mainWindow.setAlwaysOnTop(true);
+      mainWindow.setAlwaysOnTop(true, 'screen-saver');
       mainWindow.focus();
-      mainWindow.setAlwaysOnTop(false);
+      mainWindow.moveTop();
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.setAlwaysOnTop(false);
+        }
+      }, 1200);
       return { success: true };
     }
     return { success: false, error: 'Main window not available' };

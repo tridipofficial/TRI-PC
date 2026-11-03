@@ -647,9 +647,11 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
 
   // Home Screen & Navigation Banglish Phrases
-  s = s.replace(/\b(?:back\s*to\s*home|return\s*(?:to\s*)?home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে আসো');
+  s = s.replace(/\b(?:back\s*to\s*(?:home|dashboard)|return\s*(?:to\s*)?(?:home|dashboard)|go\s*(?:to\s*)?(?:home|dashboard))\b/gi, 'হোম স্ক্রিনে ফিরে আসো');
   s = s.replace(/\b(?:main\s*screen|mainscreen|মেইন\s*স্ক্রিন|মেইনস্ক্রিন)\b/gi, 'হোম স্ক্রিন');
   s = s.replace(/\b(?:home\s*screen|homescreen)\b/gi, 'হোম স্ক্রিন');
+  s = s.replace(/\b(?:dashboard|deshboard|dashbord)\b/gi, 'ড্যাশবোর্ড');
+  s = s.replace(/\b(?:dashboard\s*e|deshboard\s*e)\b/gi, 'ড্যাশবোর্ডে');
   s = s.replace(/\b(?:fire\s*asho|fire\s*esho|fire\s*jao|phire\s*asho|phire\s*jao)\b/gi, 'ফিরে আসো');
 
   // 1. Compound Transliterated & Banglish Phrases
@@ -982,9 +984,9 @@ function cleanSearchQuery(q) {
 function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
-  // 0. Home Screen Intent ("হোম স্ক্রিনে ফিরে আসো", "মেইন স্ক্রিনে ফিরে আসো", "হোমে ফিরে যাও", "back to home", "return to home", etc.)
-  const isHomeScreen = /(?:হোম\s*স্ক্রিন[েএ]?|মেইন\s*স্ক্রিন[েএ]?|হোমে?|home\s*screen|main\s*screen|home|অ্যাসিস্ট্যান্ট(?:ে|ের)?)(?:\s*(?:এ|তে|-এ|ের|e))?\s*(?:ফিরে\s*(?:যাও|যেতে|এসো|আসো|চল|চলো)|fire\s*(?:jao|asho|esho)|phire\s*(?:jao|asho|esho)|যাও|যেতে|এসো|আসো|ব্যাক|jao|asho|esho|back|return|go)/ui.test(norm) ||
-    /^(?:ফিরে\s*(?:যাও|এসো|আসো)|back\s*(?:to\s*home)?|return\s*(?:to\s*)?home|go\s*home|home\s*screen|main\s*screen|হোম\s*স্ক্রিন|মেইন\s*স্ক্রিন)$/ui.test(norm);
+  // 0. Home Screen Intent ("হোম স্ক্রিনে ফিরে আসো", "মেইন স্ক্রিনে ফিরে আসো", "ড্যাশবোর্ডে ফিরে যাও", "back to home", "return to home", etc.)
+  const isHomeScreen = /(?:হোম\s*স্ক্রিন[েএ]?|মেইন\s*স্ক্রিন[েএ]?|ড্যাশবোর্ড[েএ]?|dashboard|হোমে?|home\s*screen|main\s*screen|home|অ্যাসিস্ট্যান্ট(?:ে|ের)?)(?:\s*(?:এ|তে|-এ|ের|e))?\s*(?:ফিরে\s*(?:যাও|যেতে|এসো|আসো|চল|চলো)|fire\s*(?:jao|asho|esho)|phire\s*(?:jao|asho|esho)|যাও|যেতে|এসো|আসো|ব্যাক|jao|asho|esho|back|return|go)/ui.test(norm) ||
+    /^(?:ফিরে\s*(?:যাও|এসো|আসো)|back\s*(?:to\s*home)?|return\s*(?:to\s*)?(?:home|dashboard)?|go\s*(?:to\s*)?(?:home|dashboard)|home\s*screen|main\s*screen|dashboard|হোম\s*স্ক্রিন|মেইন\s*স্ক্রিন|ড্যাশবোর্ড)$/ui.test(norm);
   if (isHomeScreen) {
     return {
       type: 'HOME_SCREEN',
@@ -1188,8 +1190,9 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
       try {
         spawn('powershell', ['-NoProfile', '-Command', `
           (New-Object -ComObject WScript.Shell).SendKeys('^w');
-          Start-Sleep -Milliseconds 200;
-          (New-Object -ComObject WScript.Shell).AppActivate('TRI AI - JARVIS Holographic Command Center');
+          Start-Sleep -Milliseconds 150;
+          Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match 'YouTube|Google|Search|ক্রিকেট|গান' } | ForEach-Object { $_.CloseMainWindow() };
+          (New-Object -ComObject WScript.Shell).AppActivate('TRI AI - Iron Man / JARVIS Holographic Command Center');
         `]);
       } catch (e) {}
       return {
