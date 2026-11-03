@@ -703,6 +703,7 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
   s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
   s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
+  s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
 
   return s.replace(/\s+/g, ' ').trim();
 }
@@ -1035,11 +1036,14 @@ function detectIntentAction(prompt) {
     return { type: 'CAPABILITIES', reply };
   }
 
-  // 4. Greetings
-  if (!norm.includes('আবহাও') && !norm.includes('weather') && !norm.includes('খুলনা') && !norm.includes('ঢাকা') && (norm.includes('কেমন আছো') || norm.includes('কেমন আছেন') || norm.includes('কি খবর') || norm.includes('কী খবর') || norm.includes('কি অবস্থা') || norm.includes('how are you'))) {
+  // 4. Greetings (Hello, Hi, কেমন আছো, কি খবর)
+  const isGreeting = /(?:^|[\s\p{P}])(হ্যালো|হেলো|হাই|hello|hi|hey|হেই|নমস্কার|সালাম|আসসালামু\s*আলাইকুম)(?=[\s\p{P}]|$)/ui.test(norm) ||
+    norm.includes('কেমন আছো') || norm.includes('কেমন আছেন') || norm.includes('কি খবর') || norm.includes('কী খবর') || norm.includes('কি অবস্থা') || norm.includes('how are you');
+
+  if (isGreeting && !norm.includes('আবহাও') && !norm.includes('weather') && !norm.includes('গান') && !norm.includes('সার্চ') && !norm.includes('খোলো') && !norm.includes('ওপেন')) {
     return {
       type: 'GREETING',
-      reply: 'আমি খুব ভালো আছি TRIDIP স্যার! আপনার কি খবর বলুন, আমি কীভাবে সাহায্য করতে পারি?'
+      reply: 'হ্যালো TRIDIP স্যার! আমি আপনার সার্বক্ষণিক পার্সোনাল এআই অ্যাসিস্ট্যান্ট জার্ভিস। বলুন, আজ আপনাকে কীভাবে সাহায্য করতে পারি?'
     };
   }
 
@@ -1510,7 +1514,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
             const val = Math.abs(audioBuffer.readInt16LE(i));
             if (val > maxSample) maxSample = val;
           }
-          if (maxSample < 150) {
+          if (maxSample < 500) {
             console.log(`[Whisper STT] Rejected faint background noise (peak=${maxSample}/32767)`);
             res.writeHead(200, { 'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ success: false, text: '', message: 'Faint background noise discarded' }));
@@ -1522,7 +1526,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'YouTube, Google, Facebook, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্রিকেট স্কোর, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, কি খবর। Bengali and English speech.');
+        formData.append('prompt', 'হ্যালো, YouTube, Google, Facebook, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্রিকেট স্কোর, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, কি খবর। Bengali and English speech.');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
@@ -1553,10 +1557,23 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           text = '';
         }
 
-        // Detect and reject repeating token hallucinations on background noise
-        const words = text.split(/\s+/);
+        // Detect and reject repeating token or rapid loop hallucinations on background noise
+        const words = text.split(/\s+/).filter(w => w.length > 0);
         const wordCounts = {};
         let isHallucination = false;
+
+        if (!isMp3 && !isWebm) {
+          const durationSec = (audioBuffer.length - 44) / (16000 * 2);
+          if (durationSec > 0.5 && (words.length / durationSec) > 4.5) {
+            isHallucination = true;
+          }
+        }
+
+        // Reject known gibberish patterns
+        if (/টিউডিকিটেল|আজিতাদির|পারেশি|স্ক্বালা|আচ্ছানিত|আছ্ছানিত|কেছালিকি|বিড্যাতি|বিডাতি|ছিন্দের|পারিশি/i.test(text)) {
+          isHallucination = true;
+        }
+
         for (const w of words) {
           const cleanW = w.replace(/[.,/#!$%^&*;:{}=\-_`~()।?!]/g, '');
           if (cleanW.length > 2) {
@@ -1568,7 +1585,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           }
         }
         if (isHallucination) {
-          console.warn(`[Whisper STT] Rejected repetitive hallucination: "${text}"`);
+          console.warn(`[Whisper STT] Rejected noise hallucination: "${text}"`);
           text = '';
         }
         const cleanText = normalizeBanglishToBengali(text);
