@@ -133,9 +133,22 @@ ipcMain.handle('desktop-open-application', async (event, { appName, appCmd }) =>
   }
 });
 
-// Return to Assistant Home Screen Handler (Brings TRI AI to Foreground)
+// Return to Assistant Home Screen Handler (Closes opened browser/tab & Brings TRI AI to Foreground)
 ipcMain.handle('desktop-focus-home', async () => {
   try {
+    // 1. Close the active browser tab that was opened for YouTube / Google search
+    try {
+      await execPromise(`powershell -NoProfile -Command "(New-Object -ComObject WScript.Shell).SendKeys('^w')"`);
+    } catch (eSend) {
+      console.warn('[desktop-focus-home sendkeys warn]:', eSend.message);
+    }
+
+    // 2. Gracefully close any YouTube or Google Search window opened by the assistant
+    try {
+      await execPromise(`powershell -NoProfile -Command "Get-Process chrome, msedge -ErrorAction SilentlyContinue | Where-Object { $_.MainWindowTitle -match 'YouTube|Google|Search|ক্রিকেট|গান' } | ForEach-Object { $_.CloseMainWindow() }"`);
+    } catch (eWin) {}
+
+    // 3. Bring TRI AI MainWindow to Foreground and Focus
     if (mainWindow && !mainWindow.isDestroyed()) {
       if (mainWindow.isMinimized()) mainWindow.restore();
       mainWindow.show();

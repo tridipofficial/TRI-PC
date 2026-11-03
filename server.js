@@ -616,6 +616,8 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/\s+/g, ' ').trim();
 
   // 0. Bengali Whisper & Speech Phonetic Cleanup (Runs first so downstream rules see standard words)
+  // Browser phonetic variants & mishearings (প্লাউজার, ব্লাউজার, ইত্যাদি -> ব্রাউজার)
+  s = s.replace(/(^|[\s\p{P}])(প্লাউজার|প্লাউজারে|ব্লাউজার|ব্লাউজারে|ব্রাওজার|ব্রৌজার|ব্রওজার|ব্রাউজের|ব্রাউজারে|ব্রাউজারটা|browser)(?=[\s\p{P}]|$)/gui, '$1ব্রাউজার');
   // YouTube phonetic variants & mishearings (ঘোটোপ, জটপ, জোটপ, ঘোটপ, etc.)
   s = s.replace(/(^|[\s\p{P}])(ঘোটপ|ঘোটোপ|ঘোট্রপ|ঘোট্রোপ|জটপ|জোটপ|জটটপ|যোটপ|যোটোপ|যুটপ|যুটোপ|জটোপ|জোটোপ|যোট্যোপ|যোট্যুপ|যোটুপ|যূটুপ|যুছুব|যুচুব|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
   // PDF mishearing when followed by song
@@ -645,9 +647,10 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
 
   // Home Screen & Navigation Banglish Phrases
-  s = s.replace(/\b(?:back\s*to\s*home|return\s*home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে যাও');
+  s = s.replace(/\b(?:back\s*to\s*home|return\s*(?:to\s*)?home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে আসো');
+  s = s.replace(/\b(?:main\s*screen|mainscreen|মেইন\s*স্ক্রিন|মেইনস্ক্রিন)\b/gi, 'হোম স্ক্রিন');
   s = s.replace(/\b(?:home\s*screen|homescreen)\b/gi, 'হোম স্ক্রিন');
-  s = s.replace(/\b(?:fire\s*jao|fire\s*asho|fire\s*esho)\b/gi, 'ফিরে যাও');
+  s = s.replace(/\b(?:fire\s*asho|fire\s*esho|fire\s*jao|phire\s*asho|phire\s*jao)\b/gi, 'ফিরে আসো');
 
   // 1. Compound Transliterated & Banglish Phrases
   s = s.replace(/\b(?:jutid|yutid)\s*(?:kolo|kholo|open|opin)\s*(?:evan|ebong|and|r|ar)\s*(?:salskora|sars|search)\s*(?:hindi|hindí)\s*(?:svanglyki|gaan|gan|song)\b/gi, 'YouTube খোলো এবং সার্চ করো হিন্দি গান');
@@ -922,10 +925,13 @@ function cleanSearchQuery(q) {
     'সিরিয়াল বাই ওয়ান বাই ওয়ান', 'সিরিয়াল বাই', 'ওয়ান বাই ওয়ান', 'এক এক করে',
     'গিয়ে', 'গিয়ে', 'গিয়া', 'গিয়া', 'যেয়ে', 'যেয়ে', 'যাইয়া', 'যাইয়া', 'যাইয়ে', 'যাইয়ে',
 
-    // Brands / Services & Phonetic Variants (Ensures no misheard YouTube names leak into search)
+    // Brands / Services & Phonetic Variants (Ensures no misheard YouTube/Browser names leak into search)
+    'ব্রাউজার ওপেন করো', 'ব্রাউজার ওপেন কর', 'ব্রাউজার ওপেন', 'ব্রাউজারে গিয়ে', 'ব্রাউজারে গিয়ে', 'ব্রাউজারে', 'ব্রাউজারটা', 'ব্রাউজার',
+    'প্লাউজার ওপেন করো', 'প্লাউজার ওপেন', 'প্লাউজারে', 'প্লাউজার', 'ব্লাউজার', 'ব্লাউজারে', 'ব্রাওজার', 'ব্রৌজার', 'browser',
     'ইউটিউবে', 'ইউটিউব-এ', 'YouTube-এ', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যোট্যুপ', 'যোটুপ', 'ইয়ায়োটুপ', 'ইয়ায়োটুপ', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
     'ঘোটপ', 'ঘোটোপ', 'ঘোট্রপ', 'ঘোট্রোপ', 'জটপ', 'জোটপ', 'জটটপ', 'যোটপ', 'যোটোপ', 'যুটপ', 'যুটোপ', 'জটোপ', 'জোটোপ',
     'গুগলে', 'গুগল-এ', 'Google-এ', 'গুগল', 'google', 'ফেসবুক', 'facebook', 'ক্যামেরা', 'camera', 'নোটপ্যাড', 'notepad',
+    'ইন্টারনেট', 'নেট', 'ওয়েব', 'ওয়েব', 'ট্যাব', 'ট্যাবে', 'নতুন ট্যাব', 'tab', 'new tab',
 
     // Search verbs & variations
     'লিখে সার্চ করো', 'লিখে সারচ করো', 'লিখে সরচ করো', 'লিখে সর্চ করো', 'লিখে সার্চ কর', 'লিখে সার্চ', 'লিখে সারচ', 'লিখে সর্চ', 'লিখে',
@@ -960,8 +966,10 @@ function cleanSearchQuery(q) {
   s = s.replace(/(বাংলা\s*গান)(?:\s+\1)+/gui, '$1');
   s = s.replace(/\b(\S+)(?:\s+\1\b)+/gui, '$1');
 
-  // If query contains "হিন্দি গান" or "বাংলা গান" and has residual noise or command words, isolate cleanly
-  if (/হিন্দি\s*গান/i.test(s) && (s.includes('YouTube') || s.includes('ঘোটোপ') || s.includes('জটপ') || s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 20)) {
+  // If query contains "ক্রিকেট স্কোর", "হিন্দি গান" or "বাংলা গান" and has residual noise or command words, isolate cleanly
+  if (/ক্রিকেট\s*স্কোর/i.test(s) && (s.includes('ব্রাউজার') || s.includes('প্লাউজার') || s.includes('গুগল') || s.includes('ওপেন') || s.length > 18)) {
+    s = "ক্রিকেট স্কোর";
+  } else if (/হিন্দি\s*গান/i.test(s) && (s.includes('YouTube') || s.includes('ঘোটোপ') || s.includes('জটপ') || s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 20)) {
     s = "হিন্দি গান";
   } else if (/বাংলা\s*গান/i.test(s) && (s.includes('YouTube') || s.includes('ঘোটোপ') || s.includes('জটপ') || s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 20)) {
     s = "বাংলা গান";
@@ -974,13 +982,13 @@ function cleanSearchQuery(q) {
 function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
-  // 0. Home Screen Intent ("হোম স্ক্রিনে ফিরে যাও", "হোমে ফিরে যাও", "হোম স্ক্রিনে আসো", "back to home", "home screen e jao", etc.)
-  const isHomeScreen = /(?:হোম\s*স্ক্রিন[েএ]?|হোমে?|home\s*screen|home|অ্যাসিস্ট্যান্ট(?:ে|ের)?)(?:\s*(?:এ|তে|-এ|ের|e))?\s*(?:ফিরে\s*(?:যাও|যেতে|এসো|আসো|চল|চলো)|fire\s*(?:jao|asho|esho)|যাও|যেতে|এসো|আসো|ব্যাক|jao|asho|esho|back|return|go)/ui.test(norm) ||
-    /^(?:ফিরে\s*(?:যাও|এসো|আসো)|back\s*(?:to\s*home)?|return\s*home|go\s*home|home\s*screen|হোম\s*স্ক্রিন)$/ui.test(norm);
+  // 0. Home Screen Intent ("হোম স্ক্রিনে ফিরে আসো", "মেইন স্ক্রিনে ফিরে আসো", "হোমে ফিরে যাও", "back to home", "return to home", etc.)
+  const isHomeScreen = /(?:হোম\s*স্ক্রিন[েএ]?|মেইন\s*স্ক্রিন[েএ]?|হোমে?|home\s*screen|main\s*screen|home|অ্যাসিস্ট্যান্ট(?:ে|ের)?)(?:\s*(?:এ|তে|-এ|ের|e))?\s*(?:ফিরে\s*(?:যাও|যেতে|এসো|আসো|চল|চলো)|fire\s*(?:jao|asho|esho)|phire\s*(?:jao|asho|esho)|যাও|যেতে|এসো|আসো|ব্যাক|jao|asho|esho|back|return|go)/ui.test(norm) ||
+    /^(?:ফিরে\s*(?:যাও|এসো|আসো)|back\s*(?:to\s*home)?|return\s*(?:to\s*)?home|go\s*home|home\s*screen|main\s*screen|হোম\s*স্ক্রিন|মেইন\s*স্ক্রিন)$/ui.test(norm);
   if (isHomeScreen) {
     return {
       type: 'HOME_SCREEN',
-      reply: 'TRIDIP স্যার, অ্যাসিস্ট্যান্টের হোম স্ক্রিনে ফিরে আসা হয়েছে।'
+      reply: 'TRIDIP স্যার, পূর্ববর্তী ব্রাউজার সম্পূর্ণ বন্ধ করে আমি আপনাকে অ্যাসিস্ট্যান্টের হোম স্ক্রিনে ফিরিয়ে এনেছি।'
     };
   }
 
@@ -1014,8 +1022,8 @@ function detectIntentAction(prompt) {
     };
   }
 
-  // 2. Google Search & Web
-  if (/গুগল|google/i.test(norm)) {
+  // 2. Google & Browser Search
+  if (/গুগল|google|ব্রাউজার|প্লাউজার|browser/i.test(norm)) {
     const q = cleanSearchQuery(prompt);
     if (q && q.length > 1) {
       const url = `https://www.google.com/search?q=${encodeURIComponent(q)}`;
@@ -1024,14 +1032,14 @@ function detectIntentAction(prompt) {
         appName: 'google',
         query: q,
         url: url,
-        reply: `TRIDIP স্যার, গুগলে '${q}' সার্চ করা হয়েছে।`
+        reply: `TRIDIP স্যার, ব্রাউজারে গুগলে '${q}' সার্চ করা হয়েছে।`
       };
     }
     return {
       type: 'OPEN_URL',
-      appName: 'google',
+      appName: 'browser',
       url: 'https://www.google.com',
-      reply: 'TRIDIP স্যার, Google ওপেন করা হয়েছে।'
+      reply: 'TRIDIP স্যার, ব্রাউজার ওপেন করা হয়েছে।'
     };
   }
 
@@ -1175,13 +1183,17 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
     const intentUrl = typeof intent === 'object' ? intent.url : null;
     const appCmd = typeof intent === 'object' ? (intent.appCmd || intent.appName) : null;
 
-    // 0. Home Screen Handler (Brings TRI AI Home Screen to Front)
+    // 0. Home Screen Handler (Closes opened browser/tab & Brings TRI AI Home Screen to Front)
     if (actionType === 'HOME_SCREEN') {
       try {
-        spawn('powershell', ['-NoProfile', '-Command', "(New-Object -ComObject WScript.Shell).AppActivate('TRI AI - JARVIS Holographic Command Center')"]);
+        spawn('powershell', ['-NoProfile', '-Command', `
+          (New-Object -ComObject WScript.Shell).SendKeys('^w');
+          Start-Sleep -Milliseconds 200;
+          (New-Object -ComObject WScript.Shell).AppActivate('TRI AI - JARVIS Holographic Command Center');
+        `]);
       } catch (e) {}
       return {
-        message: presetReply || 'TRIDIP স্যার, অ্যাসিস্ট্যান্টের হোম স্ক্রিনে ফিরে আসা হয়েছে।',
+        message: presetReply || 'TRIDIP স্যার, পূর্ববর্তী ব্রাউজার সম্পূর্ণ বন্ধ করে আমি আপনাকে অ্যাসিস্ট্যান্টের হোম স্ক্রিনে ফিরিয়ে এনেছি।',
         url: null
       };
     }
@@ -1571,7 +1583,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'হ্যালো, YouTube, Google, Facebook, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্রিকেট স্কোর, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, কি খবর। Bengali and English speech.');
+        formData.append('prompt', 'হ্যালো, YouTube, Google, Facebook, ব্রাউজার, গুগল, ইউটিউব, হোম স্ক্রিনে ফিরে আসো, মেইন স্ক্রিনে ফিরে আসো, ক্রিকেট স্কোর, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, কি খবর। Browser, Google, YouTube, Home screen, cricket score.');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();

@@ -270,6 +270,8 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/\s+/g, ' ').trim();
 
     // 0. Bengali Whisper & Speech Phonetic Cleanup (Runs first so downstream rules see standard words)
+    // Browser phonetic variants & mishearings (প্লাউজার, ব্লাউজার, ইত্যাদি -> ব্রাউজার)
+    s = s.replace(/(^|[\s\p{P}])(প্লাউজার|প্লাউজারে|ব্লাউজার|ব্লাউজারে|ব্রাওজার|ব্রৌজার|ব্রওজার|ব্রাউজের|ব্রাউজারে|ব্রাউজারটা|browser)(?=[\s\p{P}]|$)/gui, '$1ব্রাউজার');
     // YouTube phonetic variants & mishearings (ঘোটোপ, জটপ, জোটপ, ঘোটপ, etc.)
     s = s.replace(/(^|[\s\p{P}])(ঘোটপ|ঘোটোপ|ঘোট্রপ|ঘোট্রোপ|জটপ|জোটপ|জটটপ|যোটপ|যোটোপ|যুটপ|যুটোপ|জটোপ|জোটোপ|যোট্যোপ|যোট্যুপ|যোটুপ|যূটুপ|যুছুব|যুচুব|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
     // PDF mishearing when followed by song
@@ -299,9 +301,10 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
 
     // Home Screen & Navigation Banglish Phrases
-    s = s.replace(/\b(?:back\s*to\s*home|return\s*home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে যাও');
+    s = s.replace(/\b(?:back\s*to\s*home|return\s*(?:to\s*)?home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে আসো');
+    s = s.replace(/\b(?:main\s*screen|mainscreen|মেইন\s*স্ক্রিন|মেইনস্ক্রিন)\b/gi, 'হোম স্ক্রিন');
     s = s.replace(/\b(?:home\s*screen|homescreen)\b/gi, 'হোম স্ক্রিন');
-    s = s.replace(/\b(?:fire\s*jao|fire\s*asho|fire\s*esho)\b/gi, 'ফিরে যাও');
+    s = s.replace(/\b(?:fire\s*asho|fire\s*esho|fire\s*jao|phire\s*asho|phire\s*jao)\b/gi, 'ফিরে আসো');
 
     // 1. Compound Transliterated & Banglish Phrases
     s = s.replace(/\b(?:jutid|yutid)\s*(?:kolo|kholo|open|opin)\s*(?:evan|ebong|and|r|ar)\s*(?:salskora|sars|search)\s*(?:hindi|hindí)\s*(?:svanglyki|gaan|gan|song)\b/gi, 'YouTube খোলো এবং সার্চ করো হিন্দি গান');
@@ -427,6 +430,14 @@ document.addEventListener('DOMContentLoaded', () => {
               window.electronAPI.focusHome();
             } else {
               try { window.focus(); } catch (e) {}
+            }
+            if (triYouTubeWindow && !triYouTubeWindow.closed) {
+              try { triYouTubeWindow.close(); } catch (e) {}
+              triYouTubeWindow = null;
+            }
+            const tabCockpitBtn = document.getElementById('tabCockpitBtn');
+            if (tabCockpitBtn) {
+              tabCockpitBtn.click();
             }
             if (chatStream) {
               chatStream.scrollTop = chatStream.scrollHeight;
