@@ -133,6 +133,24 @@ ipcMain.handle('desktop-open-application', async (event, { appName, appCmd }) =>
   }
 });
 
+// Return to Assistant Home Screen Handler (Brings TRI AI to Foreground)
+ipcMain.handle('desktop-focus-home', async () => {
+  try {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
+      mainWindow.setAlwaysOnTop(true);
+      mainWindow.focus();
+      mainWindow.setAlwaysOnTop(false);
+      return { success: true };
+    }
+    return { success: false, error: 'Main window not available' };
+  } catch (err) {
+    console.error('[desktop-focus-home error]:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
 // HUD IPC Relay disabled per user request
 ipcMain.on('hud-update', () => {
   // No-op: HUD window is completely deactivated

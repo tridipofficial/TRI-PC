@@ -269,6 +269,40 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/[.,:;।?!]/g, ' ');
     s = s.replace(/\s+/g, ' ').trim();
 
+    // 0. Bengali Whisper & Speech Phonetic Cleanup (Runs first so downstream rules see standard words)
+    // YouTube phonetic variants & mishearings (ঘোটোপ, জটপ, জোটপ, ঘোটপ, etc.)
+    s = s.replace(/(^|[\s\p{P}])(ঘোটপ|ঘোটোপ|ঘোট্রপ|ঘোট্রোপ|জটপ|জোটপ|জটটপ|যোটপ|যোটোপ|যুটপ|যুটোপ|জটোপ|জোটোপ|যোট্যোপ|যোট্যুপ|যোটুপ|যূটুপ|যুছুব|যুচুব|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+    // PDF mishearing when followed by song
+    s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
+    // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
+    s = s.replace(/(^|[\s\p{P}])(ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+    s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান|বাংলাগান|বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
+    s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
+    s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
+    s = s.replace(/(^|[\s\p{P}])(লিকে|লেক|লেকে|লিকজা)(?=[\s\p{P}]|$)/gui, '$1লিখে');
+    s = s.replace(/(^|[\s\p{P}])(এস্কোল|স্কোল|এস্কোর|এঙ্কোর)(?=[\s\p{P}]|$)/gui, '$1স্কোর');
+    s = s.replace(/(^|[\s\p{P}])(গুগ্লে|গুগোল)(?=[\s\p{P}]|$)/gui, '$1গুগলে');
+    s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর|ক্যালকুলেটোর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
+    s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
+    s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
+    s = s.replace(/(^|[\s\p{P}])(কেকে)(?=[\s\p{P}]|$)/gui, '$1কি কি');
+    s = s.replace(/(^|[\s\p{P}])(কাস)(?=[\s\p{P}]|$)/gui, '$1কাজ');
+    s = s.replace(/(^|[\s\p{P}])(কোত্তে|কুত্তে)(?=[\s\p{P}]|$)/gui, '$1করতে');
+    s = s.replace(/(^|[\s\p{P}])(হারো)(?=[\s\p{P}]|$)/gui, '$1পারো');
+    s = s.replace(/(^|[\s\p{P}])(এসিস্টেন্ডিশেপে|এসিস্টেন্ট\s*হিসাবে|এসিস্টেন্ড)(?=[\s\p{P}]|$)/gui, '$1অ্যাসিস্ট্যান্ট হিসেবে');
+    s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
+    s = s.replace(/(^|[\s\p{P}])(কুলনার|কুলনা|খোলনার|খোলনা|হুনার)(?=[\s\p{P}]|$)/gui, '$1খুলনার');
+    s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবহাওও|আবহাওয়)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+    s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
+    s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
+    s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
+    s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
+
+    // Home Screen & Navigation Banglish Phrases
+    s = s.replace(/\b(?:back\s*to\s*home|return\s*home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে যাও');
+    s = s.replace(/\b(?:home\s*screen|homescreen)\b/gi, 'হোম স্ক্রিন');
+    s = s.replace(/\b(?:fire\s*jao|fire\s*asho|fire\s*esho)\b/gi, 'ফিরে যাও');
+
     // 1. Compound Transliterated & Banglish Phrases
     s = s.replace(/\b(?:jutid|yutid)\s*(?:kolo|kholo|open|opin)\s*(?:evan|ebong|and|r|ar)\s*(?:salskora|sars|search)\s*(?:hindi|hindí)\s*(?:svanglyki|gaan|gan|song)\b/gi, 'YouTube খোলো এবং সার্চ করো হিন্দি গান');
     s = s.replace(/\b(?:youtube|yt)\s*(?:e|te|-e)\b/gi, 'YouTube-এ');
@@ -338,36 +372,9 @@ document.addEventListener('DOMContentLoaded', () => {
     s = s.replace(/\b(?:kemon|kemn)\b/gi, 'কেমন');
     s = s.replace(/\b(?:koto|kto)\b/gi, 'কত');
     s = s.replace(/\b(?:boloto|bolo)\b/gi, 'বলো');
+    s = s.replace(/\b(?:home)\b/gi, 'হোম');
 
-    // 7. Bengali Whisper & Speech Phonetic Cleanup
-    // Action verbs (open, play, etc.)
-    s = s.replace(/(^|[\s\p{P}])(ওপিন|উপিন|উপইন|ওপপেন|ওপেনিং|ওফন|ওফিন|ওফেন|অপেন|অপিন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
-    s = s.replace(/(^|[\s\p{P}])(খুল|খুলো|কোলো|কুলো|খোল)(?=[\s\p{P}]|$)/gui, '$1খোলো');
-    // YouTube phonetic variants
-    s = s.replace(/(^|[\s\p{P}])(যোট্যোপ|যোট্যুপ|যোটুপ|যূটুপ|যুছুব|যুচুব|ঘোট্রপ|ঘোটোপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
-    // PDF mishearing when followed by song
-    s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
-    // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
-    s = s.replace(/(^|[\s\p{P}])(ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
-    s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান|বাংলাগান|বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
-    s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
-    s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
-    s = s.replace(/(^|[\s\p{P}])(লিকে|লেক|লেকে|লিকজা)(?=[\s\p{P}]|$)/gui, '$1লিখে');
-    s = s.replace(/(^|[\s\p{P}])(এস্কোল|স্কোল|এস্কোর|এঙ্কোর)(?=[\s\p{P}]|$)/gui, '$1স্কোর');
-    s = s.replace(/(^|[\s\p{P}])(গুগ্লে|গুগোল)(?=[\s\p{P}]|$)/gui, '$1গুগলে');
-    s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর|ক্যালকুলেটোর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
-    s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
-    s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
-    s = s.replace(/(^|[\s\p{P}])(কেকে)(?=[\s\p{P}]|$)/gui, '$1কি কি');
-    s = s.replace(/(^|[\s\p{P}])(কাস)(?=[\s\p{P}]|$)/gui, '$1কাজ');
-    s = s.replace(/(^|[\s\p{P}])(কোত্তে|কুত্তে)(?=[\s\p{P}]|$)/gui, '$1করতে');
-    s = s.replace(/(^|[\s\p{P}])(হারো)(?=[\s\p{P}]|$)/gui, '$1পারো');
-    s = s.replace(/(^|[\s\p{P}])(এসিস্টেন্ডিশেপে|এসিস্টেন্ট\s*হিসাবে|এসিস্টেন্ড)(?=[\s\p{P}]|$)/gui, '$1অ্যাসিস্ট্যান্ট হিসেবে');
-    s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
-    s = s.replace(/(^|[\s\p{P}])(কুলনার|কুলনা|খোলনার|খোলনা|হুনার)(?=[\s\p{P}]|$)/gui, '$1খুলনার');
-    s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবহাওও|আবহাওয়)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
-    s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
-    s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
+    return s.replace(/\s+/g, ' ').trim();
     s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
     s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
 
@@ -415,7 +422,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Universal System Action Handler (Archer AI Architecture)
         if (data.action) {
-          if (data.action.url) {
+          if (data.action.type === 'HOME_SCREEN') {
+            if (window.electronAPI && window.electronAPI.focusHome) {
+              window.electronAPI.focusHome();
+            } else {
+              try { window.focus(); } catch (e) {}
+            }
+            if (chatStream) {
+              chatStream.scrollTop = chatStream.scrollHeight;
+            }
+          } else if (data.action.url) {
             if (window.electronAPI && window.electronAPI.openSystem) {
               window.electronAPI.openSystem(data.action.url);
             } else {

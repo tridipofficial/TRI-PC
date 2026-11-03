@@ -615,6 +615,40 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/[.,:;।?!]/g, ' ');
   s = s.replace(/\s+/g, ' ').trim();
 
+  // 0. Bengali Whisper & Speech Phonetic Cleanup (Runs first so downstream rules see standard words)
+  // YouTube phonetic variants & mishearings (ঘোটোপ, জটপ, জোটপ, ঘোটপ, etc.)
+  s = s.replace(/(^|[\s\p{P}])(ঘোটপ|ঘোটোপ|ঘোট্রপ|ঘোট্রোপ|জটপ|জোটপ|জটটপ|যোটপ|যোটোপ|যুটপ|যুটোপ|জটোপ|জোটোপ|যোট্যোপ|যোট্যুপ|যোটুপ|যূটুপ|যুছুব|যুচুব|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
+  // PDF mishearing when followed by song
+  s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
+  // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
+  s = s.replace(/(^|[\s\p{P}])(ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+  s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান|বাংলাগান|বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
+  s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
+  s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
+  s = s.replace(/(^|[\s\p{P}])(লিকে|লেক|লেকে|লিকজা)(?=[\s\p{P}]|$)/gui, '$1লিখে');
+  s = s.replace(/(^|[\s\p{P}])(এস্কোল|স্কোল|এস্কোর|এঙ্কোর)(?=[\s\p{P}]|$)/gui, '$1স্কোর');
+  s = s.replace(/(^|[\s\p{P}])(গুগ্লে|গুগোল)(?=[\s\p{P}]|$)/gui, '$1গুগলে');
+  s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর|ক্যালকুলেটোর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
+  s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
+  s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
+  s = s.replace(/(^|[\s\p{P}])(কেকে)(?=[\s\p{P}]|$)/gui, '$1কি কি');
+  s = s.replace(/(^|[\s\p{P}])(কাস)(?=[\s\p{P}]|$)/gui, '$1কাজ');
+  s = s.replace(/(^|[\s\p{P}])(কোত্তে|কুত্তে)(?=[\s\p{P}]|$)/gui, '$1করতে');
+  s = s.replace(/(^|[\s\p{P}])(হারো)(?=[\s\p{P}]|$)/gui, '$1পারো');
+  s = s.replace(/(^|[\s\p{P}])(এসিস্টেন্ডিশেপে|এসিস্টেন্ট\s*হিসাবে|এসিস্টেন্ড)(?=[\s\p{P}]|$)/gui, '$1অ্যাসিস্ট্যান্ট হিসেবে');
+  s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
+  s = s.replace(/(^|[\s\p{P}])(কুলনার|কুলনা|খোলনার|খোলনা|হুনার)(?=[\s\p{P}]|$)/gui, '$1খুলনার');
+  s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবহাওও|আবহাওয়)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
+  s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
+  s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
+  s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
+  s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
+
+  // Home Screen & Navigation Banglish Phrases
+  s = s.replace(/\b(?:back\s*to\s*home|return\s*home|go\s*home)\b/gi, 'হোম স্ক্রিনে ফিরে যাও');
+  s = s.replace(/\b(?:home\s*screen|homescreen)\b/gi, 'হোম স্ক্রিন');
+  s = s.replace(/\b(?:fire\s*jao|fire\s*asho|fire\s*esho)\b/gi, 'ফিরে যাও');
+
   // 1. Compound Transliterated & Banglish Phrases
   s = s.replace(/\b(?:jutid|yutid)\s*(?:kolo|kholo|open|opin)\s*(?:evan|ebong|and|r|ar)\s*(?:salskora|sars|search)\s*(?:hindi|hindí)\s*(?:svanglyki|gaan|gan|song)\b/gi, 'YouTube খোলো এবং সার্চ করো হিন্দি গান');
   s = s.replace(/\b(?:youtube|yt)\s*(?:e|te|-e)\b/gi, 'YouTube-এ');
@@ -684,38 +718,7 @@ function normalizeBanglishToBengali(raw) {
   s = s.replace(/\b(?:kemon|kemn)\b/gi, 'কেমন');
   s = s.replace(/\b(?:koto|kto)\b/gi, 'কত');
   s = s.replace(/\b(?:boloto|bolo)\b/gi, 'বলো');
-
-  // 7. Bengali Whisper & Speech Phonetic Cleanup
-  // Action verbs (open, play, etc.)
-  s = s.replace(/(^|[\s\p{P}])(ওপিন|উপিন|উপইন|ওপপেন|ওপেনিং|ওফন|ওফিন|ওফেন|অপেন|অপিন)(?=[\s\p{P}]|$)/gui, '$1ওপেন');
-  s = s.replace(/(^|[\s\p{P}])(খুল|খুলো|কোলো|কুলো|খোল)(?=[\s\p{P}]|$)/gui, '$1খোলো');
-  // YouTube phonetic variants
-  s = s.replace(/(^|[\s\p{P}])(যোট্যোপ|যোট্যুপ|যোটুপ|যূটুপ|যুছুব|যুচুব|ঘোট্রপ|ঘোটোপ|ইয়ায়োটুপ|ইয়ায়োটুপ|ইয়াইউটুব|ইয়াইউটুব|ইয়ায়ুটিউব|ইয়ায়ুটিউব|যুতিউব|যুতুব|যুচ্যুব|চোচুব|য়চুুব|যুট্যুবে|যুট্যুব|যুটুব|ইউটুপ|ইউটুব|উটিউব|উতুব|উতিউব|ইউটিব)(?=[\s\p{P}]|$)/gui, '$1YouTube');
-  // PDF mishearing when followed by song
-  s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
-  // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
-  s = s.replace(/(^|[\s\p{P}])(ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
-  s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান|বাংলাগান|বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
-  s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
-  s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
-  s = s.replace(/(^|[\s\p{P}])(লিকে|লেক|লেকে|লিকজা)(?=[\s\p{P}]|$)/gui, '$1লিখে');
-  s = s.replace(/(^|[\s\p{P}])(এস্কোল|স্কোল|এস্কোর|এঙ্কোর)(?=[\s\p{P}]|$)/gui, '$1স্কোর');
-  s = s.replace(/(^|[\s\p{P}])(গুগ্লে|গুগোল)(?=[\s\p{P}]|$)/gui, '$1গুগলে');
-  s = s.replace(/(^|[\s\p{P}])(কালকুলেটর|কেলকুলেটর|কেল্কুলেটর|ক্যালকুলেটোর)(?=[\s\p{P}]|$)/gui, '$1ক্যালকুলেটর');
-  s = s.replace(/(^|[\s\p{P}])(তমার|তোমর)(?=[\s\p{P}]|$)/gui, '$1তোমার');
-  s = s.replace(/(^|[\s\p{P}])(কাচকি|কাজকি)(?=[\s\p{P}]|$)/gui, '$1কাজ কি');
-  s = s.replace(/(^|[\s\p{P}])(কেকে)(?=[\s\p{P}]|$)/gui, '$1কি কি');
-  s = s.replace(/(^|[\s\p{P}])(কাস)(?=[\s\p{P}]|$)/gui, '$1কাজ');
-  s = s.replace(/(^|[\s\p{P}])(কোত্তে|কুত্তে)(?=[\s\p{P}]|$)/gui, '$1করতে');
-  s = s.replace(/(^|[\s\p{P}])(হারো)(?=[\s\p{P}]|$)/gui, '$1পারো');
-  s = s.replace(/(^|[\s\p{P}])(এসিস্টেন্ডিশেপে|এসিস্টেন্ট\s*হিসাবে|এসিস্টেন্ড)(?=[\s\p{P}]|$)/gui, '$1অ্যাসিস্ট্যান্ট হিসেবে');
-  s = s.replace(/(^|[\s\p{P}])(ধাকা|ডাকা)(?=[\s\p{P}]|$)/gui, '$1ঢাকা');
-  s = s.replace(/(^|[\s\p{P}])(কুলনার|কুলনা|খোলনার|খোলনা|হুনার)(?=[\s\p{P}]|$)/gui, '$1খুলনার');
-  s = s.replace(/(^|[\s\p{P}])(আবাওয়া|আবাওয়ার|আবাওয়ায়|আবোয়ার|আব঵ার|আব঵া|আবহাওর|আবহাওয়ার|আবহাওয়ার|আবহাওন|আবহাওও|আবহাওয়)(?=[\s\p{P}]|$)/gui, '$1আবহাওয়া');
-  s = s.replace(/(^|[\s\p{P}])(যোগস্তা|অবস্তা)(?=[\s\p{P}]|$)/gui, '$1অবস্থা');
-  s = s.replace(/(^|[\s\p{P}])(খবোর)(?=[\s\p{P}]|$)/gui, '$1খবর');
-  s = s.replace(/(^|[\s\p{P}])(এবংং+|এ঵ন|এবম)(?=[\s\p{P}]|$)/gui, '$1এবং');
-  s = s.replace(/(^|[\s\p{P}])(hello|helo|halo|hallo|হেলো|হাল্লো|হাই|hey|হেই|hi)(?=[\s\p{P}]|$)/gui, '$1হ্যালো');
+  s = s.replace(/\b(?:home)\b/gi, 'হোম');
 
   return s.replace(/\s+/g, ' ').trim();
 }
@@ -919,8 +922,9 @@ function cleanSearchQuery(q) {
     'সিরিয়াল বাই ওয়ান বাই ওয়ান', 'সিরিয়াল বাই', 'ওয়ান বাই ওয়ান', 'এক এক করে',
     'গিয়ে', 'গিয়ে', 'গিয়া', 'গিয়া', 'যেয়ে', 'যেয়ে', 'যাইয়া', 'যাইয়া', 'যাইয়ে', 'যাইয়ে',
 
-    // Brands / Services
+    // Brands / Services & Phonetic Variants (Ensures no misheard YouTube names leak into search)
     'ইউটিউবে', 'ইউটিউব-এ', 'YouTube-এ', 'ইউটিউবটা', 'ইউটিউব', 'ইউটুব', 'ইউটুপ', 'ইউটু্ব', 'ইউতু্ব', 'ইউটিব', 'উটিউব', 'যোট্যুপ', 'যোটুপ', 'ইয়ায়োটুপ', 'ইয়ায়োটুপ', 'যুট্যুবে', 'যুট্যুব', 'চোচুব', 'য়চুুব', 'youtube', 'yt',
+    'ঘোটপ', 'ঘোটোপ', 'ঘোট্রপ', 'ঘোট্রোপ', 'জটপ', 'জোটপ', 'জটটপ', 'যোটপ', 'যোটোপ', 'যুটপ', 'যুটোপ', 'জটোপ', 'জোটোপ',
     'গুগলে', 'গুগল-এ', 'Google-এ', 'গুগল', 'google', 'ফেসবুক', 'facebook', 'ক্যামেরা', 'camera', 'নোটপ্যাড', 'notepad',
 
     // Search verbs & variations
@@ -956,10 +960,10 @@ function cleanSearchQuery(q) {
   s = s.replace(/(বাংলা\s*গান)(?:\s+\1)+/gui, '$1');
   s = s.replace(/\b(\S+)(?:\s+\1\b)+/gui, '$1');
 
-  // If query starts with "হিন্দি গান" or "বাংলা গান" and contains hallucinated noise or excess repetition, isolate cleanly
-  if (/^হিন্দি\s*গান/i.test(s) && (s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 25)) {
+  // If query contains "হিন্দি গান" or "বাংলা গান" and has residual noise or command words, isolate cleanly
+  if (/হিন্দি\s*গান/i.test(s) && (s.includes('YouTube') || s.includes('ঘোটোপ') || s.includes('জটপ') || s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 20)) {
     s = "হিন্দি গান";
-  } else if (/^বাংলা\s*গান/i.test(s) && (s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 25)) {
+  } else if (/বাংলা\s*গান/i.test(s) && (s.includes('YouTube') || s.includes('ঘোটোপ') || s.includes('জটপ') || s.includes('ক্যামেরা') || s.includes('Facebook') || s.length > 20)) {
     s = "বাংলা গান";
   }
 
@@ -970,17 +974,28 @@ function cleanSearchQuery(q) {
 function detectIntentAction(prompt) {
   const norm = normalizeBn(prompt);
 
+  // 0. Home Screen Intent ("হোম স্ক্রিনে ফিরে যাও", "হোমে ফিরে যাও", "হোম স্ক্রিনে আসো", "back to home", "home screen e jao", etc.)
+  const isHomeScreen = /(?:হোম\s*স্ক্রিন[েএ]?|হোমে?|home\s*screen|home|অ্যাসিস্ট্যান্ট(?:ে|ের)?)(?:\s*(?:এ|তে|-এ|ের|e))?\s*(?:ফিরে\s*(?:যাও|যেতে|এসো|আসো|চল|চলো)|fire\s*(?:jao|asho|esho)|যাও|যেতে|এসো|আসো|ব্যাক|jao|asho|esho|back|return|go)/ui.test(norm) ||
+    /^(?:ফিরে\s*(?:যাও|এসো|আসো)|back\s*(?:to\s*home)?|return\s*home|go\s*home|home\s*screen|হোম\s*স্ক্রিন)$/ui.test(norm);
+  if (isHomeScreen) {
+    return {
+      type: 'HOME_SCREEN',
+      reply: 'TRIDIP স্যার, অ্যাসিস্ট্যান্টের হোম স্ক্রিনে ফিরে আসা হয়েছে।'
+    };
+  }
+
   // Common Action Verbs (Bengali + English + Banglish)
   const isActionVerb = /(?:খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|ওপিন|উপিন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সারচ|সরচ|সর্চ|সার্স|খোঁজো|খোজো|খুঁজে\s*দাও|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search)/ui.test(norm);
 
   // 1. YouTube & Music Intent (Excludes pure informational questions)
-  const isYt = /(?:^|[\s\p{P}])(?:ইউটিউবে|ইউটিউবটা|ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|youtube|\byt\b)(?=[\s\p{P}]|$)/ui.test(norm);
+  const isYt = /(?:^|[\s\p{P}])(?:ইউটিউবে|ইউটিউব-এ|YouTube-এ|ইউটিউবটা|ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|ঘোটপ|ঘোটোপ|ঘোট্রপ|ঘোট্রোপ|জটপ|জোটপ|জটটপ|যোটপ|যোটোপ|যুটপ|যুটোপ|জটোপ|জোটোপ|youtube|\byt\b)(?=[\s\p{P}]|$)/ui.test(norm);
   const isSongOrMusic = /(?:^|[\s\p{P}])(?:গান|গানস|সঙ্গীত|সংগীত|ভিডিও|মিউজিক|গজল|সুর|নজরুলগীতি|রবীন্দ্রসঙ্গীত|রবীন্দ্রসংগীত|song|songs|music|video)(?=[\s\p{P}]|$)/ui.test(norm);
   const isQuestion = /(?:\?|কীভাবে|কিভাবে|কেন|কী\s*জন্য|কি\s*জন্য|কে|কারা|কাকে|কোথায়|কখন|রচিয়তা|রচিয়তা|ইতিহাস|ব্যাখ্যা\s*করো|who|why|where|when)/ui.test(norm);
 
   const isPureSongQuery = /^(?:একটি|একটা)?\s*(?:বাংলা|হিন্দি|ইংরেজি|জনপ্রিয়|নতুন|পুরাতন|রোমান্টিক)?\s*(?:গান|গজল|মিউজিক|গানস|ভিডিও)\b/ui.test(norm);
   if ((isYt || (isSongOrMusic && isActionVerb) || isPureSongQuery) && !isQuestion) {
-    const query = cleanSearchQuery(prompt);
+    let query = cleanSearchQuery(prompt);
+    if (!query || query.length < 2) query = 'হিন্দি গান';
     if (query && query.length > 1) {
       const searchUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(query)}`;
       return {
@@ -988,7 +1003,7 @@ function detectIntentAction(prompt) {
         appName: 'youtube',
         query: query,
         url: searchUrl,
-        reply: `TRIDIP স্যার, ইউটিউবে '${query}' সার্চ করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`
+        reply: `TRIDIP স্যার, ব্রাউজারে ইউটিউবে '${query}' সার্চ করে ওপেন করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`
       };
     }
     return {
@@ -1160,6 +1175,17 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
     const intentUrl = typeof intent === 'object' ? intent.url : null;
     const appCmd = typeof intent === 'object' ? (intent.appCmd || intent.appName) : null;
 
+    // 0. Home Screen Handler (Brings TRI AI Home Screen to Front)
+    if (actionType === 'HOME_SCREEN') {
+      try {
+        spawn('powershell', ['-NoProfile', '-Command', "(New-Object -ComObject WScript.Shell).AppActivate('TRI AI - JARVIS Holographic Command Center')"]);
+      } catch (e) {}
+      return {
+        message: presetReply || 'TRIDIP স্যার, অ্যাসিস্ট্যান্টের হোম স্ক্রিনে ফিরে আসা হয়েছে।',
+        url: null
+      };
+    }
+
     // 0. Capabilities (Full detailed description of all custom JARVIS features)
     if (actionType === 'CAPABILITIES') {
       return { message: presetReply, url: null };
@@ -1224,23 +1250,29 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
 
     // 4. Universal Web & URL Opener & YouTube Search
     if (actionType === 'YOUTUBE_SEARCH' || actionType === 'OPEN_URL' || actionType === 'OPEN_YOUTUBE' || actionType === 'OPEN_GOOGLE') {
-      const targetUrl = intent.url || intentUrl || 'https://www.youtube.com';
+      let targetUrl = intent.url || intentUrl || 'https://www.youtube.com';
+      let cleanQ = query;
+      if (actionType === 'YOUTUBE_SEARCH') {
+        cleanQ = cleanSearchQuery(query || (typeof intent === 'object' && intent.query) || '');
+        if (!cleanQ || cleanQ.length < 2) cleanQ = 'হিন্দি গান';
+        targetUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(cleanQ)}`;
+      }
       if (!isElectron) {
         launchUrlInWindows(targetUrl);
       }
       let results = (typeof intent === 'object' && intent.results) ? intent.results : null;
-      if (!results && query && (actionType === 'YOUTUBE_SEARCH' || (typeof intent === 'object' && intent.appName === 'youtube') || targetUrl.includes('youtube.com'))) {
+      if (!results && cleanQ && (actionType === 'YOUTUBE_SEARCH' || (typeof intent === 'object' && intent.appName === 'youtube') || targetUrl.includes('youtube.com'))) {
         try {
-          results = await fetchYouTubeSearchResults(query);
+          results = await fetchYouTubeSearchResults(cleanQ);
         } catch (err) {
           console.warn('[YouTube Search Scrape Failed]:', err.message);
         }
       }
       return {
-        message: presetReply || intent.reply || `TRIDIP স্যার, ব্রাউজারে ${targetUrl} ওপেন করা হয়েছে!`,
+        message: presetReply || intent.reply || `TRIDIP স্যার, ব্রাউজারে ইউটিউবে '${cleanQ}' সার্চ করে ওপেন করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`,
         url: targetUrl,
         results: results || null,
-        query: query
+        query: cleanQ
       };
     }
 
@@ -1345,9 +1377,10 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
 
         let response = null;
 
-        // If specific actions like GREETING, CAPABILITIES, WEATHER, SAVE_NOTE, VOLUME, APP OPEN, or YOUTUBE happened:
+        // If specific actions like HOME_SCREEN, GREETING, CAPABILITIES, WEATHER, SAVE_NOTE, VOLUME, APP OPEN, or YOUTUBE happened:
         // Prioritize the clean, spoken confirmation message as the reply!
         if (actionMsg && (
+          intent.type === 'HOME_SCREEN' ||
           intent.type === 'GREETING' ||
           intent.type === 'CAPABILITIES' ||
           intent.type === 'WEATHER' ||
