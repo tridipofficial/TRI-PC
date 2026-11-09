@@ -85,33 +85,20 @@ function generateNeuralAudio(text, emotion = 'warm') {
       return;
     }
 
-    // Run Python neural_tts.py
+    // Run Python neural_tts.py using UTF-8 temporary file to guarantee 100% clean encoding on Windows
     const pyScript = path.join(__dirname, 'neural_tts.py');
-    let args = [];
-    let tempFile = null;
+    const tempFile = path.join(AUDIO_CACHE_DIR, `temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.txt`);
+    fs.writeFileSync(tempFile, spokenText, 'utf8');
 
-    // Use temporary UTF-8 file for longer text to avoid Windows CLI length & encoding limits
-    if (spokenText.length > 120) {
-      tempFile = path.join(AUDIO_CACHE_DIR, `temp_${Date.now()}_${Math.random().toString(36).substring(2, 6)}.txt`);
-      fs.writeFileSync(tempFile, spokenText, 'utf8');
-      args = [
-        pyScript,
-        '--file', tempFile,
-        '--output', audioFilePath,
-        '--rate', rate,
-        '--pitch', pitch
-      ];
-    } else {
-      args = [
-        pyScript,
-        '--text', spokenText,
-        '--output', audioFilePath,
-        '--rate', rate,
-        '--pitch', pitch
-      ];
-    }
+    const args = [
+      pyScript,
+      '--file', tempFile,
+      '--output', audioFilePath,
+      '--rate', rate,
+      '--pitch', pitch
+    ];
 
-    const child = spawn('python', args, { timeout: 35000 });
+    const child = spawn('python', args, { timeout: 15000 });
 
     const cleanup = () => {
       if (tempFile && fs.existsSync(tempFile)) {
@@ -1586,7 +1573,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'হ্যালো, YouTube, Google, Facebook, ব্রাউজার, গুগল, ইউটিউব, হোম স্ক্রিনে ফিরে আসো, মেইন স্ক্রিনে ফিরে আসো, ক্রিকেট স্কোর, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, কি খবর। Browser, Google, YouTube, Home screen, cricket score.');
+        formData.append('prompt', 'হ্যালো, YouTube, Google, Facebook, ব্রাউজার, গুগল, ইউটিউব, হোম স্ক্রিনে ফিরে আসো, হোম স্ক্রিনে ফিরে যাও, ড্যাশবোর্ডে ফিরে যাও, ড্যাশবোর্ডে ফিরে আসো, ড্যাশবোর্ড, মেইন স্ক্রিনে ফিরে যাও, মেইন স্ক্রিনে ফিরে আসো, ক্রিকেট স্কোর, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, ভলিউম বাড়াও, ভলিউম কমাও, মিউট করো, কি খবর। Browser, Google, YouTube, Home screen, Dashboard, cricket score.');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();

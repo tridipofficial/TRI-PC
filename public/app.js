@@ -867,10 +867,10 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (this.speechDetected && rms < silenceThreshold) {
             this.speechFramesCount = 0;
             if (!this.silenceTimer) {
-              // 900ms natural pause: Waits for TRIDIP Sir to finish speaking
+              // 520ms snappy natural pause: Immediately processes TRIDIP Sir's voice as soon as he finishes speaking
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone);
-              }, 900);
+              }, 520);
             }
           }
         };
@@ -942,10 +942,11 @@ document.addEventListener('DOMContentLoaded', () => {
         this.mediaStream = null;
       }
 
-      const inputSampleRate = this.audioCtx ? this.audioCtx.sampleRate : 16000;
-      if (this.audioCtx && this.audioCtx.state !== 'closed') {
-        try { await this.audioCtx.close(); } catch (e) {}
-        this.audioCtx = null;
+      const currentCtx = this.audioCtx;
+      const inputSampleRate = currentCtx ? currentCtx.sampleRate : 16000;
+      this.audioCtx = null;
+      if (currentCtx && currentCtx.state !== 'closed') {
+        currentCtx.close().catch(() => {});
       }
 
       // Merge Float32 chunks & calculate maxPeak safely
@@ -1399,12 +1400,12 @@ document.addEventListener('DOMContentLoaded', () => {
               btnStopVoice.style.display = 'none';
             }
             if (isHandsFreeMode) {
-        setTimeout(() => {
-          if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
-            startListeningLoop();
-          }
-        }, 1000);
-      }
+              setTimeout(() => {
+                if (isHandsFreeMode && !window.triAIIsSpeaking && !isListening) {
+                  startListeningLoop();
+                }
+              }, 350);
+            }
           };
           globalAudio.onerror = () => {
             window.triAIIsSpeaking = false;
