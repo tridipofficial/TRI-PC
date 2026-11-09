@@ -610,7 +610,7 @@ function normalizeBanglishToBengali(raw) {
   // PDF mishearing when followed by song
   s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
   // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
-  s = s.replace(/(^|[\s\p{P}])(ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+  s = s.replace(/(^|[\s\p{P}])(হিংদি\s*গান|হিংদি|ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
   s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান|বাংলাগান|বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
   s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
   s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
@@ -1573,7 +1573,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         formData.append('file', blob, fileName);
         formData.append('model', 'whisper-large-v3');
         formData.append('language', 'bn');
-        formData.append('prompt', 'হ্যালো, YouTube, Google, Facebook, ব্রাউজার, গুগল, ইউটিউব, হোম স্ক্রিনে ফিরে আসো, হোম স্ক্রিনে ফিরে যাও, ড্যাশবোর্ডে ফিরে যাও, ড্যাশবোর্ডে ফিরে আসো, ড্যাশবোর্ড, মেইন স্ক্রিনে ফিরে যাও, মেইন স্ক্রিনে ফিরে আসো, ক্রিকেট স্কোর, বাংলা গান, হিন্দি গান, গান, সার্চ করো, ওপেন করো, খোলো, আবহাওয়া, ক্যালকুলেটর, নোটপ্যাড, ক্যামেরা, ভলিউম বাড়াও, ভলিউম কমাও, মিউট করো, কি খবর। Browser, Google, YouTube, Home screen, Dashboard, cricket score.');
+        formData.append('prompt', 'হ্যালো, YouTube, Google, ব্রাউজার, হোম স্ক্রিনে ফিরে যাও, ড্যাশবোর্ড, ক্রিকেট স্কোর, গান, সার্চ করো, ওপেন করো।');
         formData.append('temperature', '0.0');
 
         const t0 = Date.now();
@@ -1585,14 +1585,31 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           body: formData
         });
 
+        let groqData = null;
         if (!groqRes.ok) {
           const errText = await groqRes.text();
-          console.error('Groq Whisper error:', errText);
-          res.writeHead(groqRes.status, { 'Content-Type': 'application/json' });
-          return res.end(JSON.stringify({ error: 'Groq Whisper error', details: errText }));
+          console.warn('Groq Whisper primary error, retrying with clean fallback:', errText);
+          const retryFormData = new FormData();
+          const retryBlob = new Blob([audioBuffer], { type: mimeType });
+          retryFormData.append('file', retryBlob, fileName);
+          retryFormData.append('model', 'whisper-large-v3');
+          retryFormData.append('language', 'bn');
+          const retryRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${groqKey}` },
+            body: retryFormData
+          });
+          if (retryRes.ok) {
+            groqData = await retryRes.json();
+          } else {
+            const retryErr = await retryRes.text();
+            console.error('Groq Whisper retry error:', retryErr);
+            res.writeHead(retryRes.status, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Groq Whisper error', details: retryErr }));
+          }
+        } else {
+          groqData = await groqRes.json();
         }
-
-        const groqData = await groqRes.json();
         let text = (groqData.text || '').trim();
         // Remove common silent/noise hallucinations
         const lower = text.toLowerCase();

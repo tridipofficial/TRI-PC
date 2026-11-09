@@ -277,7 +277,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // PDF mishearing when followed by song
     s = s.replace(/(^|[\s\p{P}])(পিডিএফ|পি\s*ডি\s*এফ)(?=\s*(?:বাংলা|হিন্দি)?\s*গান)/gui, '$1YouTube');
     // Song phonetic variants & Whisper mishearings (হিন্দি গাম -> হিন্দি গান)
-    s = s.replace(/(^|[\s\p{P}])(ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
+    s = s.replace(/(^|[\s\p{P}])(হিংদি\s*গান|হিংদি|ইন্দিগান|ইন্দি\s*গান|হিন্দি\s*গাম|হিন্দি\s*গম|হিন্দি\s*সংগ|হিন্দি\s*সাংগ|হিন্দি\s*সন্স|হিন্দি\s*সংশ|হিন্দি\s*সং|হিন্দিগান)(?=[\s\p{P}]|$)/gui, '$1হিন্দি গান');
     s = s.replace(/(^|[\s\p{P}])(বাংগলগান|বাংগলা\s*গান|বাঙলা\s*গান|বাংলাগান|বাংলা\s*গাম|বাংলা\s*গম|বাংলা\s*সংগ|বাংলা\s*সাংগ|বাংলা\s*সন্স|বাংলা\s*সং)(?=[\s\p{P}]|$)/gui, '$1বাংলা গান');
     s = s.replace(/(^|[\s\p{P}])(সংগ|সং|সাংগ|সাং|গানস|গান্স|সঙ্গিত|সংগীত)(?=[\s\p{P}]|$)/gui, '$1গান');
     s = s.replace(/(^|[\s\p{P}])(সারচ|সরচ|সর্চ|সার্স|সরস|সাচ)(?=[\s\p{P}]|$)/gui, '$1সার্চ');
@@ -867,10 +867,10 @@ document.addEventListener('DOMContentLoaded', () => {
           } else if (this.speechDetected && rms < silenceThreshold) {
             this.speechFramesCount = 0;
             if (!this.silenceTimer) {
-              // 520ms snappy natural pause: Immediately processes TRIDIP Sir's voice as soon as he finishes speaking
+              // 650ms natural pause: Snappy response without cutting off mid-sentence
               this.silenceTimer = setTimeout(() => {
                 this.stopAndProcess(this.onSpeechDone);
-              }, 520);
+              }, 650);
             }
           }
         };
@@ -1376,6 +1376,15 @@ document.addEventListener('DOMContentLoaded', () => {
       btnStopVoice.style.display = 'inline-flex';
     }
 
+    // Safety watchdog: Guarantees speech state never hangs the mic
+    const safetyWatchdog = setTimeout(() => {
+      if (sessionId === currentAudioSession && window.triAIIsSpeaking) {
+        console.warn('[Voice Safety Watchdog]: Speech session timed out, releasing mic lock.');
+        stopAllSpeech();
+        if (isHandsFreeMode) startListeningLoop();
+      }
+    }, 15000);
+
     const emotion = detectEmotion(rawText);
 
     try {
@@ -1389,11 +1398,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (res.ok) {
         const data = await res.json();
         // Discard if user clicked stop or new message arrived
-        if (sessionId !== currentAudioSession) return;
+        if (sessionId !== currentAudioSession) {
+          clearTimeout(safetyWatchdog);
+          return;
+        }
 
         if (data.success && data.audioUrl) {
           globalAudio.src = data.audioUrl;
           globalAudio.onended = () => {
+            clearTimeout(safetyWatchdog);
             window.triAIIsSpeaking = false;
             btnMic.classList.remove('speaking');
             if (sessionId === currentAudioSession && btnStopVoice) {
@@ -1408,6 +1421,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
           };
           globalAudio.onerror = () => {
+            clearTimeout(safetyWatchdog);
             window.triAIIsSpeaking = false;
             btnMic.classList.remove('speaking');
             if (sessionId === currentAudioSession) {
@@ -1422,6 +1436,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.warn('Server Neural TTS request error, falling back to browser voice:', e);
     }
 
+    clearTimeout(safetyWatchdog);
     // 2. Resilient Fallback to browser Web Speech API
     if (sessionId === currentAudioSession) {
       fallbackBrowserTTS(rawText, emotion, sessionId);
@@ -1429,7 +1444,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function fallbackBrowserTTS(text, emotion, sessionId) {
-    if (!window.speechSynthesis || sessionId !== currentAudioSession) {
+    if (isElectronApp || !window.speechSynthesis || sessionId !== currentAudioSession) {
       if (btnStopVoice) btnStopVoice.style.display = 'none';
       window.triAIIsSpeaking = false;
       btnMic.classList.remove('speaking');
