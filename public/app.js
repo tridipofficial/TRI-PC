@@ -444,6 +444,14 @@ document.addEventListener('DOMContentLoaded', () => {
             if (chatStream) {
               chatStream.scrollTop = chatStream.scrollHeight;
             }
+          } else if (data.action.type === 'YOUTUBE_PLAY_INDEX') {
+            if (window.electronAPI && window.electronAPI.clickYouTubeIndex) {
+              window.electronAPI.clickYouTubeIndex(data.action.index, data.action.url);
+            } else if (window.electronAPI && window.electronAPI.openSystem) {
+              window.electronAPI.openSystem(data.action.url);
+            } else {
+              try { window.open(data.action.url, '_blank'); } catch (e) {}
+            }
           } else if (data.action.url) {
             if (window.electronAPI && window.electronAPI.openSystem) {
               window.electronAPI.openSystem(data.action.url);

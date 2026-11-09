@@ -85,17 +85,17 @@ ipcMain.handle('system-open', async (event, targetUrl) => {
       const desktopYtLnk = path.join(os.homedir(), 'Desktop', 'YouTube.lnk');
       const chromeExe = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
 
-      // 1. YouTube PWA / Signed-In Desktop App Priority
+      // 1. YouTube Standalone PWA App Mode Priority (No browser address bar, tabs, or menus)
       if (isYouTube) {
-        if ((targetUrl === 'https://www.youtube.com' || targetUrl === 'https://www.youtube.com/') && fs.existsSync(desktopYtLnk)) {
-          await execPromise(`start "" "${desktopYtLnk}"`);
-          return { success: true, url: targetUrl, method: 'desktop_yt_pwa' };
-        }
         if (fs.existsSync(chromeExe)) {
           try {
-            await execPromise(`start "" "${chromeExe}" "${targetUrl}"`);
-            return { success: true, url: targetUrl, method: 'chrome_profile_6' };
-          } catch (eProfile) {}
+            await execPromise(`start "" "${chromeExe}" --profile-directory="Profile 6" --remote-debugging-port=9222 --app="${targetUrl}"`);
+            return { success: true, url: targetUrl, method: 'chrome_pwa_app' };
+          } catch (eApp) {}
+        }
+        if ((targetUrl === 'https://www.youtube.com' || targetUrl === 'https://www.youtube.com/') && fs.existsSync(desktopYtLnk)) {
+          await execPromise(`start "" "${desktopYtLnk}"`);
+          return { success: true, url: targetUrl, method: 'desktop_yt_pwa_lnk' };
         }
       }
 
@@ -129,6 +129,55 @@ ipcMain.handle('desktop-open-application', async (event, { appName, appCmd }) =>
     return { success: true, command: cmd };
   } catch (err) {
     console.error('[Desktop Manager Error]:', err.message);
+    return { success: false, error: err.message };
+  }
+});
+
+// YouTube In-App Video Selection & Live Click Handler
+ipcMain.handle('desktop-youtube-click-index', async (event, { index, url }) => {
+  try {
+    const fs = require('fs');
+    const chromeExe = 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe';
+    let clickedLive = false;
+
+    // 1. Attempt live CDP DOM click on the visible YouTube card
+    try {
+      const puppeteer = require('puppeteer-core');
+      const browser = await puppeteer.connect({
+        browserURL: 'http://127.0.0.1:9222',
+        defaultViewport: null
+      });
+      const pages = await browser.pages();
+      const ytPage = pages.find(p => p.url().includes('youtube.com'));
+      if (ytPage) {
+        await ytPage.bringToFront();
+        const res = await ytPage.evaluate((targetIdx) => {
+          const links = Array.from(document.querySelectorAll('ytd-video-renderer a#video-title'));
+          if (links && links[targetIdx - 1]) {
+            links[targetIdx - 1].scrollIntoView({ behavior: 'smooth', block: 'center' });
+            links[targetIdx - 1].click();
+            return true;
+          }
+          return false;
+        }, index);
+        clickedLive = !!res;
+        browser.disconnect();
+      }
+    } catch (eCdp) {
+      // CDP not connected, proceed to direct app navigation
+    }
+
+    // 2. Direct standalone YouTube App navigation fallback
+    if (!clickedLive && url) {
+      if (fs.existsSync(chromeExe)) {
+        await execPromise(`start "" "${chromeExe}" --profile-directory="Profile 6" --remote-debugging-port=9222 --app="${url}"`);
+      } else {
+        await execPromise(`start "" "${url}"`);
+      }
+    }
+    return { success: true, index, url, clickedLive };
+  } catch (err) {
+    console.error('[desktop-youtube-click-index error]:', err.message);
     return { success: false, error: err.message };
   }
 });

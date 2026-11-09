@@ -847,6 +847,10 @@ const fallbackHindiSongs = [
   }
 ];
 
+// Global YouTube search cache for instant video selection ("প্রথম গানটা বাজাও", "দ্বিতীয় ভিডিওতে ক্লিক করো")
+let lastYouTubeResults = fallbackHindiSongs;
+let lastYouTubeQuery = 'হিন্দি গান';
+
 // Real-time YouTube Search Scraper with multi-section scanning and instant fallback
 async function fetchYouTubeSearchResults(query) {
   if (!query) return [];
@@ -883,7 +887,11 @@ async function fetchYouTubeSearchResults(query) {
           }
           if (items.length >= 5) break;
         }
-        if (items.length > 0) return items;
+        if (items.length > 0) {
+          lastYouTubeResults = items;
+          lastYouTubeQuery = query;
+          return items;
+        }
       }
     }
   } catch (err) {
@@ -891,9 +899,10 @@ async function fetchYouTubeSearchResults(query) {
   }
 
   // Graceful curated fallback: Never leave TRIDIP Sir with an empty list
-  if (query.includes('বাংলা') || query.includes('bangla')) return fallbackBanglaSongs;
-  if (query.includes('হিন্দি') || query.includes('hindi')) return fallbackHindiSongs;
-  return fallbackBanglaSongs;
+  const fallbackList = (query.includes('বাংলা') || query.includes('bangla')) ? fallbackBanglaSongs : fallbackHindiSongs;
+  lastYouTubeResults = fallbackList;
+  lastYouTubeQuery = query;
+  return fallbackList;
 }
 
 function cleanSearchQuery(q) {
@@ -984,7 +993,48 @@ function detectIntentAction(prompt) {
   // Common Action Verbs (Bengali + English + Banglish)
   const isActionVerb = /(?:খোলো|খুল|খুলো|কোলো|কুলো|ওপেন|ওপিন|উপিন|চালু|চালাও|চালা|বাজাও|বাজা|শোনাও|শোনা|ছাড়ো|দেখান|দেখাও|যাও|অন|সার্চ|সারচ|সরচ|সর্চ|সার্স|খোঁজো|খোজো|খুঁজে\s*দাও|open|launch|start|play|kholo|chalu|khol|bajao|shonao|run|search)/ui.test(norm);
 
-  // 1. YouTube & Music Intent (Excludes pure informational questions)
+  // 1. YouTube Video Index Selection / Click Intent ("প্রথম ভিডিওতে ক্লিক করো", "২ নম্বর গানটা বাজাও", "প্রথম গানটা ভালো লাগছে ওইটা সিলেক্ট করো")
+  const isVideoSelectWord = /(?:ভিডিও|ভিডিওটা|ভিডিওতে|ভিডিওটি|গান|গানটা|গানে|গানটি|রেজাল্ট|রেজাল্টটা|item|video|song)/ui.test(norm);
+  const isVideoActionWord = /(?:ক্লিক|বাজাও|চালাও|প্লে|ওপেন|খোলো|খুলো|সিলেক্ট|পছন্দ|ভালো\s*লাগছে|click|play|open|select)/ui.test(norm);
+  const isIndexWord = /(?:প্রথম|প্রমথ|১ম|১\s*নম্বর|এক\s*নম্বর|ফার্স্ট|first|দ্বিতীয়|দ্বিতীয়|দ্বিতিয়|২য়|২\s*নম্বর|দুই\s*নম্বর|সেকেন্ড|second|তৃতীয়|তৃতীয়|তৃতিয়|৩য়|৩\s*নম্বর|তিন\s*নম্বর|থার্ড|third|চতুর্থ|৪র্থ|৪\s*নম্বর|চার\s*নম্বর|ফোর্থ|fourth|পঞ্চম|৫ম|৫\s*নম্বর|পাঁচ\s*নম্বর|ফিফথ|fifth)/ui.test(norm);
+
+  if (isIndexWord && (isVideoSelectWord || isVideoActionWord)) {
+    let targetIndex = 1;
+    let ordinalBengali = 'প্রথম';
+    if (/(?:দ্বিতীয়|দ্বিতীয়|দ্বিতিয়|২য়|২\s*নম্বর|দুই\s*নম্বর|সেকেন্ড|second)/ui.test(norm)) {
+      targetIndex = 2;
+      ordinalBengali = 'দ্বিতীয়';
+    } else if (/(?:তৃতীয়|তৃতীয়|তৃতিয়|৩য়|৩\s*নম্বর|তিন\s*নম্বর|থার্ড|third)/ui.test(norm)) {
+      targetIndex = 3;
+      ordinalBengali = 'তৃতীয়';
+    } else if (/(?:চতুর্থ|৪র্থ|৪\s*নম্বর|চার\s*নম্বর|ফোর্থ|fourth)/ui.test(norm)) {
+      targetIndex = 4;
+      ordinalBengali = 'চতুর্থ';
+    } else if (/(?:পঞ্চম|৫ম|৫\s*নম্বর|পাঁচ\s*নম্বর|ফিফথ|fifth)/ui.test(norm)) {
+      targetIndex = 5;
+      ordinalBengali = 'পঞ্চম';
+    }
+
+    let targetVideo = (lastYouTubeResults && lastYouTubeResults[targetIndex - 1]) ? lastYouTubeResults[targetIndex - 1] : null;
+    if (!targetVideo) {
+      const fallbackList = (lastYouTubeQuery && lastYouTubeQuery.includes('হিন্দি')) ? fallbackHindiSongs : fallbackBanglaSongs;
+      targetVideo = fallbackList[targetIndex - 1] || fallbackList[0];
+    }
+
+    const videoUrl = targetVideo?.url || `https://www.youtube.com/watch?v=${targetVideo?.videoId || ''}`;
+    const videoTitle = targetVideo?.title || `${ordinalBengali} ভিডিও`;
+
+    return {
+      type: 'YOUTUBE_PLAY_INDEX',
+      index: targetIndex,
+      appName: 'youtube',
+      query: videoTitle,
+      url: videoUrl,
+      reply: `TRIDIP স্যার, YouTube অ্যাপে আপনার পছন্দের ${ordinalBengali} গান '${videoTitle}' নির্বাচন করে চালু করা হয়েছে।`
+    };
+  }
+
+  // 1.5. YouTube & Music Intent (Excludes pure informational questions)
   const isYt = /(?:^|[\s\p{P}])(?:ইউটিউবে|ইউটিউব-এ|YouTube-এ|ইউটিউবটা|ইউটিউব|ইউটুব|ইউটুপ|ইউটু্ব|ইউতু্ব|ইউটিব|উটিউব|যোট্যুপ|যোটুপ|ইয়ায়োটুপ|ইয়ায়োটুপ|যুট্যুবে|যুট্যুব|চোচুব|য়চুুব|ঘোটপ|ঘোটোপ|ঘোট্রপ|ঘোট্রোপ|জটপ|জোটপ|জটটপ|যোটপ|যোটোপ|যুটপ|যুটোপ|জটোপ|জোটোপ|youtube|\byt\b)(?=[\s\p{P}]|$)/ui.test(norm);
   const isSongOrMusic = /(?:^|[\s\p{P}])(?:গান|গানস|সঙ্গীত|সংগীত|ভিডিও|মিউজিক|গজল|সুর|নজরুলগীতি|রবীন্দ্রসঙ্গীত|রবীন্দ্রসংগীত|song|songs|music|video)(?=[\s\p{P}]|$)/ui.test(norm);
   const isQuestion = /(?:\?|কীভাবে|কিভাবে|কেন|কী\s*জন্য|কি\s*জন্য|কে|কারা|কাকে|কোথায়|কখন|রচিয়তা|রচিয়তা|ইতিহাস|ব্যাখ্যা\s*করো|who|why|where|when)/ui.test(norm);
@@ -1000,14 +1050,14 @@ function detectIntentAction(prompt) {
         appName: 'youtube',
         query: query,
         url: searchUrl,
-        reply: `TRIDIP স্যার, ব্রাউজারে ইউটিউবে '${query}' সার্চ করে ওপেন করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`
+        reply: `TRIDIP স্যার, YouTube অ্যাপে '${query}' সার্চ করে ওপেন করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`
       };
     }
     return {
       type: 'YOUTUBE_OPEN',
       appName: 'youtube',
       url: 'https://www.youtube.com',
-      reply: 'TRIDIP স্যার, YouTube ওপেন করা হয়েছে।'
+      reply: 'TRIDIP স্যার, YouTube অ্যাপ ওপেন করা হয়েছে।'
     };
   }
 
@@ -1250,6 +1300,21 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
       };
     }
 
+    // 3.5. YouTube Specific Video Index Selection & Direct Play
+    if (actionType === 'YOUTUBE_PLAY_INDEX') {
+      const targetUrl = intent.url || 'https://www.youtube.com';
+      if (!isElectron) {
+        launchUrlInWindows(targetUrl);
+      }
+      return {
+        message: presetReply || intent.reply,
+        url: targetUrl,
+        index: intent.index || 1,
+        query: intent.query || 'YouTube Video',
+        appName: 'youtube'
+      };
+    }
+
     // 4. Universal Web & URL Opener & YouTube Search
     if (actionType === 'YOUTUBE_SEARCH' || actionType === 'OPEN_URL' || actionType === 'OPEN_YOUTUBE' || actionType === 'OPEN_GOOGLE') {
       let targetUrl = intent.url || intentUrl || 'https://www.youtube.com';
@@ -1271,7 +1336,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
         }
       }
       return {
-        message: presetReply || intent.reply || `TRIDIP স্যার, ব্রাউজারে ইউটিউবে '${cleanQ}' সার্চ করে ওপেন করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`,
+        message: presetReply || intent.reply || `TRIDIP স্যার, YouTube অ্যাপে '${cleanQ}' সার্চ করে ওপেন করা হয়েছে এবং সেরা ভিডিওগুলো নিচে দেওয়া হয়েছে।`,
         url: targetUrl,
         results: results || null,
         query: cleanQ
@@ -1367,6 +1432,7 @@ async function executeSafePCAction(intent, fallbackQuery = '', isElectron = fals
           actionMsg = actRes?.message || intent.reply || null;
           executedAction = {
             type: intent.type,
+            index: actRes?.index || intent.index || null,
             message: actionMsg,
             url: actRes?.url || intent.url || null,
             appName: actRes?.appName || intent.appName || null,
